@@ -1,4 +1,4 @@
-package org.example.chingoohaja;
+package com.ldsilver.chingoohaja;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
