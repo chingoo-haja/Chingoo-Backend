@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # 로컬 개발에서만 사용할 MySQL
+  mysql-local:
+    image: mysql:8.0
+    container_name: chingoo-mysql-local
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "${MYSQL_PORT}:3306"
+    volumes:
+      - mysql_local_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    networks:
+      - chingoo-local-network
+
+  # Redis는 모든 환경에서 로컬 사용
+  redis:
+    image: redis:7-alpine
+    container_name: chingoo-redis
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    networks:
+      - chingoo-local-network
+
+  # Redis 관리 UI (선택사항)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: chingoo-redis-commander
+    ports:
+      - "${REDIS_COMMANDER_PORT}:8081"
+    environment:
+      REDIS_HOSTS: local:redis:6379:0:${REDIS_PASSWORD}
+    depends_on:
+      - redis
+    networks:
+      - chingoo-local-network
+
+volumes:
+  mysql_local_data:
+  redis_data:
+
+networks:
+  chingoo-local-network:
+    driver: bridge
