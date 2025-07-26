@@ -49,5 +49,5 @@ volumes:
   redis_data:
 
 networks:
-  voicecall-local-network:
+  chingoo-local-network:
     driver: bridge
