@@ -3,6 +3,8 @@ package com.ldsilver.chingoohaja.domain.category;
 import com.ldsilver.chingoohaja.domain.category.enums.CategoryType;
 import com.ldsilver.chingoohaja.domain.common.BaseEntity;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,10 +19,12 @@ public class Category extends BaseEntity {
     private Long id;
 
     @Column(nullable = false)
+    @NotBlank
+    @Size(min = 1, max = 100)
     private String name;
 
     @Column(nullable = false)
-    private Boolean isActive;
+    private boolean isActive;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
