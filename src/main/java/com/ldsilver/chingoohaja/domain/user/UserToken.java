@@ -2,6 +2,7 @@ package com.ldsilver.chingoohaja.domain.user;
 
 import com.ldsilver.chingoohaja.domain.common.BaseEntity;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Future;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -25,6 +26,7 @@ public class UserToken extends BaseEntity {
     private String refreshToken;
 
     @Column(nullable = false)
+    @Future()
     private LocalDateTime expiresAt;
 
     private String deviceInfo;
@@ -48,7 +50,4 @@ public class UserToken extends BaseEntity {
         return userToken;
     }
 
-    public static UserToken from (User user) {
-        return of(user, null, null, null, true);
-    }
 }

@@ -4,6 +4,9 @@ import com.ldsilver.chingoohaja.domain.common.BaseEntity;
 import com.ldsilver.chingoohaja.domain.user.enums.Gender;
 import com.ldsilver.chingoohaja.domain.user.enums.UserType;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.time.LocalDate;
@@ -19,9 +22,13 @@ public class User extends BaseEntity {
     private Long id;
 
     @Column(nullable = false, unique = true)
+    @Email()
+    @NotBlank
     private String email;
 
     @Column(nullable = false,unique = true)
+    @NotBlank
+    @Size(min = 1, max = 100)
     private String nickname;
 
     @Column(nullable = false)

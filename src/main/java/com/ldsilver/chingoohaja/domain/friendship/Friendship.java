@@ -26,7 +26,6 @@ public class Friendship extends BaseEntity {
     private User addressee;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private FriendshipStatus friendshipStatus;
 
     public static Friendship of(User requester, User addressee, FriendshipStatus friendshipStatus) {
