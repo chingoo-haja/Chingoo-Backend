@@ -34,11 +34,11 @@ public enum ErrorCode {
     QUEUE_EXPIRED(HttpStatus.BAD_REQUEST, "M004", "매칭 대기열이 만료되었습니다."),
 
     // 통화 관련 에러
-    CALL_NOT_FOUND(HttpStatus.NOT_FOUND, "C001", "통화 정보를 찾을 수 없습니다."),
-    CALL_ALREADY_STARTED(HttpStatus.CONFLICT, "C002", "이미 시작된 통화입니다."),
-    CALL_ALREADY_ENDED(HttpStatus.CONFLICT, "C003", "이미 종료된 통화입니다."),
-    CALL_NOT_PARTICIPANT(HttpStatus.FORBIDDEN, "C004", "통화 참가자가 아닙니다."),
-    CALL_SESSION_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C005", "통화 세션 생성에 실패했습니다."),
+    CALL_NOT_FOUND(HttpStatus.NOT_FOUND, "L001", "통화 정보를 찾을 수 없습니다."),
+    CALL_ALREADY_STARTED(HttpStatus.CONFLICT, "L002", "이미 시작된 통화입니다."),
+    CALL_ALREADY_ENDED(HttpStatus.CONFLICT, "L003", "이미 종료된 통화입니다."),
+    CALL_NOT_PARTICIPANT(HttpStatus.FORBIDDEN, "L004", "통화 참가자가 아닙니다."),
+    CALL_SESSION_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "L005", "통화 세션 생성에 실패했습니다."),
 
     // 카테고리 관련 에러
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "T001", "카테고리를 찾을 수 없습니다."),
