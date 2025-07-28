@@ -1,4 +1,4 @@
-package com.ldsilver.chingoohaja.dto.response;
+package com.ldsilver.chingoohaja.dto.common;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
