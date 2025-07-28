@@ -83,17 +83,12 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     protected ResponseEntity<ErrorResponse> handleException(Exception e) {
-        log.error("Exception: {}", e.getMessage(), e);
-        final ErrorResponse response = ErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR);
-        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+        if (e instanceof RuntimeException) {
+            log.error("Unhandled RuntimeException: {}", e.getMessage(), e);
+        } else {
+            log.error("Unhandled CheckedException: {}", e.getMessage(), e);
+        }
 
-    /**
-     * 런타임 예외 처리
-     */
-    @ExceptionHandler(RuntimeException.class)
-    protected ResponseEntity<ErrorResponse> handleRuntimeException(RuntimeException e) {
-        log.error("RuntimeException: {}", e.getMessage(), e);
         final ErrorResponse response = ErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR);
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
