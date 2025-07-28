@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -18,11 +19,13 @@ public interface UserTokenRepository extends JpaRepository<UserToken, Long> {
     List<UserToken> findByUserAndIsActiveTrueOrderByCreatedAtDesc(User user);
 
     // 사용자의 모든 토큰 비활성화
+    @Transactional
     @Modifying
     @Query("UPDATE UserToken ut SET ut.isActive = false WHERE ut.user = :user")
     void deactivateAllTokensByUser(@Param("user") User user);
 
     // 특정 토큰 비활성화
+    @Transactional
     @Modifying
     @Query("UPDATE UserToken ut SET ut.isActive = false WHERE ut.refreshToken = :refreshToken")
     void deactivateTokenByRefreshToken(@Param("refreshToken") String refreshToken);
