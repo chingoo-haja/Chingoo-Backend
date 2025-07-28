@@ -21,7 +21,7 @@ public class GlobalExceptionHandler {
      * 비즈니스 로직 예외 처리
      */
     @ExceptionHandler(CustomException.class)
-    protected ResponseEntity<ErrorResponse> handleBaseException(CustomException e) {
+    protected ResponseEntity<ErrorResponse> handleCustomException(CustomException e) {
         log.error("CustomException: {}", e.getMessage(), e);
         final ErrorCode errorCode = e.getErrorCode();
         final ErrorResponse response = ErrorResponse.of(errorCode);
