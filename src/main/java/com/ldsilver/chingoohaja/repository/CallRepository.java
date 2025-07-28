@@ -28,15 +28,17 @@ public interface CallRepository extends JpaRepository<Call, Long> {
     Page<Call> findByUser(@Param("user") User user, Pageable pageable);
 
     // 특정 기간 통화 통계
-    @Query("SELECT COUNT(c) FROM Call c WHERE c.callStatus = 'COMPLETED' " +
+    @Query("SELECT COUNT(c) FROM Call c WHERE c.callStatus = :status " +
             "AND c.createdAt BETWEEN :startDate AND :endDate")
     long countCompletedCallsBetween(@Param("startDate") LocalDateTime startDate,
-                                    @Param("endDate") LocalDateTime endDate);
+                                    @Param("endDate") LocalDateTime endDate,
+                                    @Param("status") CallStatus status);
 
     // 사용자별 통화 통계
     @Query("SELECT COUNT(c) FROM Call c WHERE (c.user1 = :user OR c.user2 = :user) " +
-            "AND c.callStatus = 'COMPLETED'")
-    long countCompletedCallsByUser(@Param("user") User user);
+            "AND c.callStatus = :status")
+    long countCompletedCallsByUser(@Param("user") User user,
+                                   @Param("status") CallStatus status);
 
     // 사용자별 총 통화 시간
     @Query("SELECT COALESCE(SUM(c.durationSeconds), 0) FROM Call c " +
