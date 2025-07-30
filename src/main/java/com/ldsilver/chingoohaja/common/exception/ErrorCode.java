@@ -33,7 +33,7 @@ public enum ErrorCode {
     NICKNAME_NOUNS_EMPTY(HttpStatus.INTERNAL_SERVER_ERROR, "N003", "명사 목록이 비어있습니다."),
     NICKNAME_RESOURCE_LOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "N004", "닉네임 리소스 파일 로드에 실패했습니다."),
     NICKNAME_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "N005", "닉네임 생성에 실패했습니다."),
-    NICKNAME_ALL_COMBINATIONS_EXHAUSTED(HttpStatus.INTERNAL_SERVER_ERROR, "N006", "사용 가능한 모든 닉네임 조합이 소진되었습니다."),
+    NICKNAME_ALL_COMBINATIONS_EXHAUSTED(HttpStatus.SERVICE_UNAVAILABLE, "N006", "사용 가능한 모든 닉네임 조합이 소진되었습니다."),
 
 
     // 매칭 관련 에러
