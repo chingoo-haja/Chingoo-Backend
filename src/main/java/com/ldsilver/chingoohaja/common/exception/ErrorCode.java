@@ -27,6 +27,15 @@ public enum ErrorCode {
     INVALID_USER_TYPE(HttpStatus.BAD_REQUEST, "U004", "유효하지 않은 사용자 타입입니다."),
     PROFILE_NOT_COMPLETED(HttpStatus.BAD_REQUEST, "U005", "프로필 정보가 완성되지 않았습니다."),
 
+    // 닉네임 관련 에러
+    NICKNAME_WORDS_NOT_LOADED(HttpStatus.INTERNAL_SERVER_ERROR, "N001", "닉네임 생성을 위한 단어가 로드되지 않았습니다."),
+    NICKNAME_ADJECTIVES_EMPTY(HttpStatus.INTERNAL_SERVER_ERROR, "N002", "형용사 목록이 비어있습니다."),
+    NICKNAME_NOUNS_EMPTY(HttpStatus.INTERNAL_SERVER_ERROR, "N003", "명사 목록이 비어있습니다."),
+    NICKNAME_RESOURCE_LOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "N004", "닉네임 리소스 파일 로드에 실패했습니다."),
+    NICKNAME_GENERATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "N005", "닉네임 생성에 실패했습니다."),
+    NICKNAME_ALL_COMBINATIONS_EXHAUSTED(HttpStatus.SERVICE_UNAVAILABLE, "N006", "사용 가능한 모든 닉네임 조합이 소진되었습니다."),
+
+
     // 매칭 관련 에러
     ALREADY_IN_QUEUE(HttpStatus.CONFLICT, "M001", "이미 매칭 대기열에 참가하고 있습니다."),
     QUEUE_NOT_FOUND(HttpStatus.NOT_FOUND, "M002", "매칭 대기열 정보를 찾을 수 없습니다."),
@@ -63,4 +72,8 @@ public enum ErrorCode {
     private final HttpStatus httpStatus;
     private final String code;
     private final String message;
+
+    public String formatMessage(Object... args) {
+        return String.format(this.message, args);
+    }
 }

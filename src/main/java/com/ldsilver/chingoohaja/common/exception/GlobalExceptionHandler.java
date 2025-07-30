@@ -1,6 +1,6 @@
 package com.ldsilver.chingoohaja.common.exception;
 
-import com.ldsilver.chingoohaja.dto.response.ErrorResponse;
+import com.ldsilver.chingoohaja.dto.common.ErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
