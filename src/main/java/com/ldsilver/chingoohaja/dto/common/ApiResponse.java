@@ -35,7 +35,7 @@ public class ApiResponse<T> {
         return new ApiResponse<>(null, message);
     }
 
-    public static <T> ApiResponse<T> ok(T data, String message) {
+    public static <T> ApiResponse<T> ok(String message, T data) {
         return new ApiResponse<>(data, message);
     }
 
