@@ -62,13 +62,10 @@ public class SecurityConfig {
     public SecurityFilterChain prodFilterChain(HttpSecurity http) throws Exception {
         http.authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers("/health").permitAll()
+                        .requestMatchers("api/v1/health").permitAll()
                         .anyRequest().authenticated()
                 )
-                .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/api/**")
-                        .disable()
-                )
+                .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 );
