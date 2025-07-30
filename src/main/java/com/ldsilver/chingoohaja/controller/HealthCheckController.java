@@ -3,6 +3,7 @@ package com.ldsilver.chingoohaja.controller;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,13 +24,17 @@ public class HealthCheckController {
     private final DataSource dataSource;
     private final RedisTemplate<String, Object> redisTemplate;
 
+    @Value("{application.version:1.0.0}")
+    private String applicationVersion;
+
     @GetMapping
     public ApiResponse<Map<String, Object>> healthCheck() {
         Map<String, Object> healthInfo = new HashMap<>();
-        healthInfo.put("status", "UP");
+        boolean isHealthy = checkBasicHealth();
+        healthInfo.put("status", isHealthy ? "UP" : "DOWN");
         healthInfo.put("timestamp", LocalDateTime.now());
         healthInfo.put("service", "chingoo-haja-backend");
-        healthInfo.put("version", "1.0.0");
+        healthInfo.put("version", applicationVersion);
 
         return ApiResponse.ok("서비스가 정상적으로 동작 중입니다.", healthInfo);
     }
@@ -49,11 +54,20 @@ public class HealthCheckController {
         healthInfo.put("redis", redisHealth);
 
         // 전체 상태 결정
-        boolean isHealthy = (boolean) dbHealth.get("healthy") && (boolean) redisHealth.get("healthy");
-        healthInfo.put("status", isHealthy ? "UP" : "DOWN");
+        Boolean dbHealthy = (Boolean) dbHealth.get("healthy");
+        Boolean redisHealthy = (Boolean) redisHealth.get("healthy");
+        boolean isHealthy = Boolean.TRUE.equals(dbHealthy) && Boolean.TRUE.equals(redisHealthy);        healthInfo.put("status", isHealthy ? "UP" : "DOWN");
         healthInfo.put("healthy", isHealthy);
 
         return ApiResponse.ok("상세 헬스체크 완료", healthInfo);
+    }
+
+    private boolean checkBasicHealth() {
+        try{
+            return dataSource.getConnection().isValid(1);
+        } catch(Exception e) {
+            return false;
+        }
     }
 
     private Map<String, Object> checkDatabaseHealth() {
