@@ -49,7 +49,7 @@ public class NicknameGenerator {
                     return baseNickname;
                 }
             } catch (Exception e) {
-                log.warn("기본 닉네임 생성 중 오류 발생 (시도 {}): {}", attempt + 1, e.getMessage());
+                log.warn("기본 닉네임 생성 중 오류 발생 (시도 {})", attempt + 1, e);
             }
         }
 
