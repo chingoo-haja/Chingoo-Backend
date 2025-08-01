@@ -94,6 +94,8 @@ public class JwtTokenProvider {
         try {
             Claims claims = getClaimsFromToken(token);
             return !claims.getExpiration().before(new Date());
+        } catch (CustomException e) {
+            throw e;
         } catch (Exception e) {
             log.debug("토큰 검증 실패: {}", e.getMessage());
             return false;
