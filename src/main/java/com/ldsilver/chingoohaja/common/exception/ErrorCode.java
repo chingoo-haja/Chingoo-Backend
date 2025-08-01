@@ -20,6 +20,15 @@ public enum ErrorCode {
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "A004", "만료된 토큰입니다."),
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "A005", "유효하지 않은 리프레시 토큰입니다."),
 
+    // JWT 관련 에러
+    JWT_INVALID(HttpStatus.UNAUTHORIZED, "J001", "유효하지 않은 JWT 토큰입니다."),
+    JWT_EXPIRED(HttpStatus.UNAUTHORIZED, "J002", "만료된 JWT 토큰입니다."),
+    JWT_MALFORMED(HttpStatus.UNAUTHORIZED, "J003", "잘못된 형식의 JWT 토큰입니다."),
+    JWT_SIGNATURE_INVALID(HttpStatus.UNAUTHORIZED, "J004", "JWT 토큰 서명이 유효하지 않습니다."),
+    JWT_UNSUPPORTED(HttpStatus.UNAUTHORIZED, "J005", "지원되지 않는 JWT 토큰입니다."),
+    JWT_CLAIMS_EMPTY(HttpStatus.UNAUTHORIZED, "J006", "JWT 토큰의 클레임이 비어있습니다."),
+    JWT_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "J007", "JWT 토큰을 찾을 수 없습니다."),
+
     // 사용자 관련 에러
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U001", "사용자를 찾을 수 없습니다."),
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "U002", "이미 사용 중인 이메일입니다."),
