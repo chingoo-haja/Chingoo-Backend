@@ -27,7 +27,7 @@ public class JwtTokenProvider {
     public void init() {
         byte[] keyBytes = jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8);
         this.secretKey = Keys.hmacShaKeyFor(keyBytes);
-        log.info("JWT TokenProvider 초기화 완료");
+        log.debug("JWT TokenProvider 초기화 완료");
     }
 
     public String generateAccessToken(Long userId, String email, String userType) {
@@ -146,6 +146,7 @@ public class JwtTokenProvider {
         Claims claims = getClaimsFromToken(token);
         Date expiration = claims.getExpiration();
         Date now = new Date();
-        return expiration.getTime() - now.getTime();
+        long timeUntilExpiration = expiration.getTime() - now.getTime();
+        return Math.max(0, timeUntilExpiration);
     }
 }
