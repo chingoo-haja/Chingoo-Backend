@@ -1,4 +1,4 @@
-package com.ldsilver.chingoohaja.dto.auth;
+package com.ldsilver.chingoohaja.dto.auth.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ldsilver.chingoohaja.validation.AuthValidationConstants;
