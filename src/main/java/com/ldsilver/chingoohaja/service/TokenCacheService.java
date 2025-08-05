@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -95,6 +96,40 @@ public class TokenCacheService {
             log.debug("사용자의 모든 토큰 캐시 삭제 완료 - userId: {}", userId);
         } catch (Exception e) {
             log.error("사용자 토큰 캐시 삭제 실패 - userId: {}", userId, e);
+        }
+    }
+
+    public void extendTokenExpiration(String refreshToken, Duration newExpiration) {
+        String key = REFRESH_TOKEN_PREFIX + refreshToken;
+
+        try {
+            if (Boolean.TRUE,equals(redisTemplate.hasKey(key))) {
+                redisTemplate.expire(key, newExpiration);
+                log.debug("토큰 만료 시간 연장 - token: {}, expiration: {}초", refreshToken, newExpiration.getSeconds());
+            }
+        } catch (Exception e) {
+            log.error("토큰 만료 시간 연장 실패 - token: {}", refreshToken, e);
+        }
+    }
+
+    public long getTokenTtl(String refreshToken) {
+        String key = REFRESH_TOKEN_PREFIX + refreshToken;
+
+        try {
+            return redisTemplate.getExpire(key, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.error("토큰 TTL 조회 실패 - token: {}", refreshToken, e);
+            return -1;
+        }
+    }
+
+    public boolean isRedisAvailable() {
+        try{
+            redisTemplate.opsForValue().get("health_check");
+            return true;
+        } catch (Exception e) {
+            log.error("Redis 연결 확인 실패", e);
+            return false;
         }
     }
 }
