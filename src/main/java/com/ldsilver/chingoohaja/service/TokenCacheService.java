@@ -103,7 +103,7 @@ public class TokenCacheService {
         String key = REFRESH_TOKEN_PREFIX + refreshToken;
 
         try {
-            if (Boolean.TRUE,equals(redisTemplate.hasKey(key))) {
+            if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
                 redisTemplate.expire(key, newExpiration);
                 log.debug("토큰 만료 시간 연장 - token: {}, expiration: {}초", refreshToken, newExpiration.getSeconds());
             }
