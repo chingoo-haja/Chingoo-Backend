@@ -11,8 +11,10 @@ public record OAuthConfigResponse(
         @JsonProperty("code_challenge_method") String codeChallengeMethod,
         @JsonProperty("authorization_url") String authorizationUrl
 ) {
+    private static final String CODE_CHALLENGE_METHOD = "S256";
+
     public OAuthConfigResponse {
-        codeChallengeMethod = "S256"; // 고정값
+        codeChallengeMethod = CODE_CHALLENGE_METHOD;
     }
 
     public static OAuthConfigResponse of(
@@ -28,7 +30,7 @@ public record OAuthConfigResponse(
                 scope,
                 state,
                 codeChallenge,
-                "S256",
+                CODE_CHALLENGE_METHOD,
                 authorizationUrl
         );
     }
