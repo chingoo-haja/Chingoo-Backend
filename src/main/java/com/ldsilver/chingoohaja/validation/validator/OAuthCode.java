@@ -9,21 +9,21 @@ import jakarta.validation.Payload;
 import java.lang.annotation.*;
 
 @Documented
-@Constraint(validatedBy = OAuthAuthCode.OAuthAuthCodeValidator.class)
+@Constraint(validatedBy = OAuthCode.OAuthAuthCodeValidator.class)
 @Target({ElementType.FIELD, ElementType.PARAMETER})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface OAuthAuthCode {
+public @interface OAuthCode {
     String message() default "올바르지 않은 Authorization Code 형식입니다.";
     Class<?>[] groups() default {};
     Class<? extends Payload>[] payload() default {};
     Provider provider() default Provider.ANY;
 
-    class OAuthAuthCodeValidator implements ConstraintValidator<OAuthAuthCode, String> {
+    class OAuthAuthCodeValidator implements ConstraintValidator<OAuthCode, String> {
 
         private Provider provider;
 
         @Override
-        public void initialize(OAuthAuthCode constraintAnnotation) {
+        public void initialize(OAuthCode constraintAnnotation) {
             this.provider = constraintAnnotation.provider();
         }
 
@@ -43,29 +43,23 @@ public @interface OAuthAuthCode {
 
         private boolean validateKakaoAuthCode(String code) {
             // 카카오 Authorization Code 형식 검증
-            return code.length() >= 10 &&
-                    code.length() <= 100 &&
-                    code.matches("^[A-Za-z0-9_-]+$");
+            return code != null && !code.isEmpty();
         }
 
         private boolean validateGoogleAuthCode(String code) {
             // 구글 Authorization Code 형식 검증
-            return code.length() >= 20 &&
-                    code.length() <= 200 &&
-                    code.matches("^[A-Za-z0-9/_-]+$");
+            return code != null && !code.isEmpty();
         }
 
         private boolean validateNaverAuthCode(String code) {
             // 네이버 Authorization Code 형식 검증
-            return code.length() >= 20 &&
-                    code.length() <= 200 &&
-                    code.matches("^[A-Za-z0-9/_-]+$");
+            return code != null && !code.isEmpty();
         }
 
         private boolean validateGenericAuthCode(String code) {
             // 일반적인 Authorization Code 형식 검증
-            return code.length() >= 10 &&
-                    code.length() <= 512 &&
+            return code.length() >= 20 &&
+                    code.length() <= 256 &&
                     code.matches("^[A-Za-z0-9._/-]+$");
         }
     }

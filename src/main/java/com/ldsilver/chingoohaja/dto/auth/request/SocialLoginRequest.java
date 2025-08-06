@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ldsilver.chingoohaja.domain.common.enums.Provider;
 import com.ldsilver.chingoohaja.validation.AuthValidationConstants;
 import com.ldsilver.chingoohaja.validation.validator.DeviceInfo;
-import com.ldsilver.chingoohaja.validation.validator.OAuthAuthCode;
+import com.ldsilver.chingoohaja.validation.validator.OAuthCode;
 import com.ldsilver.chingoohaja.validation.validator.OAuthState;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -18,7 +18,7 @@ import lombok.Setter;
 public class SocialLoginRequest {
 
     @NotBlank(message = AuthValidationConstants.OAuth.AUTH_CODE_REQUIRED)
-    @OAuthAuthCode(
+    @OAuthCode(
             provider = Provider.ANY,
             message = AuthValidationConstants.OAuth.AUTH_CODE_INVALID_LENGTH
     )
