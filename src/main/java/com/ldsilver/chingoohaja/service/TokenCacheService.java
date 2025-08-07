@@ -6,6 +6,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -21,10 +22,13 @@ public class TokenCacheService {
     private static final String USER_TOKEN_PREFIX = "user_tokens:";
 
     public void storeRefreshToken(Long userId, String refreshToken, Duration expiration) {
-        String key = REFRESH_TOKEN_PREFIX + refreshToken;
+        String tokenKey = REFRESH_TOKEN_PREFIX + refreshToken;
+        String userTokenKey = USER_TOKEN_PREFIX + userId;
 
         try {
-            redisTemplate.opsForValue().set(key, userId, expiration);
+            redisTemplate.opsForValue().set(tokenKey, userId, expiration);
+            redisTemplate.opsForSet().add(userTokenKey, tokenKey);
+            redisTemplate.expire(userTokenKey, expiration.plusHours(1));
             log.debug("Refresh Token 캐시 저장 완료 - userId: {}, expiration: {}초", userId, expiration);
         } catch (Exception e) {
             log.error("Refresh Token 캐시 저장 실패 - userId: {}", userId, e);
@@ -48,10 +52,16 @@ public class TokenCacheService {
     }
 
     public void deleteRefreshToken(String refreshToken) {
-        String key = REFRESH_TOKEN_PREFIX + refreshToken;
+        String tokenKey = REFRESH_TOKEN_PREFIX + refreshToken;
 
         try {
-            redisTemplate.delete(key);
+            Object userId = redisTemplate.opsForValue().get(tokenKey);
+            redisTemplate.delete(tokenKey);
+
+            if (userId != null) {
+                String userTokenKey = USER_TOKEN_PREFIX + userId;
+                redisTemplate.opsForSet().remove(userTokenKey, tokenKey);
+            }
         } catch (Exception e) {
             log.error("Refresh Token 캐시 삭제 실패 - token: {}", refreshToken, e);
         }
@@ -81,17 +91,17 @@ public class TokenCacheService {
     }
 
     public void deleteAllUserTokens(Long userId) {
-        String pattern = REFRESH_TOKEN_PREFIX + "*";
+        String userTokensKey = USER_TOKEN_PREFIX + userId;
 
         try {
-            Set<String> keys = redisTemplate.keys(pattern);
-            if (!keys.isEmpty()) {
-                for (String key : keys) {
-                    Object storedUserId = redisTemplate.opsForValue().get(key);
-                    if (storedUserId != null && userId.equals(Long.valueOf(storedUserId.toString()))) {
-                        redisTemplate.delete(key);
-                    }
-                }
+            Set<Object> tokenKeys = redisTemplate.opsForSet().members(userTokensKey);
+
+            if (tokenKeys != null && !tokenKeys.isEmpty()) {
+                String[] keysArray = tokenKeys.stream()
+                                .map(Object::toString)
+                                .toArray(String[]::new);
+                redisTemplate.delete(Arrays.asList(keysArray));
+                redisTemplate.delete(userTokensKey);
             }
             log.debug("사용자의 모든 토큰 캐시 삭제 완료 - userId: {}", userId);
         } catch (Exception e) {
