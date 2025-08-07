@@ -57,11 +57,14 @@ public class TokenCacheService {
     }
 
     public Long getUserIdByRefreshToken(String refreshToken) {
-        String key = REFRESH_TOKEN_PREFIX + refreshToken;
+        String tokenKey = REFRESH_TOKEN_PREFIX + refreshToken;
 
         try {
-            Object userId = redisTemplate.opsForValue().get(key);
-            if (userId != null) {
+            Object userId = redisTemplate.opsForValue().get(tokenKey);
+            if (userId instanceof Long) {
+                return (Long) userId;
+            }
+            else if (userId != null) {
                 log.debug("Refresh Token 캐시 조회 성공");
                 return Long.valueOf(userId.toString());
             }
@@ -148,15 +151,24 @@ public class TokenCacheService {
         String tokenKey = REFRESH_TOKEN_PREFIX + refreshToken;
 
         try {
-            if (Boolean.TRUE.equals(redisTemplate.hasKey(tokenKey))) {
+            Object userId = redisTemplate.opsForValue().get(tokenKey);
 
-                Object userId = redisTemplate.opsForValue().get(tokenKey);
-                redisTemplate.expire(tokenKey, newExpiration);
+            if (userId != null) {
+                String userTokenKey = USER_TOKEN_PREFIX + userId;
 
-                if (userId != null) {
-                    String userTokenKey = USER_TOKEN_PREFIX + userId;
-                    redisTemplate.expire(userTokenKey, newExpiration);
-                }
+                List<Object> results = redisTemplate.execute(new SessionCallback<List<Object>>() {
+                    @Override
+                    public List<Object> execute(RedisOperations operations) throws DataAccessException {
+                        operations.multi();
+
+                        RedisOperations<String, Object> stringOps = (RedisOperations<String, Object>) operations;
+
+                        stringOps.expire(tokenKey, newExpiration);
+                        stringOps.expire(userTokenKey, newExpiration);
+
+                        return operations.exec();
+                    }
+                });
                 log.debug("토큰 만료 시간 연장, expiration: {}초", newExpiration.getSeconds());
             }
         } catch (Exception e) {
