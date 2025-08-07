@@ -39,8 +39,8 @@ public class AuthValidationConstants {
     @UtilityClass
     public static class OAuth {
         // Authorization Code 제한
-        public static final int MIN_AUTH_CODE_LENGTH = 10;
-        public static final int MAX_AUTH_CODE_LENGTH = 512;
+        public static final int MIN_AUTH_CODE_LENGTH = 20;
+        public static final int MAX_AUTH_CODE_LENGTH = 256;
 
         // State 제한
         public static final int MIN_STATE_LENGTH = 16;
@@ -58,6 +58,9 @@ public class AuthValidationConstants {
 
         public static final int GOOGLE_MIN_CODE_LENGTH = 20;
         public static final int GOOGLE_MAX_CODE_LENGTH = 200;
+
+        public static final int NAVER_MIN_CODE_LENGTH = 15;
+        public static final int NAVER_MAX_CODE_LENGTH = 150;
 
         public static final int MIN_CODE_LENGTH = 10;
 

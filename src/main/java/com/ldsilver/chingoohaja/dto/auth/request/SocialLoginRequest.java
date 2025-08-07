@@ -79,29 +79,15 @@ public class SocialLoginRequest {
         return hasDeviceInfo() ? deviceInfo : "Unknown Device";
     }
 
-    // Provider별 검증 메서드
-    public boolean isValidForProvider(String provider) {
-        return switch (provider.toLowerCase()) {
-            case "kakao" -> isValidKakaoRequest();
-            case "google" -> isValidGoogleRequest();
-            default -> isValidGenericRequest();
-        };
-    }
+    public static Provider parseProvider(String providerString) {
+        if (providerString == null || providerString.trim().isEmpty()) {
+            throw new IllegalArgumentException("Provider cannot be null or empty");
+        }
 
-    private boolean isValidKakaoRequest() {
-        return code != null &&
-                code.length() >= AuthValidationConstants.OAuth.KAKAO_MIN_CODE_LENGTH &&
-                code.length() <= AuthValidationConstants.OAuth.KAKAO_MAX_CODE_LENGTH;
-    }
-
-    private boolean isValidGoogleRequest() {
-
-        return code != null &&
-                code.length() >= AuthValidationConstants.OAuth.GOOGLE_MIN_CODE_LENGTH &&
-                code.length() <= AuthValidationConstants.OAuth.GOOGLE_MAX_CODE_LENGTH;
-    }
-
-    private boolean isValidGenericRequest() {
-        return code != null && code.length() >= AuthValidationConstants.OAuth.MIN_CODE_LENGTH;
+        try {
+            return Provider.valueOf(providerString.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Unsupported provider: " + providerString, e);
+        }
     }
 }

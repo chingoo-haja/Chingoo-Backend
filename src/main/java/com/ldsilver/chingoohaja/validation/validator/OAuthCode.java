@@ -1,6 +1,7 @@
 package com.ldsilver.chingoohaja.validation.validator;
 
 import com.ldsilver.chingoohaja.domain.common.enums.Provider;
+import com.ldsilver.chingoohaja.validation.AuthValidationConstants;
 import jakarta.validation.Constraint;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
@@ -42,24 +43,27 @@ public @interface OAuthCode {
         }
 
         private boolean validateKakaoAuthCode(String code) {
-            // 카카오 Authorization Code 형식 검증
-            return code != null && !code.isEmpty();
+            return code.length() >= AuthValidationConstants.OAuth.KAKAO_MIN_CODE_LENGTH &&
+                    code.length() <= AuthValidationConstants.OAuth.KAKAO_MAX_CODE_LENGTH &&
+                    code.matches("^[A-Za-z0-9_-]+$");
         }
 
         private boolean validateGoogleAuthCode(String code) {
-            // 구글 Authorization Code 형식 검증
-            return code != null && !code.isEmpty();
+            return code.length() >= AuthValidationConstants.OAuth.GOOGLE_MIN_CODE_LENGTH &&
+                    code.length() <= AuthValidationConstants.OAuth.GOOGLE_MAX_CODE_LENGTH &&
+                    code.matches("^[A-Za-z0-9/_-]+$");
         }
 
         private boolean validateNaverAuthCode(String code) {
-            // 네이버 Authorization Code 형식 검증
-            return code != null && !code.isEmpty();
+            return code.length() >= AuthValidationConstants.OAuth.NAVER_MIN_CODE_LENGTH &&
+                    code.length() <= AuthValidationConstants.OAuth.NAVER_MAX_CODE_LENGTH &&
+                    code.matches("^[A-Za-z0-9_-]+$");
         }
 
         private boolean validateGenericAuthCode(String code) {
             // 일반적인 Authorization Code 형식 검증
-            return code.length() >= 20 &&
-                    code.length() <= 256 &&
+            return code.length() >= AuthValidationConstants.OAuth.MIN_AUTH_CODE_LENGTH &&
+                    code.length() <= AuthValidationConstants.OAuth.MAX_AUTH_CODE_LENGTH &&
                     code.matches("^[A-Za-z0-9._/-]+$");
         }
     }
