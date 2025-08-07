@@ -33,7 +33,7 @@ public record TokenResponse (
     }
 
     public String maskedRefreshToken() {
-        return maskToken(accessToken);
+        return maskToken(refreshToken);
     }
 
     public String maskToken(String token) {

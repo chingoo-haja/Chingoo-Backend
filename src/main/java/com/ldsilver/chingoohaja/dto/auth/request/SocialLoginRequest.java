@@ -89,14 +89,19 @@ public class SocialLoginRequest {
     }
 
     private boolean isValidKakaoRequest() {
-        return code != null && code.length() >= 10 && code.length() <= 100;
+        return code != null &&
+                code.length() >= AuthValidationConstants.OAuth.KAKAO_MIN_CODE_LENGTH &&
+                code.length() <= AuthValidationConstants.OAuth.KAKAO_MAX_CODE_LENGTH;
     }
 
     private boolean isValidGoogleRequest() {
-        return code != null && code.length() >= 20 && code.length() <= 200;
+
+        return code != null &&
+                code.length() >= AuthValidationConstants.OAuth.GOOGLE_MIN_CODE_LENGTH &&
+                code.length() <= AuthValidationConstants.OAuth.GOOGLE_MAX_CODE_LENGTH;
     }
 
     private boolean isValidGenericRequest() {
-        return code != null && code.length() >= 10;
+        return code != null && code.length() >= AuthValidationConstants.OAuth.MIN_CODE_LENGTH;
     }
 }

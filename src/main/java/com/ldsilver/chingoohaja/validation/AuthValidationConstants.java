@@ -53,6 +53,14 @@ public class AuthValidationConstants {
         public static final int MIN_CODE_VERIFIER_LENGTH = 43;
         public static final int MAX_CODE_VERIFIER_LENGTH = 128;
 
+        public static final int KAKAO_MIN_CODE_LENGTH = 10;
+        public static final int KAKAO_MAX_CODE_LENGTH = 100;
+
+        public static final int GOOGLE_MIN_CODE_LENGTH = 20;
+        public static final int GOOGLE_MAX_CODE_LENGTH = 200;
+
+        public static final int MIN_CODE_LENGTH = 10;
+
         // 에러 메시지
         public static final String AUTH_CODE_REQUIRED = "인가 코드는 필수입니다.";
         public static final String AUTH_CODE_INVALID_LENGTH = "인가 코드 길이가 올바르지 않습니다.";
