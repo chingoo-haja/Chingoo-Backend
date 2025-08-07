@@ -45,8 +45,9 @@ public class TokenService {
 
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
 
-        LocalDateTime refreshTokenExpiration = LocalDateTime.now()
-                .plusSeconds(jwtProperties.getRefreshTokenExpiration() / 1000);
+        Duration tokenDuration = Duration.ofMillis(jwtProperties.getRefreshTokenExpiration());
+
+        LocalDateTime refreshTokenExpiration = LocalDateTime.now().plus(tokenDuration);
 
         UserToken userToken = UserToken.of(
                 user,
@@ -58,8 +59,7 @@ public class TokenService {
 
         userTokenRepository.save(userToken);
 
-        Duration cacheDuration = Duration.ofMillis(jwtProperties.getRefreshTokenExpiration());
-        tokenCacheService.storeRefreshToken(userId, refreshToken, cacheDuration);
+        tokenCacheService.storeRefreshToken(userId, refreshToken, tokenDuration);
 
         limitUserTokens(user);
 
