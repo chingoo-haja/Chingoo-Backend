@@ -188,9 +188,10 @@ public class TokenCacheService {
     }
 
     public boolean isRedisAvailable() {
-        try{
-            redisTemplate.opsForValue().get("health_check");
-            return true;
+        try {
+            String result = redisTemplate.getConnectionFactory()
+                    .getConnection().ping();
+            return "PONG".equals(result);
         } catch (Exception e) {
             log.error("Redis 연결 확인 실패", e);
             return false;
