@@ -28,8 +28,8 @@ public class TokenCacheService {
         try {
             redisTemplate.opsForValue().set(tokenKey, userId, expiration);
             redisTemplate.opsForSet().add(userTokenKey, tokenKey);
-            redisTemplate.expire(userTokenKey, expiration.plusHours(1));
-            log.debug("Refresh Token 캐시 저장 완료 - userId: {}, expiration: {}초", userId, expiration);
+            redisTemplate.expire(userTokenKey, expiration);
+            log.debug("Refresh Token 캐시 저장 완료 - userId: {}, expiration: {}", userId, expiration);
         } catch (Exception e) {
             log.error("Refresh Token 캐시 저장 실패 - userId: {}", userId, e);
         }
