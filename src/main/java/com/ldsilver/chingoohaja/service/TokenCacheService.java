@@ -41,11 +41,11 @@ public class TokenCacheService {
         try {
             Object userId = redisTemplate.opsForValue().get(key);
             if (userId != null) {
-                log.debug("Refresh Token 캐시 조회 성공 - token: {}", refreshToken);
+                log.debug("Refresh Token 캐시 조회 성공");
                 return Long.valueOf(userId.toString());
             }
         } catch (Exception e) {
-            log.error("Refresh Token 캐시 조회 실패 - token: {}", refreshToken, e);
+            log.error("Refresh Token 캐시 조회 실패 ", e);
         }
 
         return null;
@@ -63,7 +63,7 @@ public class TokenCacheService {
                 redisTemplate.opsForSet().remove(userTokenKey, tokenKey);
             }
         } catch (Exception e) {
-            log.error("Refresh Token 캐시 삭제 실패 - token: {}", refreshToken, e);
+            log.error("Refresh Token 캐시 삭제 실패 ", e);
         }
     }
 
@@ -72,9 +72,9 @@ public class TokenCacheService {
 
         try {
             redisTemplate.opsForValue().set(key, "blacklisted", expiration);
-            log.debug("Access Token 블랙리스트 추가 - token: {}", accessToken);
+            log.debug("Access Token 블랙리스트 추가");
         } catch (Exception e) {
-            log.debug("Access Token 블랙리스트 추가 실패 - token: {}", accessToken, e);
+            log.debug("Access Token 블랙리스트 추가 실패", e);
         }
     }
 
@@ -85,7 +85,7 @@ public class TokenCacheService {
             Boolean exists = redisTemplate.hasKey(key);
             return Boolean.TRUE.equals(exists);
         } catch (Exception e) {
-            log.error("Access Token 블랙리스트 확인 실패 - token: {}", accessToken, e);
+            log.debug("Access Token 블랙리스트 확인 실패", e);
             return false;
         }
     }
@@ -115,10 +115,10 @@ public class TokenCacheService {
         try {
             if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
                 redisTemplate.expire(key, newExpiration);
-                log.debug("토큰 만료 시간 연장 - token: {}, expiration: {}초", refreshToken, newExpiration.getSeconds());
+                log.debug("토큰 만료 시간 연장, expiration: {}초", newExpiration.getSeconds());
             }
         } catch (Exception e) {
-            log.error("토큰 만료 시간 연장 실패 - token: {}", refreshToken, e);
+            log.error("토큰 만료 시간 연장 실패", e);
         }
     }
 
@@ -128,7 +128,7 @@ public class TokenCacheService {
         try {
             return redisTemplate.getExpire(key, TimeUnit.SECONDS);
         } catch (Exception e) {
-            log.error("토큰 TTL 조회 실패 - token: {}", refreshToken, e);
+            log.error("토큰 TTL 조회 실패", e);
             return -1;
         }
     }
