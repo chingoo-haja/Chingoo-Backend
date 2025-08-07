@@ -2,11 +2,15 @@ package com.ldsilver.chingoohaja.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -26,12 +30,29 @@ public class TokenCacheService {
         String userTokenKey = USER_TOKEN_PREFIX + userId;
 
         try {
-            redisTemplate.opsForValue().set(tokenKey, userId, expiration);
-            redisTemplate.opsForSet().add(userTokenKey, tokenKey);
-            redisTemplate.expire(userTokenKey, expiration);
+            List<Object> results = redisTemplate.execute(new SessionCallback<List<Object>>() {
+                @Override
+                public List<Object> execute(RedisOperations operations) throws DataAccessException {
+                    operations.multi();
+
+                    RedisOperations<String, Object> stringOps = (RedisOperations<String, Object>) operations;
+
+                    stringOps.opsForValue().set(tokenKey, userId, expiration);
+                    stringOps.opsForSet().add(userTokenKey, tokenKey);
+                    stringOps.expire(userTokenKey, expiration);
+
+                    return operations.exec();
+                }
+            });
+
+            if (results == null || results.size() != 3) {
+                throw new RuntimeException("Redis 트랜잭션 실행 실패");
+            }
             log.debug("Refresh Token 캐시 저장 완료 - userId: {}, expiration: {}", userId, expiration);
         } catch (Exception e) {
             log.error("Refresh Token 캐시 저장 실패 - userId: {}", userId, e);
+            cleanupPartialData(tokenKey, userTokenKey);
+            throw e;
         }
     }
 
@@ -56,11 +77,25 @@ public class TokenCacheService {
 
         try {
             Object userId = redisTemplate.opsForValue().get(tokenKey);
-            redisTemplate.delete(tokenKey);
 
             if (userId != null) {
                 String userTokenKey = USER_TOKEN_PREFIX + userId;
-                redisTemplate.opsForSet().remove(userTokenKey, tokenKey);
+                List<Object> results = redisTemplate.execute(new SessionCallback<List<Object>>() {
+                    @Override
+                    public List<Object> execute(RedisOperations operations) throws DataAccessException {
+                        operations.multi();
+
+                        // ✅ 타입 캐스팅
+                        RedisOperations<String, Object> stringOps = (RedisOperations<String, Object>) operations;
+
+                        stringOps.delete(tokenKey);
+                        stringOps.opsForSet().remove(userTokenKey, tokenKey);
+
+                        return operations.exec();
+                    }
+                });
+            } else {
+                redisTemplate.delete(tokenKey);
             }
         } catch (Exception e) {
             log.error("Refresh Token 캐시 삭제 실패 ", e);
@@ -74,7 +109,7 @@ public class TokenCacheService {
             redisTemplate.opsForValue().set(key, "blacklisted", expiration);
             log.debug("Access Token 블랙리스트 추가");
         } catch (Exception e) {
-            log.debug("Access Token 블랙리스트 추가 실패", e);
+            log.error("Access Token 블랙리스트 추가 실패", e);
         }
     }
 
@@ -110,11 +145,18 @@ public class TokenCacheService {
     }
 
     public void extendTokenExpiration(String refreshToken, Duration newExpiration) {
-        String key = REFRESH_TOKEN_PREFIX + refreshToken;
+        String tokenKey = REFRESH_TOKEN_PREFIX + refreshToken;
 
         try {
-            if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
-                redisTemplate.expire(key, newExpiration);
+            if (Boolean.TRUE.equals(redisTemplate.hasKey(tokenKey))) {
+
+                Object userId = redisTemplate.opsForValue().get(tokenKey);
+                redisTemplate.expire(tokenKey, newExpiration);
+
+                if (userId != null) {
+                    String userTokenKey = USER_TOKEN_PREFIX + userId;
+                    redisTemplate.expire(userTokenKey, newExpiration);
+                }
                 log.debug("토큰 만료 시간 연장, expiration: {}초", newExpiration.getSeconds());
             }
         } catch (Exception e) {
@@ -140,6 +182,15 @@ public class TokenCacheService {
         } catch (Exception e) {
             log.error("Redis 연결 확인 실패", e);
             return false;
+        }
+    }
+
+    private void cleanupPartialData(String tokenKey, String userTokenKey) {
+        try {
+            redisTemplate.delete(tokenKey);
+            redisTemplate.opsForSet().remove(userTokenKey, tokenKey);
+        } catch (Exception e) {
+            log.warn("정리 작업 중 오류 발생", e);
         }
     }
 }
