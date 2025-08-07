@@ -10,16 +10,17 @@ import jakarta.validation.Payload;
 import java.lang.annotation.*;
 
 @Documented
-@Constraint(validatedBy = OAuthCode.OAuthAuthCodeValidator.class)
+@Constraint(validatedBy = OAuthCode.OAuthCodeValidator.class)
 @Target({ElementType.FIELD, ElementType.PARAMETER})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface OAuthCode {
-    String message() default "올바르지 않은 Authorization Code 형식입니다.";
+
+    String message() default "Invalid OAuth authorization code format";
     Class<?>[] groups() default {};
     Class<? extends Payload>[] payload() default {};
     Provider provider() default Provider.ANY;
 
-    class OAuthAuthCodeValidator implements ConstraintValidator<OAuthCode, String> {
+    class OAuthCodeValidator implements ConstraintValidator<OAuthCode, String> {
 
         private Provider provider;
 
@@ -61,11 +62,9 @@ public @interface OAuthCode {
         }
 
         private boolean validateGenericAuthCode(String code) {
-            // 일반적인 Authorization Code 형식 검증
             return code.length() >= AuthValidationConstants.OAuth.MIN_AUTH_CODE_LENGTH &&
                     code.length() <= AuthValidationConstants.OAuth.MAX_AUTH_CODE_LENGTH &&
                     code.matches("^[A-Za-z0-9._/-]+$");
         }
     }
-
 }
