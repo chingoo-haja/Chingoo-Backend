@@ -1,4 +1,4 @@
-package com.ldsilver.chingoohaja.infrastructure.jwt.oauth;
+package com.ldsilver.chingoohaja.infrastructure.oauth;
 
 import com.ldsilver.chingoohaja.dto.auth.OAuthUserInfo;
 import com.ldsilver.chingoohaja.dto.auth.response.TokenResponse;
