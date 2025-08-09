@@ -36,5 +36,14 @@ public class OAuthClientFactory {
         return client;
     }
 
+    public List<String> getSupportedProviders() {
+        return List.copyOf(clientMap.keySet());
+    }
 
+    public boolean isProviderSupported(String provider) {
+        if (provider == null || provider.trim().isEmpty()) {
+            return false;
+        }
+        return clientMap.containsKey(provider.toLowerCase().trim());
+    }
 }
