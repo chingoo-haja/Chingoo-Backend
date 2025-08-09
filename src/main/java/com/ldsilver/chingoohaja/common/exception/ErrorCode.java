@@ -29,6 +29,14 @@ public enum ErrorCode {
     JWT_CLAIMS_EMPTY(HttpStatus.UNAUTHORIZED, "J006", "JWT 토큰의 클레임이 비어있습니다."),
     JWT_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "J007", "JWT 토큰을 찾을 수 없습니다."),
 
+    // OAuth 관련 에러 (기존 코드에 추가)
+    OAUTH_PROVIDER_NOT_SUPPORTED(HttpStatus.BAD_REQUEST, "O001", "지원하지 않는 OAuth 공급자입니다: %s"),
+    OAUTH_TOKEN_EXCHANGE_FAILED(HttpStatus.BAD_REQUEST, "O002", "OAuth 토큰 교환에 실패했습니다."),
+    OAUTH_USER_INFO_FETCH_FAILED(HttpStatus.BAD_REQUEST, "O003", "OAuth 사용자 정보 조회에 실패했습니다."),
+    OAUTH_INVALID_STATE(HttpStatus.BAD_REQUEST, "O004", "유효하지 않은 OAuth State 파라미터입니다."),
+    OAUTH_INVALID_CODE(HttpStatus.BAD_REQUEST, "O005", "유효하지 않은 OAuth 인가 코드입니다."),
+    OAUTH_CONFIG_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "O006", "OAuth 설정 오류입니다."),
+
     // 사용자 관련 에러
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U001", "사용자를 찾을 수 없습니다."),
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "U002", "이미 사용 중인 이메일입니다."),
