@@ -78,7 +78,7 @@ public class AuthService {
 
         OAuthUserInfo userInfo = oAuthClient.getUserInfo(tokenResponse.accessToken());
 
-        //validateOAuthUserInfo(userInfo);
+        validateOAuthUserInfo(userInfo);
 
         return userInfo;
     }
@@ -179,6 +179,24 @@ public class AuthService {
         // OAuth에서 생년월일 정보를 제공하지 않는 경우 기본값
         // 실제 서비스에서는 사용자에게 추가 정보 입력을 요청해야 함
         return LocalDate.of(1990, 1, 1);
+    }
+
+
+    private void validateOAuthUserInfo(OAuthUserInfo userInfo) {
+        if (userInfo.email() == null || userInfo.email().trim().isEmpty()) {
+            throw new CustomException(ErrorCode.OAUTH_USER_INFO_FETCH_FAILED,
+                    "이메일 정보가 없습니다. OAuth 공급자에서 이메일 제공 동의가 필요합니다.");
+        }
+
+        if (userInfo.providerId() == null || userInfo.providerId().trim().isEmpty()) {
+            throw new CustomException(ErrorCode.OAUTH_USER_INFO_FETCH_FAILED,
+                    "Provider ID가 없습니다.");
+        }
+
+        if (userInfo.provider() == null || userInfo.provider().trim().isEmpty()) {
+            throw new CustomException(ErrorCode.OAUTH_USER_INFO_FETCH_FAILED,
+                    "Provider 정보가 없습니다.");
+        }
     }
 
 
