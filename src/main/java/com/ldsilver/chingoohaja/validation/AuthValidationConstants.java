@@ -43,7 +43,7 @@ public class AuthValidationConstants {
         public static final int MAX_AUTH_CODE_LENGTH = 1000;
 
         // State 제한
-        public static final int MIN_STATE_LENGTH = 10;
+        public static final int MIN_STATE_LENGTH = 32;
         public static final int MAX_STATE_LENGTH = 200;
 
         // Redirect URI 제한

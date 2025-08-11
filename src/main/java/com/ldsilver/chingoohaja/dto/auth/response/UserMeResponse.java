@@ -34,7 +34,7 @@ public record UserMeResponse(
                 user.getAge(),
                 user.getGender() != null ? user.getGender().name() : null,
                 user.getCreatedAt(),
-                user.getUpdateAt()
+                user.getUpdatedAt()
         );
     }
 

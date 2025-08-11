@@ -22,7 +22,7 @@ public class UserToken extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false, length = 1000)
+    @Column(nullable = false, length = 2048)
     private String refreshToken;
 
     @Column(nullable = false)

@@ -82,7 +82,7 @@ public class AuthController {
 
     @Operation(
             summary = "로그아웃",
-            description = "현재 사용중인 코튼을 무효화힙니다. " +
+            description = "현재 사용중인 토큰을 무효화합니다. " +
                     "logout_all이 true인 경우 모든 다이바이스에서 로그아웃됩니다.",
             security = @SecurityRequirement(name = "Bearer Authentication")
     )

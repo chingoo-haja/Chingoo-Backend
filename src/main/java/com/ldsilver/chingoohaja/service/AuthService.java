@@ -105,7 +105,7 @@ public class AuthService {
                     user.getUserType().name()
             );
 
-            log.info("토크 갱신 성공 - userId: {}", user.getId());
+            log.info("토큰 갱신 성공 - userId: {}", user.getId());
 
             return TokenResponse.forRefresh(
                     newAccessToken,
@@ -132,7 +132,7 @@ public class AuthService {
                     .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
             if (request.isLogoutAll()) {
-                logoutAllDeivces(user);
+                logoutAllDevices(user);
             } else {
                 logoutCurrentDevice(request.refreshToken());
             }
@@ -145,7 +145,7 @@ public class AuthService {
                 );
             }
 
-            log.debug("로그아웃 성공 - userId: {}, logoutAll: {}", user, request.isLogoutAll());
+            log.debug("로그아웃 성공 - userId: {}, logoutAll: {}", user.getId(), request.isLogoutAll());
          } catch (CustomException e) {
             log.error("로그아웃 실패: {}", e.getMessage());
             throw e;
@@ -199,7 +199,7 @@ public class AuthService {
         }
     }
 
-    private void logoutAllDeivces(User user) {
+    private void logoutAllDevices(User user) {
         userTokenRepository.deactivateAllTokensByUser(user);
         tokenCacheService.deleteAllUserTokens(user.getId());
         log.debug("모든 디바이스에서 로그아웃 완료 - userId: {}", user.getId());
@@ -280,7 +280,7 @@ public class AuthService {
 
         String newProfileImage = getProfileImageUrl(oAuthUserInfo);
         if (newProfileImage != null && !newProfileImage.equals(user.getProfileImageUrl())) {
-            // user.updateProfileImage(newProfileImage);
+            user.updateProfileImage(newProfileImage);
             needsUpdate = true;
         }
         if (needsUpdate) {
