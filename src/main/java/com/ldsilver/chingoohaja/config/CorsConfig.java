@@ -40,8 +40,7 @@ public class CorsConfig {
         ));
 
         configuration.setExposedHeaders(Arrays.asList(
-                "Access-Control-Allow-Origin",
-                "Access-Control-Allow-Credentials"
+                "Authorization"
         ));
 
         configuration.setAllowCredentials(true);
