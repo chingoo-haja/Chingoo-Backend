@@ -20,8 +20,9 @@ public class CorsConfig {
 
         configuration.setAllowedOriginPatterns(Arrays.asList(
                 "http://localhost:*",
+                "https://localhost:*",
                 "http://127.0.0.1:*",
-                "file://*"
+                "null"
         ));
 
         configuration.setAllowedMethods(Arrays.asList(
