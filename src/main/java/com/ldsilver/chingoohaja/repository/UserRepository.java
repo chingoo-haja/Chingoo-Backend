@@ -18,7 +18,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByNicknameContaining(String pattern);
 
     // 특정 기간 가입자 조회 (통계용)
-    List<User> findUsersCreatedBetween(LocalDateTime startDate, LocalDateTime endDate);
+    @Query("SELECT u FROM User u WHERE u.createdAt BETWEEN :startDate AND :endDate")
+    List<User> findUsersCreatedBetween(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
 
     // 활성 유저 수 조회 (최근 30일 내 로그인)
     @Query("SELECT COUNT(u) FROM User u WHERE u.id IN " +
