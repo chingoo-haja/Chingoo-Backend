@@ -37,9 +37,15 @@ public record SocialLoginResponse(
             @JsonProperty("id") Long id,
             @JsonProperty("email") String email,
             @JsonProperty("nickname") String nickname,
+            @JsonProperty("real_name") String realName,
             @JsonProperty("profile_image_url") String profileImageUrl,
             @JsonProperty("user_type") String userType,
-            @JsonProperty("is_new_user") Boolean isNewUser
+            @JsonProperty("provider") String provider,
+            @JsonProperty("is_new_user") Boolean isNewUser,
+            @JsonProperty("is_profile_complete") Boolean isProfileComplete,
+            @JsonProperty("display_name") String displayName,
+            @JsonProperty("age") Integer age,
+            @JsonProperty("gender") String gender
     ) {
 
         public static UserInfo from(com.ldsilver.chingoohaja.domain.user.User user, boolean isNewUser) {
@@ -47,10 +53,41 @@ public record SocialLoginResponse(
                     user.getId(),
                     user.getEmail(),
                     user.getNickname(),
+                    user.getRealName(),
                     user.getProfileImageUrl(),
                     user.getUserType().name(),
-                    isNewUser
+                    user.getProvider(),
+                    isNewUser,
+                    user.isProfileComplete(),
+                    user.getDisplayName(),
+                    user.getAge(),
+                    user.getGender() != null ? user.getGender().name() : null
+
             );
+        }
+
+        public boolean needsProfileCompletion() {
+            return Boolean.TRUE.equals(isNewUser) && Boolean.FALSE.equals(isProfileComplete);
+        }
+
+        public boolean isOAuthUser() {
+            return provider != null && !provider.equals("local");
+        }
+
+        public String getMaskedEmail() {
+            if (email == null || !email.contains("@")) {
+                return "***@***.***";
+            }
+
+            String[] parts = email.split("@");
+            String localPart = parts[0];
+            String domain = parts[1];
+
+            if (localPart.length() <= 2) {
+                return "***@" + domain;
+            }
+
+            return localPart.substring(0,2) + "***@" +domain;
         }
     }
 }
