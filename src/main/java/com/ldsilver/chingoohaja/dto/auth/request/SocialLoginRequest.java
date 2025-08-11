@@ -33,6 +33,11 @@ public class SocialLoginRequest {
     private String state;
 
     @JsonProperty("code_verifier")
+    @Size(
+            min = AuthValidationConstants.OAuth.MIN_CODE_VERIFIER_LENGTH,
+            max = AuthValidationConstants.OAuth.MAX_CODE_VERIFIER_LENGTH,
+            message = AuthValidationConstants.OAuth.CODE_VERIFIER_INVALID_LENGTH
+    )
     private String codeVerifier;
 
     @DeviceInfo(
