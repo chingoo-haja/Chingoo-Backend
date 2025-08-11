@@ -15,7 +15,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.userdetails.ReactiveUserDetailsPasswordService;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -27,7 +26,6 @@ public class AuthController {
 
     private final AuthService authService;
     private final OAuthConfigService oAuthConfigService;
-    private final ReactiveUserDetailsPasswordService reactiveUserDetailsPasswordService;
 
     @Operation(
             summary = "OAuth 설정 정보 조회",
