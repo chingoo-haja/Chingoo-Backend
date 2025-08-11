@@ -82,4 +82,11 @@ public class CorsConfig {
 
         return source;
     }
+
+    // 기본/테스트 등(local/dev/prod가 아닌) 프로필용 fallback
+    @Bean
+    @Profile("!local & !dev & !prod")
+    public CorsConfigurationSource defaultCorsConfigurationSource() {
+        return new UrlBasedCorsConfigurationSource(); // 등록된 매핑 없음 → CORS 비활성 동작
+    }
 }
