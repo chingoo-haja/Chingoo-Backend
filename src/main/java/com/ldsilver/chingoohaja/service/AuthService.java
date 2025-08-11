@@ -13,6 +13,7 @@ import com.ldsilver.chingoohaja.dto.auth.request.SocialLoginRequest;
 import com.ldsilver.chingoohaja.dto.auth.response.SocialLoginResponse;
 import com.ldsilver.chingoohaja.dto.auth.response.TokenResponse;
 import com.ldsilver.chingoohaja.dto.auth.response.TokenValidationResponse;
+import com.ldsilver.chingoohaja.dto.auth.response.UserMeResponse;
 import com.ldsilver.chingoohaja.infrastructure.jwt.JwtTokenProvider;
 import com.ldsilver.chingoohaja.infrastructure.oauth.OAuthClient;
 import com.ldsilver.chingoohaja.infrastructure.oauth.OAuthClientFactory;
@@ -175,6 +176,28 @@ public class AuthService {
     }
 
 
+    public UserMeResponse getMyInfo(String accessToken) {
+        log.debug("사용자 정보 조회 시작");
+
+        try {
+            if (!jwtTokenProvider.isTokenValid(accessToken) || tokenCacheService.isTokenBlacklisted(accessToken)) {
+                throw new CustomException(ErrorCode.INVALID_TOKEN);
+            }
+
+            Long userId = jwtTokenProvider.getUserIdFromToken(accessToken);
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+            return UserMeResponse.from(user);
+
+        } catch (CustomException e) {
+            log.error("사용자 정보 조회 실패: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("사용자 정보 조회 중 예상치 못한 예외 발생", e);
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
 
     private void logoutAllDeivces(User user) {
         userTokenRepository.deactivateAllTokensByUser(user);
