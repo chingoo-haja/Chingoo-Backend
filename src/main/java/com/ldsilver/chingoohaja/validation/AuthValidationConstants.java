@@ -40,11 +40,11 @@ public class AuthValidationConstants {
     public static class OAuth {
         // Authorization Code 제한
         public static final int MIN_AUTH_CODE_LENGTH = 20;
-        public static final int MAX_AUTH_CODE_LENGTH = 256;
+        public static final int MAX_AUTH_CODE_LENGTH = 1000;
 
         // State 제한
-        public static final int MIN_STATE_LENGTH = 16;
-        public static final int MAX_STATE_LENGTH = 128;
+        public static final int MIN_STATE_LENGTH = 10;
+        public static final int MAX_STATE_LENGTH = 200;
 
         // Redirect URI 제한
         public static final int MAX_REDIRECT_URI_LENGTH = 512;
@@ -68,8 +68,7 @@ public class AuthValidationConstants {
         public static final String AUTH_CODE_REQUIRED = "인가 코드는 필수입니다.";
         public static final String AUTH_CODE_INVALID_LENGTH = "인가 코드 길이가 올바르지 않습니다.";
         public static final String STATE_REQUIRED = "State 파라미터는 필수입니다.";
-        public static final String STATE_TOO_LONG = "State 파라미터가 너무 깁니다. (최대 128자)";
-        public static final String STATE_TOO_SHORT = "State 파라미터가 너무 짧습니다. (최소 16자)";
+        public static final String STATE_TOO_INVALID_LENGTH = "State 파라미터 길이가 올바르지 않습니다.";
         public static final String REDIRECT_URI_TOO_LONG = "리다이렉트 URI가 너무 깁니다. (최대 512자)";
         public static final String CODE_VERIFIER_INVALID_LENGTH = "Code Verifier 길이가 올바르지 않습니다. (43-128자)";
     }

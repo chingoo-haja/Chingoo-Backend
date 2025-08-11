@@ -5,13 +5,15 @@ import com.ldsilver.chingoohaja.domain.common.enums.Provider;
 import com.ldsilver.chingoohaja.validation.AuthValidationConstants;
 import com.ldsilver.chingoohaja.validation.validator.DeviceInfo;
 import com.ldsilver.chingoohaja.validation.validator.OAuthCode;
-import com.ldsilver.chingoohaja.validation.validator.OAuthState;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import static com.ldsilver.chingoohaja.validation.AuthValidationConstants.OAuth.MAX_STATE_LENGTH;
+import static com.ldsilver.chingoohaja.validation.AuthValidationConstants.OAuth.MIN_STATE_LENGTH;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -26,9 +28,12 @@ public class SocialLoginRequest {
     private String code;
 
     @NotBlank(message = AuthValidationConstants.OAuth.STATE_REQUIRED)
-    @OAuthState(message = AuthValidationConstants.OAuth.STATE_TOO_LONG)
+    @Size(min = MIN_STATE_LENGTH, max = MAX_STATE_LENGTH, message = AuthValidationConstants.OAuth.STATE_TOO_INVALID_LENGTH)
     @JsonProperty("state")
     private String state;
+
+    @JsonProperty("code_verifier")
+    private String codeVerifier;
 
     @DeviceInfo(
             nullable = true,
@@ -37,34 +42,39 @@ public class SocialLoginRequest {
     @JsonProperty("device_info")
     private String deviceInfo;
 
-    @Size(
-            max = AuthValidationConstants.OAuth.MAX_REDIRECT_URI_LENGTH,
-            message = AuthValidationConstants.OAuth.REDIRECT_URI_TOO_LONG
-    )
-    @JsonProperty("redirect_uri")
-    private String redirectUri;
-
     // 서버에서 동적으로 설정되는 필드들 (검증 제외)
     @Setter
-    @JsonProperty("client_ip")
     private String clientIp;
 
-    @JsonProperty("code_verifier")
-    private String codeVerifier;
 
-    public SocialLoginRequest(String code, String state, String deviceInfo) {
+
+    private SocialLoginRequest(String code, String state, String deviceInfo, String codeVerifier) {
         this.code = code;
         this.state = state;
         this.deviceInfo = deviceInfo;
-    }
-
-    public void setCodeVerifier(String codeVerifier) {
         this.codeVerifier = codeVerifier;
     }
 
-    public void setRedirectUri(String redirectUri) {
-        this.redirectUri = redirectUri;
+    public static SocialLoginRequest of(String code, String state) {
+        return new SocialLoginRequest(code, state, null, null);
     }
+
+    public static SocialLoginRequest of(String code, String state, String deviceInfo) {
+        return new SocialLoginRequest(code, state, deviceInfo, null);
+    }
+
+    public static SocialLoginRequest of(String code, String state, String deviceInfo, String codeVerifier) {
+        return new SocialLoginRequest(code, state, deviceInfo, codeVerifier);
+    }
+
+    public static SocialLoginRequest withPKCE(String code, String state, String codeVerifier) {
+        return new SocialLoginRequest(code, state, "Default Device", codeVerifier);
+    }
+
+    public static SocialLoginRequest forTest(String code, String state) {
+        return new SocialLoginRequest(code, state, "Test Device", null);
+    }
+
 
     // 비즈니스 로직 메서드들
     public boolean hasDeviceInfo() {
@@ -77,6 +87,20 @@ public class SocialLoginRequest {
 
     public String getSafeDeviceInfo() {
         return hasDeviceInfo() ? deviceInfo : "Unknown Device";
+    }
+
+    public boolean usesPKCE() {
+        return hasCodeVerifier();
+    }
+
+    public SocialLoginRequest withCodeVerifier(String codeVerifier) {
+        this.codeVerifier = codeVerifier;
+        return this;
+    }
+
+    public SocialLoginRequest withDeviceInfo(String deviceInfo) {
+        this.deviceInfo = deviceInfo;
+        return this;
     }
 
     public static Provider parseProvider(String providerString) {
