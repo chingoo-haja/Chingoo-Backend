@@ -12,6 +12,7 @@ import com.ldsilver.chingoohaja.dto.auth.request.RefreshTokenRequest;
 import com.ldsilver.chingoohaja.dto.auth.request.SocialLoginRequest;
 import com.ldsilver.chingoohaja.dto.auth.response.SocialLoginResponse;
 import com.ldsilver.chingoohaja.dto.auth.response.TokenResponse;
+import com.ldsilver.chingoohaja.dto.auth.response.TokenValidationResponse;
 import com.ldsilver.chingoohaja.infrastructure.jwt.JwtTokenProvider;
 import com.ldsilver.chingoohaja.infrastructure.oauth.OAuthClient;
 import com.ldsilver.chingoohaja.infrastructure.oauth.OAuthClientFactory;
@@ -152,6 +153,28 @@ public class AuthService {
             throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
     }
+
+
+    public TokenValidationResponse validateToken(String accessToken) {
+        log.debug("토큰 검증 시작");
+
+        try {
+            if (!jwtTokenProvider.isTokenValid(accessToken)) {
+                return TokenValidationResponse.invalid();
+            }
+
+            if (tokenCacheService.isTokenBlacklisted(accessToken)) {
+                return TokenValidationResponse.invalid();
+            }
+
+            return TokenValidationResponse.fromValidToken(jwtTokenProvider, accessToken);
+        } catch (Exception e) {
+            log.debug("토큰 검증 실패: {}", e.getMessage());
+            return TokenValidationResponse.invalid();
+        }
+    }
+
+
 
     private void logoutAllDeivces(User user) {
         userTokenRepository.deactivateAllTokensByUser(user);
