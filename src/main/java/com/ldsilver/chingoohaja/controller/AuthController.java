@@ -76,10 +76,9 @@ public class AuthController {
     public ApiResponse<TokenResponse> refreshToken(
             @Valid @RequestBody RefreshTokenRequest request) {
         log.debug("토큰 갱신 요청");
-        // TokenResponse response = authService.refreshToken(request);
-        // return ApiResponse.ok("토큰 갱신 성공",response);
-        return ApiResponse.ok("토큰 갱신 성공");
 
+        TokenResponse response = authService.refreshToken(request);
+        return ApiResponse.ok("토큰 갱신 성공",response);
     }
 
 

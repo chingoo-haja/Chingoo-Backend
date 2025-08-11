@@ -7,12 +7,15 @@ import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.domain.user.enums.Gender;
 import com.ldsilver.chingoohaja.domain.user.enums.UserType;
 import com.ldsilver.chingoohaja.dto.auth.OAuthUserInfo;
+import com.ldsilver.chingoohaja.dto.auth.request.RefreshTokenRequest;
 import com.ldsilver.chingoohaja.dto.auth.request.SocialLoginRequest;
 import com.ldsilver.chingoohaja.dto.auth.response.SocialLoginResponse;
 import com.ldsilver.chingoohaja.dto.auth.response.TokenResponse;
+import com.ldsilver.chingoohaja.infrastructure.jwt.JwtTokenProvider;
 import com.ldsilver.chingoohaja.infrastructure.oauth.OAuthClient;
 import com.ldsilver.chingoohaja.infrastructure.oauth.OAuthClientFactory;
 import com.ldsilver.chingoohaja.repository.UserRepository;
+import com.ldsilver.chingoohaja.repository.UserTokenRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,8 +31,11 @@ public class AuthService {
 
     private final OAuthClientFactory oAuthClientFactory;
     private final UserRepository userRepository;
+    private final UserTokenRepository userTokenRepository;
     private final TokenService tokenService;
+    private final TokenCacheService tokenCacheService;
     private final NicknameGenerator nicknameGenerator;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Transactional
     public SocialLoginResponse socialLogin(String provider, SocialLoginRequest request) {
@@ -65,6 +71,49 @@ public class AuthService {
         } catch (Exception e) {
             log.error("소셜 로그인 중 예상치 못한 오류 발생 - provider: {}", provider, e);
             throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR, "로그인 처리 중 오류가 발생했습니다.");
+        }
+    }
+
+
+    @Transactional
+    public TokenResponse refreshToken(RefreshTokenRequest request) {
+        log.debug("토큰 갱신 처리 시작");
+
+        try {
+            String refreshToken = request.refreshToken();
+
+            if (!jwtTokenProvider.isTokenValid(refreshToken)) {
+                throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
+            }
+
+            if (!jwtTokenProvider.isRefreshToken(refreshToken)) {
+                throw new CustomException(ErrorCode.IS_NOT_REFRESH_TOKEN);
+            }
+
+            var userToken = userTokenRepository.findByRefreshTokenAndIsActiveTrue(refreshToken)
+                    .orElseThrow(() -> new CustomException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
+
+            User user = userToken.getUser();
+
+            String newAccessToken = jwtTokenProvider.generateAccessToken(
+                    user.getId(),
+                    user.getEmail(),
+                    user.getUserType().name()
+            );
+
+            log.info("토크 갱신 성공 - userId: {}", user.getId());
+
+            return TokenResponse.forRefresh(
+                    newAccessToken,
+                    refreshToken,
+                    jwtTokenProvider.getTimeUntilExpiration(newAccessToken)
+            );
+        } catch (CustomException e) {
+            log.error("토큰 갱신 실패: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("토큰 갱신 중 예상치 못한 오류", e);
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
     }
 
