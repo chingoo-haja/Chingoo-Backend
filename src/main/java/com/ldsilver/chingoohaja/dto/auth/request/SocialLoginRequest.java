@@ -49,6 +49,7 @@ public class SocialLoginRequest {
 
     // 서버에서 동적으로 설정되는 필드들 (검증 제외)
     @Setter
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String clientIp;
 
 
