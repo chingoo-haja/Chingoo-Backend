@@ -111,11 +111,9 @@ public class AuthController {
             HttpServletRequest httpServletRequest) {
 
         String accessToken = extractAccessTokenFromRequest(httpServletRequest);
-        // TokenValidationResponse response = authService.validateToken(accessToken);
+        TokenValidationResponse response = authService.validateToken(accessToken);
 
-        return ApiResponse.ok("토큰 검증 완료"
-//        , response
-        );
+        return ApiResponse.ok("토큰 검증 완료", response);
     }
 
 
@@ -129,12 +127,11 @@ public class AuthController {
             HttpServletRequest httpServletRequest) {
 
         String accessToken = extractAccessTokenFromRequest(httpServletRequest);
-        // UserMeResponse response = authService.getMyInfo(accessToken);
+        UserMeResponse response = authService.getMyInfo(accessToken);
 
-        return ApiResponse.ok("사용자 정보 조회 성공"
-//        , response
-        );
+        return ApiResponse.ok("사용자 정보 조회 성공", response);
     }
+
 
     /**
      * 클라이언트 실제 IP 주소 추출
