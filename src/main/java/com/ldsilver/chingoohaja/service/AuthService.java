@@ -7,6 +7,7 @@ import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.domain.user.enums.Gender;
 import com.ldsilver.chingoohaja.domain.user.enums.UserType;
 import com.ldsilver.chingoohaja.dto.auth.OAuthUserInfo;
+import com.ldsilver.chingoohaja.dto.auth.request.LogoutRequest;
 import com.ldsilver.chingoohaja.dto.auth.request.RefreshTokenRequest;
 import com.ldsilver.chingoohaja.dto.auth.request.SocialLoginRequest;
 import com.ldsilver.chingoohaja.dto.auth.response.SocialLoginResponse;
@@ -21,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.Optional;
 
@@ -114,6 +116,54 @@ public class AuthService {
         } catch (Exception e) {
             log.error("토큰 갱신 중 예상치 못한 오류", e);
             throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+
+    @Transactional
+    public void logout(String accessToken, LogoutRequest request) {
+        log.debug("로그아웃 처리 시작 - logoutAll: {}", request.isLogoutAll());
+
+        try {
+            Long userId = jwtTokenProvider.getUserIdFromToken(accessToken);
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+            if (request.isLogoutAll()) {
+                logoutAllDeivces(user);
+            } else {
+                logoutCurrentDevice(request.refreshToken());
+            }
+
+            long remainingTime = jwtTokenProvider.getTimeUntilExpiration(accessToken);
+            if (remainingTime > 0) {
+                tokenCacheService.addToBlacklist(
+                        accessToken,
+                        Duration.ofMillis(remainingTime)
+                );
+            }
+
+            log.debug("로그아웃 성공 - userId: {}, logoutAll: {}", user, request.isLogoutAll());
+         } catch (CustomException e) {
+            log.error("로그아웃 실패: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("로그아웃 중 예상치 못한 오류", e);
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    private void logoutAllDeivces(User user) {
+        userTokenRepository.deactivateAllTokensByUser(user);
+        tokenCacheService.deleteAllUserTokens(user.getId());
+        log.debug("모든 디바이스에서 로그아웃 완료 - userId: {}", user.getId());
+    }
+
+    private void logoutCurrentDevice(String refreshToken) {
+        if (refreshToken != null && !refreshToken.trim().isEmpty()) {
+            userTokenRepository.deactivateTokenByRefreshToken(refreshToken);
+            tokenCacheService.deleteRefreshToken(refreshToken);
+            log.debug("현재 디바이스 로그아웃 완료");
         }
     }
 

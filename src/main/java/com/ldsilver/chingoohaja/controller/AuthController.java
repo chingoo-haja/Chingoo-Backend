@@ -95,7 +95,7 @@ public class AuthController {
         log.debug("로그아웃 요청 - logoutAll: {}", request.isLogoutAll());
 
         String accessToken = extractAccessTokenFromRequest(httpRequest);
-        // authService.logout(accessToken, request);
+        authService.logout(accessToken, request);
 
         return ApiResponse.ok("로그아웃 성공");
     }
