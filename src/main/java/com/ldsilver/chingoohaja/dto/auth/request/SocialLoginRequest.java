@@ -74,7 +74,7 @@ public class SocialLoginRequest {
     }
 
     public static SocialLoginRequest withPKCE(String code, String state, String codeVerifier) {
-        return new SocialLoginRequest(code, state, "Default Device", codeVerifier);
+        return new SocialLoginRequest(code, state, null, codeVerifier);
     }
 
     public static SocialLoginRequest forTest(String code, String state) {
