@@ -1,5 +1,6 @@
 package com.ldsilver.chingoohaja.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -12,6 +13,9 @@ import java.util.List;
 
 @Configuration
 public class CorsConfig {
+
+    @Value("{app.cors.allowed-origins:}")
+    private List<String> allowedOrigins;
 
     @Bean
     @Profile({"local", "dev"})
@@ -59,11 +63,12 @@ public class CorsConfig {
     public CorsConfigurationSource prodCorsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // TODO: 도메인 입력하기
-        configuration.setAllowedOriginPatterns(List.of(
-                "https://yourdomain.com",
-                "https://www.yourdomain.com"
-        ));
+        if (allowedOrigins != null && !allowedOrigins.isEmpty()) {
+            configuration.setAllowedOriginPatterns(allowedOrigins);
+        } else {
+            // 도메인이 설정되지 않았을 때 안전한 기본값 또는 에러 처리
+            throw new IllegalStateException("Production CORS origins not configured!");
+        }
 
         configuration.setAllowedMethods(Arrays.asList(
                 "GET", "POST", "PUT", "DELETE", "OPTIONS"
