@@ -37,7 +37,7 @@ public record TokenValidationResponse(
         if (!isValid || expiresAt == null) {
             return true;
         }
-        return LocalDateTime.now().isAfter(expiresAt);
+        return !LocalDateTime.now().isBefore(expiresAt);
     }
 
     public long getSecondsUntilExpiration() {
@@ -45,7 +45,7 @@ public record TokenValidationResponse(
             return 0;
         }
         LocalDateTime now = LocalDateTime.now();
-        if (now.isAfter(expiresAt)) {
+        if (!now.isBefore(expiresAt)) {
             return 0;
         }
 

@@ -87,7 +87,7 @@ public record SocialLoginResponse(
                 return "***@" + domain;
             }
 
-            return localPart.substring(0,2) + "***@" +domain;
+            return localPart.substring(0, 2) + "***@" +domain;
         }
     }
 }
