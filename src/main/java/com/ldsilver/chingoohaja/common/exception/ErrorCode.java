@@ -46,6 +46,7 @@ public enum ErrorCode {
     DUPLICATE_NICKNAME(HttpStatus.CONFLICT, "U003", "이미 사용 중인 닉네임입니다."),
     INVALID_USER_TYPE(HttpStatus.BAD_REQUEST, "U004", "유효하지 않은 사용자 타입입니다."),
     PROFILE_NOT_COMPLETED(HttpStatus.BAD_REQUEST, "U005", "프로필 정보가 완성되지 않았습니다."),
+    USER_CREATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "U006", "사용자 생성에 실패했습니다."),
 
     // 닉네임 관련 에러
     NICKNAME_WORDS_NOT_LOADED(HttpStatus.INTERNAL_SERVER_ERROR, "N001", "닉네임 생성을 위한 단어가 로드되지 않았습니다."),

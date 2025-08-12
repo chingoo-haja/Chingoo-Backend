@@ -21,6 +21,7 @@ import com.ldsilver.chingoohaja.repository.UserRepository;
 import com.ldsilver.chingoohaja.repository.UserTokenRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -251,28 +252,54 @@ public class AuthService {
     private User createNewUser(OAuthUserInfo oAuthUserInfo) {
         log.debug("신규 사용자 생성 시작 - email: {}, provider: {}", oAuthUserInfo.email(), oAuthUserInfo.provider());
 
-        String uniqueNickname = generateUniqueNickname();
+        int maxRetries = 3;
+        int attempt = 0;
 
-        String profileImageUrl = getProfileImageUrl(oAuthUserInfo);
+        while (attempt < maxRetries) {
+            try {
+                String uniqueNickname = generateUniqueNickname();
+                String profileImageUrl = getProfileImageUrl(oAuthUserInfo);
 
-        User newUser = User.of(
-                oAuthUserInfo.email(),
-                uniqueNickname,
-                oAuthUserInfo.name() != null ? oAuthUserInfo.name() : uniqueNickname,
-                determineGender(oAuthUserInfo.gender()),
-                determineBirthDate(),
-                UserType.USER,
-                profileImageUrl,
-                oAuthUserInfo.provider(),
-                oAuthUserInfo.providerId()
-        );
+                User newUser = User.of(
+                        oAuthUserInfo.email(),
+                        uniqueNickname,
+                        oAuthUserInfo.name() != null ? oAuthUserInfo.name() : uniqueNickname,
+                        determineGender(oAuthUserInfo.gender()),
+                        determineBirthDate(),
+                        UserType.USER,
+                        profileImageUrl,
+                        oAuthUserInfo.provider(),
+                        oAuthUserInfo.providerId()
+                );
 
-        User savedUser = userRepository.save(newUser);
+                User savedUser = userRepository.save(newUser);
 
-        log.info("신규 사용자 생성 완료 - userId: {}, email: {}, nickname: {}",
-                savedUser.getId(), savedUser.getEmail(), savedUser.getNickname());
+                log.info("신규 사용자 생성 완료 - userId: {}, email: {}, nickname: {}",
+                        savedUser.getId(), savedUser.getEmail(), savedUser.getNickname());
 
-        return savedUser;
+                return savedUser;
+
+            } catch (DataIntegrityViolationException e) {
+                attempt++;
+                log.warn("닉네임 중복으로 사용자 생성 실패 ({}회 시도) - 재시도합니다", attempt, e);
+
+                if (attempt >= maxRetries) {
+                    log.error("최대 재시도 횟수 초과 - 사용자 생성 실패");
+                    throw new CustomException(ErrorCode.USER_CREATION_FAILED,
+                            "닉네임 생성 중복으로 인한 사용자 생성 실패");
+                }
+
+                // 짧은 대기 후 재시도 (선택사항)
+                try {
+                    Thread.sleep(50 + (attempt * 10)); // 50ms, 60ms, 70ms 대기
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new CustomException(ErrorCode.USER_CREATION_FAILED);
+                }
+            }
+        }
+
+        throw new CustomException(ErrorCode.USER_CREATION_FAILED, "예상치 못한 사용자 생성 실패");
     }
 
     private void updateUserProfileIfNeeded(User user, OAuthUserInfo oAuthUserInfo) {
