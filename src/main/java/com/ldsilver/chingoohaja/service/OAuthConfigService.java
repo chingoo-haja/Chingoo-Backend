@@ -107,7 +107,7 @@ public class OAuthConfigService {
             return new PKCEPair(codeVerifier, codeChallenge);
 
         } catch (Exception e) {
-            log.error("PKCE 생성 실패, 폴백 방식 사용", e);
+            log.error("PKCE 생성 실패", e);
             throw new CustomException(ErrorCode.OAUTH_PKCE_GENERATION_FAILED);
         }
     }
