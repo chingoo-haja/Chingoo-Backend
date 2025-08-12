@@ -78,9 +78,9 @@ public final class EmailMaskingUtils {
         if (length <= 2) {
             return MASK_PATTERN;
         } else if (length <= 4) {
-            return localPart.substring(0,1) + MASK_PATTERN;
+            return localPart.substring(0, 1) + MASK_PATTERN;
         } else {
-            return localPart.substring(0,2) + MASK_PATTERN;
+            return localPart.substring(0, 2) + MASK_PATTERN;
         }
     }
 
