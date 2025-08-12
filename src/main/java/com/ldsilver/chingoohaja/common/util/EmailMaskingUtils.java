@@ -98,4 +98,29 @@ public final class EmailMaskingUtils {
             return MASK_PATTERN + ".***";
         }
     }
+
+    public static boolean isValidEmailFormat(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            return false;
+        }
+
+        String trimmedEmail = email.trim();
+
+        // 기본적인 형식 검증
+        if (!trimmedEmail.contains(AT_SYMBOL)) {
+            return false;
+        }
+
+        String[] parts = trimmedEmail.split(AT_SYMBOL);
+        if (parts.length != 2) {
+            return false;
+        }
+
+        String localPart = parts[0];
+        String domainPart = parts[1];
+
+        return !localPart.isEmpty() &&
+                !domainPart.isEmpty() &&
+                domainPart.contains(".");
+    }
 }
