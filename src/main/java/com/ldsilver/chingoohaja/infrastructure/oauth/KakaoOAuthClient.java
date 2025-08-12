@@ -2,6 +2,7 @@ package com.ldsilver.chingoohaja.infrastructure.oauth;
 
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
+import com.ldsilver.chingoohaja.common.util.EmailMaskingUtils;
 import com.ldsilver.chingoohaja.config.OAuthProperties;
 import com.ldsilver.chingoohaja.dto.auth.OAuthUserInfo;
 import com.ldsilver.chingoohaja.dto.auth.response.KakaoApiResponse;
@@ -76,7 +77,7 @@ public class KakaoOAuthClient implements OAuthClient{
             OAuthUserInfo userInfo = OAuthUserInfo.fromKakao(response);
             validateUserInfo(userInfo);
 
-            log.debug("카카오 사용자 정보 조회 성공 - email: {}", maskEmail(userInfo.email()));
+            log.debug("카카오 사용자 정보 조회 성공 - email: {}", EmailMaskingUtils.maskEmailForLog(userInfo.email()));
             return userInfo;
         } catch (WebClientResponseException e) {
             log.error("카카오 사용자 정보 조회 실패 - 상태코드: {}, 응답: {}", e.getStatusCode(), e.getResponseBodyAsString());
@@ -131,13 +132,4 @@ public class KakaoOAuthClient implements OAuthClient{
         return code.substring(0, 4) + "***" + code.substring(code.length() - 4);
     }
 
-    private String maskEmail(String email) {
-        if (email == null || !email.contains("@")) return "***";
-        String[] parts = email.split("@");
-        String localPart = parts[0];
-        String domain = parts[1];
-
-        if (localPart.length() <= 2) return "***@" + domain;
-        return localPart.substring(0, 2) + "***@" + domain;
-    }
 }

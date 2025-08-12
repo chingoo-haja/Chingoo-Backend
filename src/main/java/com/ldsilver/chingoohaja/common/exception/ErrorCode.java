@@ -19,6 +19,8 @@ public enum ErrorCode {
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "A003", "유효하지 않은 토큰입니다."),
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "A004", "만료된 토큰입니다."),
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "A005", "유효하지 않은 리프레시 토큰입니다."),
+    IS_NOT_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "A006", "리프레시 토큰이 아닙니다."),
+    REFRESH_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "A007", "데이터베이스에서 리프레시 토큰을 찾을 수 없습니다."),
 
     // JWT 관련 에러
     JWT_INVALID(HttpStatus.UNAUTHORIZED, "J001", "유효하지 않은 JWT 토큰입니다."),
@@ -36,6 +38,7 @@ public enum ErrorCode {
     OAUTH_INVALID_STATE(HttpStatus.BAD_REQUEST, "O004", "유효하지 않은 OAuth State 파라미터입니다."),
     OAUTH_INVALID_CODE(HttpStatus.BAD_REQUEST, "O005", "유효하지 않은 OAuth 인가 코드입니다."),
     OAUTH_CONFIG_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "O006", "OAuth 설정 오류입니다."),
+    OAUTH_PKCE_GENERATION_FAILED(HttpStatus.BAD_REQUEST, "O007", "PKCE 코드 챌린지 생성에 실패했습니다."),
 
     // 사용자 관련 에러
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U001", "사용자를 찾을 수 없습니다."),
@@ -43,6 +46,7 @@ public enum ErrorCode {
     DUPLICATE_NICKNAME(HttpStatus.CONFLICT, "U003", "이미 사용 중인 닉네임입니다."),
     INVALID_USER_TYPE(HttpStatus.BAD_REQUEST, "U004", "유효하지 않은 사용자 타입입니다."),
     PROFILE_NOT_COMPLETED(HttpStatus.BAD_REQUEST, "U005", "프로필 정보가 완성되지 않았습니다."),
+    USER_CREATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "U006", "사용자 생성에 실패했습니다."),
 
     // 닉네임 관련 에러
     NICKNAME_WORDS_NOT_LOADED(HttpStatus.INTERNAL_SERVER_ERROR, "N001", "닉네임 생성을 위한 단어가 로드되지 않았습니다."),
