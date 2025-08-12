@@ -1,6 +1,7 @@
 package com.ldsilver.chingoohaja.dto.auth.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.ldsilver.chingoohaja.common.util.EmailMaskingUtils;
 import com.ldsilver.chingoohaja.domain.user.User;
 
 import java.time.LocalDateTime;
@@ -49,21 +50,8 @@ public record UserMeResponse(
 
 
     public String getMaskedEmail() {
-        if (email == null || !email.contains("@")) {
-            return "***@***.***";
-        }
-
-        String[] parts = email.split("@");
-        String localPart = parts[0];
-        String domain = parts[1];
-
-        if (localPart.length() <= 2) {
-            return "***@" + domain;
-        }
-
-        return localPart.substring(0, 2) + "***@" + domain;
+        return EmailMaskingUtils.maskEmail(email);
     }
-
 
     public boolean hasValidProfileImage() {
         return profileImageUrl != null &&
