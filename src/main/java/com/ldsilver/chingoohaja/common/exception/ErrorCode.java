@@ -38,6 +38,7 @@ public enum ErrorCode {
     OAUTH_INVALID_STATE(HttpStatus.BAD_REQUEST, "O004", "유효하지 않은 OAuth State 파라미터입니다."),
     OAUTH_INVALID_CODE(HttpStatus.BAD_REQUEST, "O005", "유효하지 않은 OAuth 인가 코드입니다."),
     OAUTH_CONFIG_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "O006", "OAuth 설정 오류입니다."),
+    OAUTH_PKCE_GENERATION_FAILED(HttpStatus.BAD_REQUEST, "O007", "PKCE 코드 챌린지 생성에 실패했습니다."),
 
     // 사용자 관련 에러
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U001", "사용자를 찾을 수 없습니다."),

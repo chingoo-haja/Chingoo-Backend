@@ -108,8 +108,7 @@ public class OAuthConfigService {
 
         } catch (Exception e) {
             log.error("PKCE 생성 실패, 폴백 방식 사용", e);
-            // 폴백: Code Verifier와 Challenge를 동일하게 (OAuth 2.0 plain 방식)
-            return new PKCEPair(codeVerifier, codeVerifier);
+            throw new CustomException(ErrorCode.OAUTH_PKCE_GENERATION_FAILED);
         }
     }
 
