@@ -112,7 +112,7 @@ public class GoogleOAuthClient implements OAuthClient{
     }
 
     private void validateTokenResponse(TokenResponse response) {
-        if (response == null || response.accessToken() == null) {
+        if (response == null || response.accessToken() == null || response.accessToken().isBlank()) {
             throw new CustomException(ErrorCode.OAUTH_TOKEN_EXCHANGE_FAILED, "구글 토큰 교환 응답이 비어있습니다.");
         }
     }
