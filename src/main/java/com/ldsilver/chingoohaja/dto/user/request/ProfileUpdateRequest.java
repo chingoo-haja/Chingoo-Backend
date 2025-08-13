@@ -20,7 +20,7 @@ public class ProfileUpdateRequest {
     @NotBlank(message = UserValidationConstants.RealName.REQUIRED)
     @Size(
             min = UserValidationConstants.RealName.MIN_LENGTH,
-            max = UserValidationConstants.RealName.MIN_LENGTH,
+            max = UserValidationConstants.RealName.MAX_LENGTH,
             message = UserValidationConstants.RealName.INVALID_LENGTH
     )
     @Pattern(

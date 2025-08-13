@@ -65,7 +65,7 @@ public class TokenService {
 
         log.debug("새로운 토큰 쌍 생성 완료 - userId: {}, deviceInfo: {}", userId, deviceInfo);
 
-        return TokenResponse.of(accessToken, refreshToken, jwtProperties.getAccessTokenExpiration());
+        return TokenResponse.of(accessToken, refreshToken, jwtProperties.getAccessTokenExpiration() / 1000);
     }
 
     private void limitUserTokens(User user) {

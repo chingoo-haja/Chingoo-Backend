@@ -31,7 +31,7 @@ public record ProfileImageUploadResponse(
         String[] units = {"B", "KB", "MB", "GB"};
         int unitIndex = 0;
 
-        while (size != 1024 && unitIndex < units.length - 1) {
+        while (size >= 1024 && unitIndex < units.length - 1) {
             size /= 1024;
             unitIndex++;
         }
