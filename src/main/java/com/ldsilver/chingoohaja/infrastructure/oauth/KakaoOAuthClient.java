@@ -4,9 +4,9 @@ import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.common.util.EmailMaskingUtils;
 import com.ldsilver.chingoohaja.config.OAuthProperties;
-import com.ldsilver.chingoohaja.dto.auth.OAuthUserInfo;
-import com.ldsilver.chingoohaja.dto.auth.response.KakaoApiResponse;
-import com.ldsilver.chingoohaja.dto.auth.response.TokenResponse;
+import com.ldsilver.chingoohaja.dto.oauth.OAuthUserInfo;
+import com.ldsilver.chingoohaja.dto.oauth.response.KakaoApiResponse;
+import com.ldsilver.chingoohaja.dto.oauth.response.TokenResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -48,7 +48,7 @@ public class KakaoOAuthClient implements OAuthClient{
             log.debug("카카오 토큰 교환 성공");
             return response;
         } catch (WebClientResponseException e) {
-            log.error("카카오 토큰 교환 실패 - 상태코드: {}, 응답: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            log.error("카카오 토큰 교환 실패 - 상태코드: {}, 응답: {}", e.getStatusCode(), safeBody(e.getResponseBodyAsString()));
             throw new CustomException(ErrorCode.OAUTH_TOKEN_EXCHANGE_FAILED);
         } catch (Exception e) {
             log.error("카카오 토큰 교환 중 예외 발생", e);
@@ -65,7 +65,6 @@ public class KakaoOAuthClient implements OAuthClient{
                     .get()
                     .uri(oAuthProperties.getKakao().getUserInfoUrl())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
                     .retrieve()
                     .bodyToMono(KakaoApiResponse.class)
                     .block();
@@ -80,7 +79,7 @@ public class KakaoOAuthClient implements OAuthClient{
             log.debug("카카오 사용자 정보 조회 성공 - email: {}", EmailMaskingUtils.maskEmailForLog(userInfo.email()));
             return userInfo;
         } catch (WebClientResponseException e) {
-            log.error("카카오 사용자 정보 조회 실패 - 상태코드: {}, 응답: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            log.error("카카오 사용자 정보 조회 실패 - 상태코드: {}, 응답: {}", e.getStatusCode(), safeBody(e.getResponseBodyAsString()));
             throw new CustomException(ErrorCode.OAUTH_USER_INFO_FETCH_FAILED);
         } catch (CustomException e) {
             throw e;
@@ -130,6 +129,15 @@ public class KakaoOAuthClient implements OAuthClient{
     private String maskCode(String code) {
         if (code == null || code.length() < 8) return "***";
         return code.substring(0, 4) + "***" + code.substring(code.length() - 4);
+    }
+
+    private String safeBody(String body) {
+        if (body == null) return null;
+        String sanitized = body
+                .replaceAll("(?i)(\"access_token\"\\s*:\\s*\").*?(\")", "$1***$2")
+                .replaceAll("(?i)(\"refresh_token\"\\s*:\\s*\").*?(\")", "$1***$2")
+                .replaceAll("(?i)(\"email\"\\s*:\\s*\")[^\"]*(\")", "$1***$2");
+        return sanitized.length() > 512 ? sanitized.substring(0, 512) + "...(truncated)" : sanitized;
     }
 
 }

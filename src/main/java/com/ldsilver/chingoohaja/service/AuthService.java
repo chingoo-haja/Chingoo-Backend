@@ -6,14 +6,14 @@ import com.ldsilver.chingoohaja.common.util.NicknameGenerator;
 import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.domain.user.enums.Gender;
 import com.ldsilver.chingoohaja.domain.user.enums.UserType;
-import com.ldsilver.chingoohaja.dto.auth.OAuthUserInfo;
-import com.ldsilver.chingoohaja.dto.auth.request.LogoutRequest;
-import com.ldsilver.chingoohaja.dto.auth.request.RefreshTokenRequest;
-import com.ldsilver.chingoohaja.dto.auth.request.SocialLoginRequest;
-import com.ldsilver.chingoohaja.dto.auth.response.SocialLoginResponse;
-import com.ldsilver.chingoohaja.dto.auth.response.TokenResponse;
-import com.ldsilver.chingoohaja.dto.auth.response.TokenValidationResponse;
-import com.ldsilver.chingoohaja.dto.auth.response.UserMeResponse;
+import com.ldsilver.chingoohaja.dto.oauth.OAuthUserInfo;
+import com.ldsilver.chingoohaja.dto.oauth.request.LogoutRequest;
+import com.ldsilver.chingoohaja.dto.oauth.request.RefreshTokenRequest;
+import com.ldsilver.chingoohaja.dto.oauth.request.SocialLoginRequest;
+import com.ldsilver.chingoohaja.dto.oauth.response.SocialLoginResponse;
+import com.ldsilver.chingoohaja.dto.oauth.response.TokenResponse;
+import com.ldsilver.chingoohaja.dto.oauth.response.TokenValidationResponse;
+import com.ldsilver.chingoohaja.dto.oauth.response.UserMeResponse;
 import com.ldsilver.chingoohaja.infrastructure.jwt.JwtTokenProvider;
 import com.ldsilver.chingoohaja.infrastructure.oauth.OAuthClient;
 import com.ldsilver.chingoohaja.infrastructure.oauth.OAuthClientFactory;
@@ -111,7 +111,7 @@ public class AuthService {
             return TokenResponse.forRefresh(
                     newAccessToken,
                     refreshToken,
-                    jwtTokenProvider.getTimeUntilExpiration(newAccessToken)
+                    Math.max(0L, jwtTokenProvider.getTimeUntilExpiration(newAccessToken) / 1000L)
             );
         } catch (CustomException e) {
             log.error("토큰 갱신 실패: {}", e.getMessage());
@@ -128,6 +128,9 @@ public class AuthService {
         log.debug("로그아웃 처리 시작 - logoutAll: {}", request.isLogoutAll());
 
         try {
+            if (accessToken == null || !jwtTokenProvider.isTokenValid(accessToken)) {
+                throw new CustomException(ErrorCode.INVALID_TOKEN);
+            }
             Long userId = jwtTokenProvider.getUserIdFromToken(accessToken);
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -135,7 +138,9 @@ public class AuthService {
             if (request.isLogoutAll()) {
                 logoutAllDevices(user);
             } else {
-                logoutCurrentDevice(request.refreshToken());
+                if (!request.hasRefreshToken())
+                    throw new CustomException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
+                logoutCurrentDevice(userId, request.refreshToken());
             }
 
             long remainingTime = jwtTokenProvider.getTimeUntilExpiration(accessToken);
@@ -206,12 +211,19 @@ public class AuthService {
         log.debug("모든 디바이스에서 로그아웃 완료 - userId: {}", user.getId());
     }
 
-    private void logoutCurrentDevice(String refreshToken) {
-        if (refreshToken != null && !refreshToken.trim().isEmpty()) {
-            userTokenRepository.deactivateTokenByRefreshToken(refreshToken);
-            tokenCacheService.deleteRefreshToken(refreshToken);
-            log.debug("현재 디바이스 로그아웃 완료");
+    private void logoutCurrentDevice(Long userId, String refreshToken) {
+        if (refreshToken == null || refreshToken.trim().isEmpty()) {
+            throw new CustomException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
         }
+        var userToken = userTokenRepository.findByRefreshTokenAndIsActiveTrue(refreshToken)
+                        .orElseThrow(() -> new CustomException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
+        if (!userToken.getUser().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
+        }
+
+        userTokenRepository.deactivateTokenByRefreshToken(refreshToken);
+        tokenCacheService.deleteRefreshToken(refreshToken);
+        log.debug("현재 디바이스 로그아웃 완료");
     }
 
     private OAuthUserInfo getOAuthUserInfo(String provider, SocialLoginRequest request) {
@@ -274,8 +286,8 @@ public class AuthService {
 
                 User savedUser = userRepository.save(newUser);
 
-                log.info("신규 사용자 생성 완료 - userId: {}, email: {}, nickname: {}",
-                        savedUser.getId(), savedUser.getEmail(), savedUser.getNickname());
+                log.info("신규 사용자 생성 완료 - userId: {}, nickname: {}",
+                        savedUser.getId(), savedUser.getNickname());
 
                 return savedUser;
 

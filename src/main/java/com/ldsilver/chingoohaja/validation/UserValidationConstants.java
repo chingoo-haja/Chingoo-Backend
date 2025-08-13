@@ -50,4 +50,16 @@ public class UserValidationConstants {
         public static final String INVALID_LENGTH = "실명은 2-50자여야 합니다.";
         public static final String INVALID_FORMAT = "실명은 한글, 영문, 공백만 사용 가능합니다.";
     }
+
+    @UtilityClass
+    public static class Birth {
+        public static final String LEAST_DOB = "생년월일은 현재 날짜보다 이전이어야 합니다.";
+    }
+
+    @UtilityClass
+    public static class Image {
+        public static final String REQUIRED = "프로필 이미지 파일은 필수입니다.";
+        public static final String INVALID_TYPE = "지원하지 않는 이미지 형식입니다. (jpeg, png, webp)";
+        public static final String TOO_LARGE = "이미지 파일 크기는 5MB 이하여야 합니다.";
+    }
 }

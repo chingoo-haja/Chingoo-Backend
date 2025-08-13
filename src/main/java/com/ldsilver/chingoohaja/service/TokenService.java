@@ -5,7 +5,7 @@ import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.config.JwtProperties;
 import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.domain.user.UserToken;
-import com.ldsilver.chingoohaja.dto.auth.response.TokenResponse;
+import com.ldsilver.chingoohaja.dto.oauth.response.TokenResponse;
 import com.ldsilver.chingoohaja.infrastructure.jwt.JwtTokenProvider;
 import com.ldsilver.chingoohaja.repository.UserRepository;
 import com.ldsilver.chingoohaja.repository.UserTokenRepository;
@@ -65,7 +65,7 @@ public class TokenService {
 
         log.debug("새로운 토큰 쌍 생성 완료 - userId: {}, deviceInfo: {}", userId, deviceInfo);
 
-        return TokenResponse.of(accessToken, refreshToken, jwtProperties.getAccessTokenExpiration());
+        return TokenResponse.of(accessToken, refreshToken, jwtProperties.getAccessTokenExpiration() / 1000);
     }
 
     private void limitUserTokens(User user) {
