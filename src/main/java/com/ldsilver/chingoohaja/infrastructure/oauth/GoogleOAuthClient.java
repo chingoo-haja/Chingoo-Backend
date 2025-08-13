@@ -48,7 +48,7 @@ public class GoogleOAuthClient implements OAuthClient{
             return response; // 바로 반환
 
         } catch (WebClientResponseException e) {
-            log.error("구글 토큰 교환 실패 - 상태코드: {}, 응답: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            log.error("구글 토큰 교환 실패 - 상태코드: {}, 응답: {}", e.getStatusCode(), safeBody(e.getResponseBodyAsString()));
             throw new CustomException(ErrorCode.OAUTH_TOKEN_EXCHANGE_FAILED);
         } catch (Exception e) {
             log.error("구글 토큰 교환 중 예외 발생", e);
@@ -80,7 +80,7 @@ public class GoogleOAuthClient implements OAuthClient{
             return userInfo;
 
         } catch (WebClientResponseException e) {
-            log.error("구글 사용자 정보 조회 실패 - 상태코드: {}, 응답: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            log.error("구글 사용자 정보 조회 실패 - 상태코드: {}, 응답: {}", e.getStatusCode(), safeBody(e.getResponseBodyAsString()));
             throw new CustomException(ErrorCode.OAUTH_USER_INFO_FETCH_FAILED);
         } catch (CustomException e) {
             throw e;
@@ -130,6 +130,15 @@ public class GoogleOAuthClient implements OAuthClient{
     private String maskCode(String code) {
         if (code == null || code.length() < 8) return "***";
         return code.substring(0, 4) + "***" + code.substring(code.length() - 4);
+    }
+
+    private String safeBody(String body) {
+        if (body == null) return null;
+        String sanitized = body
+                .replaceAll("(?i)(\"access_token\"\\s*:\\s*\").*?(\")", "$1***$2")
+                .replaceAll("(?i)(\"refresh_token\"\\s*:\\s*\").*?(\")", "$1***$2")
+                .replaceAll("(?i)(\"email\"\\s*:\\s*\")[^\"]*(\")", "$1***$2");
+        return sanitized.length() > 512 ? sanitized.substring(0, 512) + "...(truncated)" : sanitized;
     }
 
 }
