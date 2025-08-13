@@ -128,6 +128,9 @@ public class AuthService {
         log.debug("로그아웃 처리 시작 - logoutAll: {}", request.isLogoutAll());
 
         try {
+            if (accessToken == null || !jwtTokenProvider.isTokenValid(accessToken)) {
+                throw new CustomException(ErrorCode.INVALID_TOKEN);
+            }
             Long userId = jwtTokenProvider.getUserIdFromToken(accessToken);
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -135,6 +138,8 @@ public class AuthService {
             if (request.isLogoutAll()) {
                 logoutAllDevices(user);
             } else {
+                if (!request.hasRefreshToken())
+                    throw new CustomException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
                 logoutCurrentDevice(request.refreshToken());
             }
 
