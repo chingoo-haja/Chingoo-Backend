@@ -1,7 +1,9 @@
 package com.ldsilver.chingoohaja.dto.user.request;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ldsilver.chingoohaja.domain.user.enums.Gender;
+import com.ldsilver.chingoohaja.validation.CommonValidationConstants;
 import com.ldsilver.chingoohaja.validation.UserValidationConstants;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Past;
@@ -47,6 +49,7 @@ public class ProfileUpdateRequest {
     private Gender gender;
 
     @Past(message = UserValidationConstants.Birth.LEAST_DOB)
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = CommonValidationConstants.Date.DATE_PATTERN)
     @JsonProperty("birth")
     private LocalDate birth;
 
