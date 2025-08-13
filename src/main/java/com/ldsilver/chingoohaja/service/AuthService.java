@@ -111,7 +111,7 @@ public class AuthService {
             return TokenResponse.forRefresh(
                     newAccessToken,
                     refreshToken,
-                    jwtTokenProvider.getTimeUntilExpiration(newAccessToken)
+                    Math.max(0L, jwtTokenProvider.getTimeUntilExpiration(newAccessToken) / 1000L)
             );
         } catch (CustomException e) {
             log.error("토큰 갱신 실패: {}", e.getMessage());
