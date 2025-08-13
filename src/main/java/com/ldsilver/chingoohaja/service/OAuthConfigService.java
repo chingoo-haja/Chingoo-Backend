@@ -3,7 +3,7 @@ package com.ldsilver.chingoohaja.service;
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.config.OAuthProperties;
-import com.ldsilver.chingoohaja.dto.auth.response.OAuthConfigResponse;
+import com.ldsilver.chingoohaja.dto.oauth.response.OAuthConfigResponse;
 import com.ldsilver.chingoohaja.infrastructure.oauth.OAuthClientFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

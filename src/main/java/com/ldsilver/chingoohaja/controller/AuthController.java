@@ -1,9 +1,9 @@
 package com.ldsilver.chingoohaja.controller;
 
-import com.ldsilver.chingoohaja.dto.auth.request.LogoutRequest;
-import com.ldsilver.chingoohaja.dto.auth.request.RefreshTokenRequest;
-import com.ldsilver.chingoohaja.dto.auth.request.SocialLoginRequest;
-import com.ldsilver.chingoohaja.dto.auth.response.*;
+import com.ldsilver.chingoohaja.dto.oauth.request.LogoutRequest;
+import com.ldsilver.chingoohaja.dto.oauth.request.RefreshTokenRequest;
+import com.ldsilver.chingoohaja.dto.oauth.request.SocialLoginRequest;
+import com.ldsilver.chingoohaja.dto.oauth.response.*;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.service.AuthService;
 import com.ldsilver.chingoohaja.service.OAuthConfigService;

@@ -1,4 +1,4 @@
-package com.ldsilver.chingoohaja.dto.auth.request;
+package com.ldsilver.chingoohaja.dto.oauth.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ldsilver.chingoohaja.domain.common.enums.Provider;

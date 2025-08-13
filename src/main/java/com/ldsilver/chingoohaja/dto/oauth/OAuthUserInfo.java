@@ -1,9 +1,9 @@
-package com.ldsilver.chingoohaja.dto.auth;
+package com.ldsilver.chingoohaja.dto.oauth;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ldsilver.chingoohaja.domain.user.enums.Gender;
-import com.ldsilver.chingoohaja.dto.auth.response.GoogleApiResponse;
-import com.ldsilver.chingoohaja.dto.auth.response.KakaoApiResponse;
+import com.ldsilver.chingoohaja.dto.oauth.response.GoogleApiResponse;
+import com.ldsilver.chingoohaja.dto.oauth.response.KakaoApiResponse;
 
 public record OAuthUserInfo(
         @JsonProperty("provider_id") String providerId,

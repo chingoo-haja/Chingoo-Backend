@@ -1,7 +1,7 @@
 package com.ldsilver.chingoohaja.infrastructure.oauth;
 
-import com.ldsilver.chingoohaja.dto.auth.OAuthUserInfo;
-import com.ldsilver.chingoohaja.dto.auth.response.TokenResponse;
+import com.ldsilver.chingoohaja.dto.oauth.OAuthUserInfo;
+import com.ldsilver.chingoohaja.dto.oauth.response.TokenResponse;
 
 public interface OAuthClient {
     /**
