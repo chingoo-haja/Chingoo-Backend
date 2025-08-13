@@ -18,7 +18,7 @@ public record ProfileResponse(
         @JsonProperty("user_type") String userType,
         @JsonProperty("profile_image_url") String profileImageUrl,
         @JsonProperty("provider") String provider,
-        @JsonProperty("is_profile_complete") Boolean isProfileComplete,
+        @JsonProperty("is_profile_complete") boolean isProfileComplete,
         @JsonProperty("display_name") String displayName,
         @JsonProperty("created_at") LocalDateTime createdAt,
         @JsonProperty("updated_at") LocalDateTime updatedAt
@@ -57,6 +57,6 @@ public record ProfileResponse(
     }
 
     public boolean needsProfileCompletion() {
-        return Boolean.FALSE.equals(isProfileComplete);
+        return !isProfileComplete;
     }
 }
