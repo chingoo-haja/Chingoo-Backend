@@ -158,8 +158,10 @@ public class AuthController {
 
     private String extractAccessTokenFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
-        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
+        final String prefix = "Bearer ";
+        if (bearerToken != null && bearerToken.length() > prefix.length() && bearerToken.regionMatches(true, 0, prefix, 0, prefix.length())) {
+            String token = bearerToken.substring(prefix.length()).trim();
+            return token.isEmpty() ? null : token;
         }
         return null;
     }
