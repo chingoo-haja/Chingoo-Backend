@@ -7,9 +7,19 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Set;
+
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ProfileImageUploadRequest {
+
+    private static final long MAX_SIZE_BYTES = 5L * 1024 * 1024; //5MB
+    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "image/webp"
+    );
 
     @NotNull(message = UserValidationConstants.Image.REQUIRED)
     private MultipartFile image;
@@ -28,11 +38,7 @@ public class ProfileImageUploadRequest {
         }
 
         String contentType = image.getContentType();
-        return contentType != null && (
-                        contentType.equals("image/jpeg") ||
-                        contentType.equals("image/png") ||
-                        contentType.equals("image/webp")
-                );
+        return contentType != null && ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase());
     }
 
     public boolean isFileSizeValid() {
@@ -40,8 +46,7 @@ public class ProfileImageUploadRequest {
             return false;
         }
 
-        // 5MB 제한
-        return image.getSize() <= 5 * 1024 * 1024;
+        return image.getSize() <= MAX_SIZE_BYTES;
     }
 
     public String getOriginalFilename() {
