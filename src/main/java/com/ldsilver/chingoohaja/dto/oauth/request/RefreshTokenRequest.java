@@ -15,7 +15,7 @@ public record RefreshTokenRequest(
         @JsonProperty("refresh_token") String refreshToken
 ) {
     public RefreshTokenRequest {
-        if (refreshToken != null && !isValidJwtFormat(refreshToken)) {
+        if (refreshToken != null && !refreshToken.isBlank() && !isValidJwtFormat(refreshToken)) {
             throw new IllegalArgumentException(AuthValidationConstants.Token.REFRESH_TOKEN_INVALID_FORMAT);
         }
     }
