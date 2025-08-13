@@ -28,7 +28,7 @@ public record ProfileImageUploadResponse(
         }
 
         double size = fileSize;
-        String[] units = {"B", "KB", "MB", "GB"};
+        String[] units = {"B", "KB", "MB", "GB", "TB"};
         int unitIndex = 0;
 
         while (size >= 1024 && unitIndex < units.length - 1) {
