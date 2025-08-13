@@ -212,7 +212,7 @@ public class AuthService {
     }
 
     private void logoutCurrentDevice(String refreshToken) {
-        if (refreshToken == null && refreshToken.trim().isEmpty()) {
+        if (refreshToken == null || refreshToken.trim().isEmpty()) {
             throw new CustomException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
         }
         userTokenRepository.deactivateTokenByRefreshToken(refreshToken);
