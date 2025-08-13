@@ -212,11 +212,12 @@ public class AuthService {
     }
 
     private void logoutCurrentDevice(String refreshToken) {
-        if (refreshToken != null && !refreshToken.trim().isEmpty()) {
-            userTokenRepository.deactivateTokenByRefreshToken(refreshToken);
-            tokenCacheService.deleteRefreshToken(refreshToken);
-            log.debug("현재 디바이스 로그아웃 완료");
+        if (refreshToken == null && refreshToken.trim().isEmpty()) {
+            throw new CustomException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
         }
+        userTokenRepository.deactivateTokenByRefreshToken(refreshToken);
+        tokenCacheService.deleteRefreshToken(refreshToken);
+        log.debug("현재 디바이스 로그아웃 완료");
     }
 
     private OAuthUserInfo getOAuthUserInfo(String provider, SocialLoginRequest request) {
