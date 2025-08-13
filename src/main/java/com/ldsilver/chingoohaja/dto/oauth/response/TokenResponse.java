@@ -13,7 +13,7 @@ public record TokenResponse (
 ) {
     public TokenResponse {
         tokenType = "Bearer";
-        issuedAt = issuedAt() != null ? issuedAt : LocalDateTime.now();
+        issuedAt = issuedAt != null ? issuedAt : LocalDateTime.now();
     }
 
     public static TokenResponse of(String accessToken, String refreshToken, Long expiresIn) {
