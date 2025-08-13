@@ -65,7 +65,6 @@ public class KakaoOAuthClient implements OAuthClient{
                     .get()
                     .uri(oAuthProperties.getKakao().getUserInfoUrl())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
                     .retrieve()
                     .bodyToMono(KakaoApiResponse.class)
                     .block();
