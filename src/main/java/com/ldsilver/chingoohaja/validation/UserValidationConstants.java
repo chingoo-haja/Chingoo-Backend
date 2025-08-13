@@ -55,4 +55,9 @@ public class UserValidationConstants {
     public static class Birth {
         public static final String LEAST_DOB = "생년월일은 현재 날짜보다 이전이여야 합니다.";
     }
+
+    @UtilityClass
+    public static class Image {
+        public static final String REQUIRED = "프로필 이미지 파일은 필수입니다.";
+    }
 }
