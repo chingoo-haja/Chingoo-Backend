@@ -140,7 +140,7 @@ public class AuthService {
             } else {
                 if (!request.hasRefreshToken())
                     throw new CustomException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
-                logoutCurrentDevice(request.refreshToken());
+                logoutCurrentDevice(userId, request.refreshToken());
             }
 
             long remainingTime = jwtTokenProvider.getTimeUntilExpiration(accessToken);
@@ -211,10 +211,16 @@ public class AuthService {
         log.debug("모든 디바이스에서 로그아웃 완료 - userId: {}", user.getId());
     }
 
-    private void logoutCurrentDevice(String refreshToken) {
+    private void logoutCurrentDevice(Long userId, String refreshToken) {
         if (refreshToken == null || refreshToken.trim().isEmpty()) {
             throw new CustomException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
         }
+        var userToken = userTokenRepository.findByRefreshTokenAndIsActiveTrue(refreshToken)
+                        .orElseThrow(() -> new CustomException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
+        if (!userToken.getUser().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
+        }
+
         userTokenRepository.deactivateTokenByRefreshToken(refreshToken);
         tokenCacheService.deleteRefreshToken(refreshToken);
         log.debug("현재 디바이스 로그아웃 완료");
