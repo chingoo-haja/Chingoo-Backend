@@ -137,7 +137,8 @@ public class GoogleOAuthClient implements OAuthClient{
         String sanitized = body
                 .replaceAll("(?i)(\"access_token\"\\s*:\\s*\").*?(\")", "$1***$2")
                 .replaceAll("(?i)(\"refresh_token\"\\s*:\\s*\").*?(\")", "$1***$2")
-                .replaceAll("(?i)(\"email\"\\s*:\\s*\")[^\"]*(\")", "$1***$2");
+                .replaceAll("(?i)(\"email\"\\s*:\\s*\")[^\"]*(\")", "$1***$2")
+                .replaceAll("(?i)(\"id_token\"\\s*:\\s*\").*?(\")", "$1***$2");
         return sanitized.length() > 512 ? sanitized.substring(0, 512) + "...(truncated)" : sanitized;
     }
 
