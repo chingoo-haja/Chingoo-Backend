@@ -48,10 +48,10 @@ public enum ErrorCode {
     PROFILE_NOT_COMPLETED(HttpStatus.BAD_REQUEST, "U005", "프로필 정보가 완성되지 않았습니다."),
     USER_CREATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "U006", "사용자 생성에 실패했습니다."),
     IMAGE_SAVE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "U007", "이미지 저장 중 오류가 발생했습니다."),
-    IMAGE_FILE_EMPTY(HttpStatus.INTERNAL_SERVER_ERROR, "U008", "이미지 파일이 비어있습니다."),
-    IMAGE_FILE_OVERSIZED(HttpStatus.INTERNAL_SERVER_ERROR, "U009", "이미지 파일 크기는 5MB를 초과할 수 없습니다."),
-    INVALID_IMAGE_TYPE(HttpStatus.INTERNAL_SERVER_ERROR, "U010", "지원되지 않는 이미지 형식입니다. (JPEG, PNG, WebP만 허용"),
-    INVALID_FILE_NAME(HttpStatus.INTERNAL_SERVER_ERROR, "U011", "유효하지 않은 파일명입니다."),
+    IMAGE_FILE_EMPTY(HttpStatus.BAD_REQUEST, "U008", "이미지 파일이 비어있습니다."),
+    IMAGE_FILE_OVERSIZED(HttpStatus.BAD_REQUEST, "U009", "이미지 파일 크기는 5MB를 초과할 수 없습니다."),
+    INVALID_IMAGE_TYPE(HttpStatus.BAD_REQUEST, "U010", "지원되지 않는 이미지 형식입니다. (JPEG, PNG, WebP만 허용"),
+    INVALID_FILE_NAME(HttpStatus.BAD_REQUEST, "U011", "유효하지 않은 파일명입니다."),
 
     // 닉네임 관련 에러
     NICKNAME_WORDS_NOT_LOADED(HttpStatus.INTERNAL_SERVER_ERROR, "N001", "닉네임 생성을 위한 단어가 로드되지 않았습니다."),
