@@ -52,6 +52,7 @@ public enum ErrorCode {
     IMAGE_FILE_OVERSIZED(HttpStatus.BAD_REQUEST, "U009", "이미지 파일 크기는 5MB를 초과할 수 없습니다."),
     INVALID_IMAGE_TYPE(HttpStatus.BAD_REQUEST, "U010", "지원되지 않는 이미지 형식입니다. (JPEG, PNG, WebP만 허용)"),
     INVALID_FILE_NAME(HttpStatus.BAD_REQUEST, "U011", "유효하지 않은 파일명입니다."),
+    NO_PROFILE_CHANGE(HttpStatus.BAD_REQUEST, "U012", "수정을 원하는 사용자 프로필 데이터가 없습니다."),
 
     // 닉네임 관련 에러
     NICKNAME_WORDS_NOT_LOADED(HttpStatus.INTERNAL_SERVER_ERROR, "N001", "닉네임 생성을 위한 단어가 로드되지 않았습니다."),

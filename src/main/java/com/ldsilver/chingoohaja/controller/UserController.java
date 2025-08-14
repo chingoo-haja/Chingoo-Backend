@@ -1,5 +1,7 @@
 package com.ldsilver.chingoohaja.controller;
 
+import com.ldsilver.chingoohaja.common.exception.CustomException;
+import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.user.CustomUserDetails;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.dto.user.request.ProfileImageUploadRequest;
@@ -52,6 +54,10 @@ public class UserController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody ProfileUpdateRequest request) {
         log.debug("프로필 수정 요청 - userId: {}, nickname: {}", userDetails.getUserId(), request.getNickname());
+
+        if (!request.hasAnyChange()) {
+            throw new CustomException(ErrorCode.NO_PROFILE_CHANGE);
+        }
 
         ProfileResponse updateProfile = userService.updateUserProfile(
                 userDetails.getUserId(), request

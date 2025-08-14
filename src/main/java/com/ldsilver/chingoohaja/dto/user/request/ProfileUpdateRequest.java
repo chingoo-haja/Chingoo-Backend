@@ -77,6 +77,10 @@ public class ProfileUpdateRequest {
         return birth != null;
     }
 
+    public boolean hasAnyChange() {
+        return hasNicknameChange() || hasRealNameChange() || hasGenderChange() || hasBirthChange();
+    }
+
     public String getTrimmedRealName() {
         return realName != null ? realName.trim() : null;
     }
