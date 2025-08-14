@@ -7,7 +7,9 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
@@ -45,7 +47,7 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private UserType userType = UserType.USER;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 2048)
     private String profileImageUrl;
 
     @Column(nullable = false)
