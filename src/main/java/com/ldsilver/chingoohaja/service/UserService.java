@@ -38,21 +38,33 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        if (request.hasNicknameChange() && !user.getNickname().equals(request.getNickname())) {
-            validateNicknameUnique(request.getNickname(), userId);
+        if (request.hasNicknameChange()) {
+            String newNickname = request.getTrimmedNickname();
+            if (!user.getNickname().equals(newNickname)) {
+                validateNicknameUnique(newNickname, userId);
+            }
         }
+        updateUserFields(user, request);
 
-        user.updateProfile(
-                request.getRealName(),
-                request.getNickname(),
-                request.getGender(),
-                request.getBirth(),
-                user.getProfileImageUrl()
-        );
-
+        log.debug("사용자 프로필 수정 완료 - userId: {}", userId);
         User updateUser = userRepository.save(user);
 
         return ProfileResponse.from(updateUser);
+    }
+
+    private void updateUserFields(User user, ProfileUpdateRequest request) {
+        if (request.hasRealNameChange()) {
+            user.updateRealName(request.getTrimmedRealName());
+        }
+        if (request.hasNicknameChange()) {
+            user.updateNickname(request.getTrimmedNickname());
+        }
+        if (request.hasGenderChange()) {
+            user.updateGender(request.getGender());
+        }
+        if (request.hasBirthChange()) {
+            user.updateBirth(request.getBirth());
+        }
     }
 
     private void validateNicknameUnique(String nickname, Long currentUserId) {
