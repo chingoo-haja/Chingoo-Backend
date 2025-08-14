@@ -14,24 +14,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.UUID;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
-
-    private static final String UPLOAD_DIR = "uploads/profiles";
-    private static final String BASE_URL = "http://localhost:8080/api/v1/files/profiles";
+    private final FirebaseStorageService firebaseStorageService;
 
     @Transactional(readOnly = true)
     public ProfileResponse getUserProfile(Long userId) {
@@ -73,24 +62,23 @@ public class UserService {
 
         MultipartFile imageFile = request.getImage();
 
-        validateImageFile(imageFile);
-
-        try {
-            String savedFileName = saveImageFile(imageFile, userId);
-            String profileImageUrl = BASE_URL + "/" + savedFileName;
-
-            user.updateProfileImage(profileImageUrl);
-            userRepository.save(user);
-
-            return ProfileImageUploadResponse.of(
-                    profileImageUrl,
-                    imageFile.getOriginalFilename(),
-                    imageFile.getSize()
-            );
-        } catch (IOException e) {
-            log.error("프로필 이미지 저장 실패 - userId: {}", userId, e);
-            throw new CustomException(ErrorCode.IMAGE_SAVE_FAILED);
+        String oldImageUrl = user.getProfileImageUrl();
+        if (oldImageUrl != null && !oldImageUrl.contains("default")) {
+            firebaseStorageService.deleteFile(oldImageUrl);
         }
+
+        String newImageUrl = firebaseStorageService.uploadProfileImage(imageFile, userId);
+
+        user.updateProfileImage(newImageUrl);
+        userRepository.save(user);
+
+        log.debug("프로필 이미지 업로드 완료 - userId: {}", userId);
+
+        return ProfileImageUploadResponse.of(
+                newImageUrl,
+                imageFile.getOriginalFilename(),
+                imageFile.getSize()
+        );
     }
 
 
@@ -119,52 +107,5 @@ public class UserService {
                         throw new CustomException(ErrorCode.DUPLICATE_NICKNAME);
                     });
         }
-    }
-
-    private void validateImageFile(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new CustomException(ErrorCode.IMAGE_FILE_EMPTY);
-        }
-
-        if (file.getSize() > 5 * 1024 * 1024) {
-            throw new CustomException(ErrorCode.IMAGE_FILE_OVERSIZED);
-        }
-
-        String contentType = file.getContentType();
-        if (contentType == null ||
-                (!contentType.equals("image/jpeg") &&
-                        !contentType.equals("image/png") &&
-                        !contentType.equals("image/webp"))) {
-            throw new CustomException(ErrorCode.INVALID_IMAGE_TYPE);
-        }
-
-        String originalFilename = file.getOriginalFilename();
-        if (originalFilename == null || originalFilename.trim().isEmpty()) {
-            throw new CustomException(ErrorCode.INVALID_FILE_NAME);
-        }
-    }
-
-    private String saveImageFile(MultipartFile file, Long userId) throws IOException {
-        Path uploadPath = Paths.get(UPLOAD_DIR);
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
-        }
-
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-        String uuid = UUID.randomUUID().toString().substring(0,8);
-        String fileExtension = getFileExtension(file.getOriginalFilename());
-        String fileName = String.format("user_%d_%s_%s%s", userId, timestamp, uuid, fileExtension);
-
-        Path filePath = uploadPath.resolve(fileName);
-        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
-        return fileName;
-    }
-
-    private String getFileExtension(String filename) {
-        if (filename == null || filename.lastIndexOf(".") == -1) {
-            return ".jpg";
-        }
-        return filename.substring(filename.lastIndexOf("."));
     }
 }
