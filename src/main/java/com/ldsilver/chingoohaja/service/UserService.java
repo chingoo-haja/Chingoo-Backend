@@ -10,6 +10,7 @@ import com.ldsilver.chingoohaja.dto.user.response.ProfileResponse;
 import com.ldsilver.chingoohaja.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -47,10 +48,14 @@ public class UserService {
         }
         updateUserFields(user, request);
 
-        log.debug("사용자 프로필 수정 완료 - userId: {}", userId);
-        User updateUser = userRepository.save(user);
+        try {
+            User updateUser = userRepository.saveAndFlush(user);
+            log.debug("사용자 프로필 수정 완료 - userId: {}", userId);
+            return ProfileResponse.from(updateUser);
+        } catch (DataIntegrityViolationException e) {
+            throw new CustomException(ErrorCode.DUPLICATE_NICKNAME);
+        }
 
-        return ProfileResponse.from(updateUser);
     }
 
     @Transactional
