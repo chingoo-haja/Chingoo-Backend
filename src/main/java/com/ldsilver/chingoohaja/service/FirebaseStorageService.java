@@ -14,7 +14,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -66,13 +65,20 @@ public class FirebaseStorageService {
             Bucket bucket = StorageClient.getInstance().bucket();
             BlobId blobId = BlobId.of(bucket.getName(), objectName);
 
+            String token = UUID.randomUUID().toString();
             BlobInfo blobInfo = BlobInfo.newBuilder(blobId)
                     .setContentType(file.getContentType())
+                    .setMetadata(java.util.Map.of("firebaseStorageDownloadTokens", token))
                     .build();
 
             Blob blob = bucket.getStorage().create(blobInfo, file.getBytes());
 
-            String downloadUrl = blob.signUrl(7, TimeUnit.DAYS).toString();
+            String downloadUrl = String.format(
+                    "https://firebasestorage.googleapis.com/v0/b/%s/o/%s?alt=media&token=%s",
+                    bucket.getName(),
+                    java.net.URLEncoder.encode(objectName, java.nio.charset.StandardCharsets.UTF_8),
+                    token
+            );
 
             log.debug("Firebase Storage 업로드 성공 - userId: {}", userId);
             return downloadUrl;
