@@ -74,7 +74,7 @@ public class UserController {
     @PostMapping(value = "/profile/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<ProfileImageUploadResponse> uploadProfileImage(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @RequestParam("image")MultipartFile image) {
+            @RequestParam(value = "image", required = true)MultipartFile image) {
         log.debug("프로필 이미지 업로드 요청 - userId: {}", userDetails.getUserId());
 
         ProfileImageUploadRequest request = ProfileImageUploadRequest.from(image);
