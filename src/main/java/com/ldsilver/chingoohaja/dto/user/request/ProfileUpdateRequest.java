@@ -76,4 +76,12 @@ public class ProfileUpdateRequest {
     public boolean hasBirthChange() {
         return birth != null;
     }
+
+    public String getTrimmedRealName() {
+        return realName != null ? realName.trim() : null;
+    }
+
+    public String getTrimmedNickname() {
+        return nickname != null ? nickname.trim() : null;
+    }
 }
