@@ -2,17 +2,17 @@ package com.ldsilver.chingoohaja.controller;
 
 import com.ldsilver.chingoohaja.domain.user.CustomUserDetails;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
+import com.ldsilver.chingoohaja.dto.user.request.ProfileUpdateRequest;
 import com.ldsilver.chingoohaja.dto.user.response.ProfileResponse;
 import com.ldsilver.chingoohaja.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
@@ -35,5 +35,24 @@ public class UserController {
 
         ProfileResponse profileResponse = userService.getUserProfile(userDetails.getUserId());
         return ApiResponse.ok("프로필 조회 성공", profileResponse);
+    }
+
+
+    @Operation(
+            summary = "내 프로필 수정",
+            description = "현재 로그인한 사용자의 프로필 정보를 수정합니다." +
+                    "닉네임은 중복 검증을 거쳐 변경됩니다."
+    )
+    @PutMapping("/profile")
+    public ApiResponse<ProfileResponse> updateMyProfile(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody ProfileUpdateRequest request) {
+        log.debug("프로필 수정 요청 - userId: {}, nickname: {}", userDetails.getUserId(), request.getNickname());
+
+        ProfileResponse updateProfile = userService.updateUserProfile(
+                userDetails.getUserId(), request
+        );
+
+        return ApiResponse.ok("프로필 수정 성공", updateProfile);
     }
 }
