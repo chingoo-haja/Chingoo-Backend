@@ -31,8 +31,8 @@ public class FirebaseStorageService {
     }
 
     public void deleteFile(String fileUrl) {
-        if (fileUrl == null || !fileUrl.contains("firebasestorage.googleapis.com")) {
-            log.debug("Firebase Storage 파일이 아니므로 삭제하지 않음 - url: {}", fileUrl);
+        if (fileUrl == null || fileUrl.isBlank()) {
+            log.debug("파일 URL이 비어있어 삭제를 건너뜀");
             return;
         }
 
@@ -40,7 +40,12 @@ public class FirebaseStorageService {
             String objectName = extractObjectNameFromUrl(fileUrl);
             if (objectName != null) {
                 Bucket bucket = StorageClient.getInstance().bucket();
-                boolean deleted = bucket.get(objectName).delete();
+                Blob blob = bucket.get(objectName);
+                if (blob == null) {
+                    log.debug("Firebase Storage 객체를 찾을 수 없음 - objectName: {}", objectName);
+                    return;
+                }
+                boolean deleted = blob.delete();
 
                 if (deleted) {
                     log.debug("Firebase Storage 파일 삭제 성공 - objectName: {}", objectName);
