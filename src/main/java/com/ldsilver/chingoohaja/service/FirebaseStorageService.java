@@ -25,6 +25,29 @@ public class FirebaseStorageService {
         return uploadFile(file, "profiles", userId);
     }
 
+    public void deleteFile(String fileUrl) {
+        if (fileUrl == null || !fileUrl.contains("firebasestorage.googleapis.com")) {
+            log.debug("Firebase Storage 파일이 아니므로 삭제하지 않음 - url: {}", fileUrl);
+            return;
+        }
+
+        try {
+            String objectName = extractObjectNameFromUrl(fileUrl);
+            if (objectName != null) {
+                Bucket bucket = StorageClient.getInstance().bucket();
+                boolean deleted = bucket.get(objectName).delete();
+
+                if (deleted) {
+                    log.debug("Firebase Storage 파일 삭제 성공 - objectName: {}", objectName);
+                } else {
+                    log.debug("Firebase Storage 파일 삭제 실패 - objectName: {}", objectName);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Firebase Storage 파일 삭제 실패 - url: {}", fileUrl, e);
+        }
+    }
+
     private String uploadFile(MultipartFile file, String folder, Long userId) {
         try {
             String fileName = generateFileName(file, userId);
@@ -85,5 +108,17 @@ public class FirebaseStorageService {
             return ".jpg"; // 기본 확장자
         }
         return filename.substring(filename.lastIndexOf("."));
+    }
+
+    private String extractObjectNameFromUrl(String fileUrl) {
+        try {
+            if (fileUrl.contains("/o/") && fileUrl.contains("?")) {
+                String encoded = fileUrl.split("/o/")[1].split("\\?")[0];
+                return java.net.URLDecoder.decode(encoded, "UTF-8");
+            }
+        } catch (Exception e) {
+            log.warn("URL에서 객체 이름 추출 실패: {}", fileUrl, e);
+        }
+        return null;
     }
 }
