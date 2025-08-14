@@ -47,6 +47,7 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private UserType userType = UserType.USER;
 
+    @Size(max = 2048)
     @Column(nullable = false, length = 2048)
     private String profileImageUrl;
 
