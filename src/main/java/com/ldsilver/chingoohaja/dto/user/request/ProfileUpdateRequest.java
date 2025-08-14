@@ -62,11 +62,11 @@ public class ProfileUpdateRequest {
     }
 
     public boolean hasNicknameChange() {
-        return nickname != null && !nickname.trim().isEmpty();
+        return nickname != null;
     }
 
     public boolean hasRealNameChange() {
-        return realName != null && !realName.trim().isEmpty();
+        return realName != null;
     }
 
     public boolean hasGenderChange() {
