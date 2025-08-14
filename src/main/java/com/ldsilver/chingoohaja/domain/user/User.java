@@ -1,5 +1,7 @@
 package com.ldsilver.chingoohaja.domain.user;
 
+import com.ldsilver.chingoohaja.common.exception.CustomException;
+import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.common.BaseEntity;
 import com.ldsilver.chingoohaja.domain.user.enums.Gender;
 import com.ldsilver.chingoohaja.domain.user.enums.UserType;
@@ -90,8 +92,14 @@ public class User extends BaseEntity {
     }
 
     public void updateProfileImage(String newProfileImageUrl) {
-        if (newProfileImageUrl != null && !newProfileImageUrl.trim().isEmpty()) {
-            this.profileImageUrl = newProfileImageUrl;
+        if (newProfileImageUrl != null) {
+            String trimmed = newProfileImageUrl.trim();
+            if (!trimmed.isEmpty()) {
+                if (trimmed.length() > 2048) {
+                    throw new CustomException(ErrorCode.INVALID_IMAGE_URL_LENGTH);
+                }
+                this.profileImageUrl = trimmed;
+            }
         }
     }
 
