@@ -62,10 +62,10 @@ public enum ErrorCode {
     NICKNAME_ALL_COMBINATIONS_EXHAUSTED(HttpStatus.SERVICE_UNAVAILABLE, "N006", "사용 가능한 모든 닉네임 조합이 소진되었습니다."),
 
     // 파일 관련 에러
-    FILE_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "F001", "파일 크기가 허용된 최대 크기를 초과했습니다."),
-    INVALID_FILE_TYPE(HttpStatus.BAD_REQUEST, "F002", "지원되지 않는 파일 형식입니다."),
-    FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "F003", "파일 업로드에 실패했습니다."),
-    FILE_READ_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "F004", "파일 읽기에 실패했습니다."),
+    FILE_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "FS001", "파일 크기가 허용된 최대 크기를 초과했습니다."),
+    INVALID_FILE_TYPE(HttpStatus.BAD_REQUEST, "FS002", "지원되지 않는 파일 형식입니다."),
+    FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FS003", "파일 업로드에 실패했습니다."),
+    FILE_READ_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FS004", "파일 읽기에 실패했습니다."),
 
     // 매칭 관련 에러
     ALREADY_IN_QUEUE(HttpStatus.CONFLICT, "M001", "이미 매칭 대기열에 참가하고 있습니다."),
