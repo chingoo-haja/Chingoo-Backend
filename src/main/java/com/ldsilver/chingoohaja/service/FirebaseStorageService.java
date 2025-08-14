@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -19,6 +20,10 @@ import java.util.concurrent.TimeUnit;
 @Service
 @RequiredArgsConstructor
 public class FirebaseStorageService {
+
+    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of(
+            "image/jpeg", "image/jpg", "image/png", "image/webp"
+    );
 
     public String uploadProfileImage(MultipartFile file, Long userId) {
         validateImageFile(file);
@@ -51,7 +56,7 @@ public class FirebaseStorageService {
     private String uploadFile(MultipartFile file, String folder, Long userId) {
         try {
             String fileName = generateFileName(file, userId);
-            String objectName = folder + "/" +fileName;
+            String objectName = folder + "/" + fileName;
 
             Bucket bucket = StorageClient.getInstance().bucket();
             BlobId blobId = BlobId.of(bucket.getName(), objectName);
@@ -88,11 +93,7 @@ public class FirebaseStorageService {
         }
 
         String contentType = file.getContentType();
-        if (contentType == null ||
-                    (!contentType.equals("image/jpeg") &&
-                        !contentType.equals("image/jpg") &&
-                        !contentType.equals("image/png") &&
-                        !contentType.equals("image/webp"))) {
+        if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType.toLowerCase())) {
             throw new CustomException(ErrorCode.INVALID_IMAGE_TYPE);
         }
     }
