@@ -125,9 +125,21 @@ public class FirebaseStorageService {
 
     private String extractObjectNameFromUrl(String fileUrl) {
         try {
-            if (fileUrl.contains("/o/") && fileUrl.contains("?")) {
+            // 1) Firebase REST URL: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{object}?...
+            if (fileUrl.contains("/o/")) {
                 String encoded = fileUrl.split("/o/")[1].split("\\?")[0];
-                return java.net.URLDecoder.decode(encoded, "UTF-8");
+                return java.net.URLDecoder.decode(encoded, java.nio.charset.StandardCharsets.UTF_8);
+            }
+            // 2) GCS URL: https://storage.googleapis.com/{bucket}/{object}?...
+            if (fileUrl.contains("storage.googleapis.com")){
+                java.net.URI uri = java.net.URI.create(fileUrl);
+                String path = uri.getPath(); // /{bucket}/{object...}
+                if (path != null && path.startsWith("/")) path = path.substring(1);
+                int idx = path.indexOf('/');
+                if (idx > 0 && idx < path.length() - 1) {
+                    String encoded = path.substring(idx + 1);
+                    return java.net.URLDecoder.decode(encoded, java.nio.charset.StandardCharsets.UTF_8);
+                    }
             }
         } catch (Exception e) {
             log.warn("URL에서 객체 이름 추출 실패: {}", fileUrl, e);
