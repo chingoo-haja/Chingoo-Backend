@@ -63,4 +63,20 @@ public class ProfileUpdateRequest {
     public static ProfileUpdateRequest of(String realName, String nickname, Gender gender, LocalDate birth) {
         return new ProfileUpdateRequest(realName, nickname, gender, birth);
     }
+
+    public boolean hasNicknameChange() {
+        return nickname != null && !nickname.trim().isEmpty();
+    }
+
+    public boolean hasRealNameChange() {
+        return realName != null && !realName.trim().isEmpty();
+    }
+
+    public boolean hasGenderChange() {
+        return gender != null;
+    }
+
+    public boolean hasBirthChange() {
+        return birth != null;
+    }
 }
