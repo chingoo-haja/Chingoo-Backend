@@ -90,6 +90,7 @@ public class FirebaseStorageService {
         String contentType = file.getContentType();
         if (contentType == null ||
                     (!contentType.equals("image/jpeg") &&
+                        !contentType.equals("image/jpg") &&
                         !contentType.equals("image/png") &&
                         !contentType.equals("image/webp"))) {
             throw new CustomException(ErrorCode.INVALID_IMAGE_TYPE);
