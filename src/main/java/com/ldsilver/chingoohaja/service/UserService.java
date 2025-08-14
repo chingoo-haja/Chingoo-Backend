@@ -63,14 +63,15 @@ public class UserService {
         MultipartFile imageFile = request.getImage();
 
         String oldImageUrl = user.getProfileImageUrl();
-        if (oldImageUrl != null && !oldImageUrl.contains("default")) {
-            firebaseStorageService.deleteFile(oldImageUrl);
-        }
 
         String newImageUrl = firebaseStorageService.uploadProfileImage(imageFile, userId);
 
         user.updateProfileImage(newImageUrl);
         userRepository.save(user);
+
+        if (oldImageUrl != null && !oldImageUrl.contains("default")) {
+            firebaseStorageService.deleteFile(oldImageUrl);
+        }
 
         log.debug("프로필 이미지 업로드 완료 - userId: {}", userId);
 
