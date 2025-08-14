@@ -82,10 +82,9 @@ public class ProfileUpdateRequest {
     }
 
     public String getTrimmedRealName() {
-        return realName != null ? realName.trim() : null;
-    }
+        return org.springframework.util.StringUtils.hasText(realName) ? realName.trim() : null;    }
 
     public String getTrimmedNickname() {
-        return nickname != null ? nickname.trim() : null;
+        return org.springframework.util.StringUtils.hasText(nickname) ? nickname.trim() : null;
     }
 }
