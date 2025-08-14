@@ -61,7 +61,7 @@ public class UserController {
     }
 
     @Operation(
-            summary = "프로필 이미지 업로드",
+            summary = "프로필 이미지 수정 업로드",
             description = "현재 로그인한 사용자의 프로필 이미지를 업로드합니다." +
                     "지원 형식: JPEG, PNG, WebP / 최대 크기: 5MB"
     )
