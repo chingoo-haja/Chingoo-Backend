@@ -24,13 +24,15 @@ public class FirebaseConfig {
             if (FirebaseApp.getApps().isEmpty()) {
                 ClassPathResource serviceAccount = new ClassPathResource(firebaseProperties.getServiceAccountPath());
 
-                FirebaseOptions options = FirebaseOptions.builder()
-                        .setCredentials(GoogleCredentials.fromStream(serviceAccount.getInputStream()))
-                        .setStorageBucket(firebaseProperties.getStorageBucket())
-                        .build();
+                try (java.io.InputStream is = serviceAccount.getInputStream()){
+                    FirebaseOptions options = FirebaseOptions.builder()
+                            .setCredentials(GoogleCredentials.fromStream(is))
+                            .setStorageBucket(firebaseProperties.getStorageBucket())
+                            .build();
+                    FirebaseApp.initializeApp(options);
+                    log.info("Firebase 초기화 완료 - bucket: {}", firebaseProperties.getStorageBucket());
+                }
 
-                FirebaseApp.initializeApp(options);
-                log.info("Firebase 초기화 완료 - bucket: {}", firebaseProperties.getStorageBucket());
             }
         } catch (IOException e) {
             log.error("Firebase 초기화 실패", e);
