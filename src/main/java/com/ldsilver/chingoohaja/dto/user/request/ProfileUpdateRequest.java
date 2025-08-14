@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ldsilver.chingoohaja.domain.user.enums.Gender;
 import com.ldsilver.chingoohaja.validation.CommonValidationConstants;
 import com.ldsilver.chingoohaja.validation.UserValidationConstants;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -19,7 +18,6 @@ import java.time.LocalDate;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ProfileUpdateRequest {
 
-    @NotBlank(message = UserValidationConstants.RealName.REQUIRED)
     @Size(
             min = UserValidationConstants.RealName.MIN_LENGTH,
             max = UserValidationConstants.RealName.MAX_LENGTH,
@@ -32,7 +30,6 @@ public class ProfileUpdateRequest {
     @JsonProperty("real_name")
     private String realName;
 
-    @NotBlank(message = UserValidationConstants.Nickname.REQUIRED)
     @Size(
             min = UserValidationConstants.Nickname.MIN_LENGTH,
             max = UserValidationConstants.Nickname.MAX_LENGTH,
