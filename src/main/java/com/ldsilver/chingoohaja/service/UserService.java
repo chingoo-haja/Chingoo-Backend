@@ -99,13 +99,10 @@ public class UserService {
     }
 
     private void validateNicknameUnique(String nickname, Long currentUserId) {
-        boolean exists = userRepository.existsByNickname(nickname);
-        if (exists) {
-            userRepository.findById(currentUserId)
-                    .filter(user -> !user.getNickname().equals(nickname))
-                    .ifPresent(user -> {
-                        throw new CustomException(ErrorCode.DUPLICATE_NICKNAME);
-                    });
-        }
+        userRepository.findByNickname(nickname)
+                .filter(user -> !user.getId().equals(currentUserId))
+                .ifPresent(user -> {
+                    throw new CustomException(ErrorCode.DUPLICATE_NICKNAME);
+                });
     }
 }
