@@ -67,7 +67,7 @@ public class UserValidationConstants {
                 "image/webp"
         );
         public static final String REQUIRED = "프로필 이미지 파일은 필수입니다.";
-        public static final String INVALID_TYPE = "지원하지 않는 이미지 형식입니다. (jpeg, png, webp)";
+        public static final String INVALID_TYPE = "지원하지 않는 이미지 형식입니다. (jpeg/jpg, png, webp)";
         public static final String TOO_LARGE = "이미지 파일 크기는 5MB 이하여야 합니다.";
     }
 }
