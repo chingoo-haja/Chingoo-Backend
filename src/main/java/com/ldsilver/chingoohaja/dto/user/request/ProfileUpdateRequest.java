@@ -1,6 +1,7 @@
 package com.ldsilver.chingoohaja.dto.user.request;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ldsilver.chingoohaja.domain.user.enums.Gender;
 import com.ldsilver.chingoohaja.validation.CommonValidationConstants;
@@ -81,9 +82,11 @@ public class ProfileUpdateRequest {
         return hasNicknameChange() || hasRealNameChange() || hasGenderChange() || hasBirthChange();
     }
 
+    @JsonIgnore
     public String getTrimmedRealName() {
         return org.springframework.util.StringUtils.hasText(realName) ? realName.trim() : null;    }
 
+    @JsonIgnore
     public String getTrimmedNickname() {
         return org.springframework.util.StringUtils.hasText(nickname) ? nickname.trim() : null;
     }
