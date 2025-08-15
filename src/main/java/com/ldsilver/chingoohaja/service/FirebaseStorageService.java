@@ -83,7 +83,7 @@ public class FirebaseStorageService {
                     .setMetadata(java.util.Map.of("firebaseStorageDownloadTokens", token))
                     .build();
 
-            Blob blob = bucket.getStorage().create(blobInfo, file.getBytes());
+            bucket.getStorage().create(blobInfo, file.getBytes());
 
             String downloadUrl = String.format(
                     "https://firebasestorage.googleapis.com/v0/b/%s/o/%s?alt=media&token=%s",
