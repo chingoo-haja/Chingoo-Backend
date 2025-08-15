@@ -5,6 +5,9 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 public class CommonValidationConstants {
 
+    public static final int MAX_PROFILE_IMAGE_URL_LENGTH = 2048;
+
+
     @UtilityClass
     public static class Common {
         // 공통 에러 메시지

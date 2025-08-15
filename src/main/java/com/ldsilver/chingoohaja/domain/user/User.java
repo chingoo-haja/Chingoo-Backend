@@ -15,6 +15,8 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
+import static com.ldsilver.chingoohaja.validation.CommonValidationConstants.MAX_PROFILE_IMAGE_URL_LENGTH;
+
 @Entity
 @Table(name = "users")
 @Getter
@@ -49,8 +51,8 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private UserType userType = UserType.USER;
 
-    @Size(max = 2048)
-    @Column(nullable = false, length = 2048)
+    @Size(max = MAX_PROFILE_IMAGE_URL_LENGTH)
+    @Column(nullable = false, length = MAX_PROFILE_IMAGE_URL_LENGTH)
     private String profileImageUrl;
 
     @Column(nullable = false)
@@ -95,7 +97,7 @@ public class User extends BaseEntity {
         if (newProfileImageUrl != null) {
             String trimmed = newProfileImageUrl.trim();
             if (!trimmed.isEmpty()) {
-                if (trimmed.length() > 2048) {
+                if (trimmed.length() > MAX_PROFILE_IMAGE_URL_LENGTH) {
                     throw new CustomException(ErrorCode.INVALID_IMAGE_URL_LENGTH);
                 }
                 this.profileImageUrl = trimmed;
