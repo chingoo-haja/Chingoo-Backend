@@ -40,4 +40,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findByProviderNotAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(String provider, LocalDateTime since);
 
+    Optional<User> findByNickname(String nickname);
+
 }

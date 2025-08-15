@@ -1,5 +1,7 @@
 package com.ldsilver.chingoohaja.domain.user;
 
+import com.ldsilver.chingoohaja.common.exception.CustomException;
+import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.common.BaseEntity;
 import com.ldsilver.chingoohaja.domain.user.enums.Gender;
 import com.ldsilver.chingoohaja.domain.user.enums.UserType;
@@ -7,9 +9,13 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+
+import static com.ldsilver.chingoohaja.validation.CommonValidationConstants.MAX_PROFILE_IMAGE_URL_LENGTH;
 
 @Entity
 @Table(name = "users")
@@ -45,7 +51,8 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private UserType userType = UserType.USER;
 
-    @Column(nullable = false)
+    @Size(max = MAX_PROFILE_IMAGE_URL_LENGTH)
+    @Column(nullable = false, length = MAX_PROFILE_IMAGE_URL_LENGTH)
     private String profileImageUrl;
 
     @Column(nullable = false)
@@ -87,20 +94,32 @@ public class User extends BaseEntity {
     }
 
     public void updateProfileImage(String newProfileImageUrl) {
-        if (newProfileImageUrl != null && !newProfileImageUrl.trim().isEmpty()) {
-            this.profileImageUrl = newProfileImageUrl;
+        if (newProfileImageUrl != null) {
+            String trimmed = newProfileImageUrl.trim();
+            if (!trimmed.isEmpty()) {
+                if (trimmed.length() > MAX_PROFILE_IMAGE_URL_LENGTH) {
+                    throw new CustomException(ErrorCode.INVALID_IMAGE_URL_LENGTH);
+                }
+                this.profileImageUrl = trimmed;
+            }
         }
     }
 
     public void updateNickname(String newNickname) {
-        if (newNickname != null && !newNickname.trim().isEmpty()) {
-            this.nickname = newNickname;
+        if (newNickname != null) {
+            String trimmed = newNickname.trim();
+            if (!trimmed.isEmpty()) {
+                this.nickname = trimmed;
+            }
         }
     }
 
     public void updateRealName(String newRealName) {
-        if (newRealName != null && !newRealName.trim().isEmpty()) {
-            this.realName = newRealName;
+        if (newRealName != null) {
+            String trimmed = newRealName.trim();
+            if (!trimmed.isEmpty()) {
+                this.realName = trimmed;
+            }
         }
     }
 
@@ -131,8 +150,8 @@ public class User extends BaseEntity {
     public void updateProviderInfo(String newProvider, String newProviderId) {
         if (newProvider != null && !newProvider.trim().isEmpty() &&
                 newProviderId != null && !newProviderId.trim().isEmpty()) {
-            this.provider = newProvider;
-            this.providerId = newProviderId;
+            this.provider = newProvider.trim();
+            this.providerId = newProviderId.trim();
         }
     }
 
