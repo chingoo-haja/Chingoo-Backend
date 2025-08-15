@@ -1,4 +1,39 @@
 package com.ldsilver.chingoohaja.service;
 
+import com.ldsilver.chingoohaja.domain.category.Category;
+import com.ldsilver.chingoohaja.dto.catetory.response.CategoryResponse;
+import com.ldsilver.chingoohaja.repository.CategoryRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
 public class CategoryService {
+
+    private final CategoryRepository categoryRepository;
+
+    @Transactional(readOnly = true)
+    public List<CategoryResponse> getAllCategories(Boolean isActive) {
+        log.debug("카테고리 목록 조회 시작 - isActive: {}", isActive);
+
+        List<Category> categories;
+
+        if (isActive != null) {
+            categories = categoryRepository.findByIsActiveOrderByName(isActive);
+        } else {
+            categories = categoryRepository.findAllByOrderByName();
+        }
+
+        List<CategoryResponse> responses = categories.stream()
+                .map(CategoryResponse::from)
+                .toList();
+
+        log.debug("카테고리 목록 조회 완료 - 조회된 카테고리 수: {}", responses.size());
+        return responses;
+    }
 }
