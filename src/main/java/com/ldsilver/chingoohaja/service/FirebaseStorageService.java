@@ -42,6 +42,14 @@ public class FirebaseStorageService {
             String objectName = extractObjectNameFromUrl(fileUrl);
             if (objectName != null) {
                 Bucket bucket = StorageClient.getInstance().bucket();
+                if (fileUrl.contains("storage.googleapis.com") || fileUrl.contains("firebasestorage.googleapis.com")) {
+                    if (!fileUrl.contains(bucket.getName())) {
+                        String safeUrl = fileUrl.replaceAll("(?i)([?&]token=)[^&]+", "$1***");
+                        log.debug("버킷 불일치로 삭제 건너뜀 - url: {}, expectedBucket: {}", safeUrl, bucket.getName());
+                        return;
+                    }
+                }
+
                 Blob blob = bucket.get(objectName);
                 if (blob == null) {
                     log.debug("Firebase Storage 객체를 찾을 수 없음 - objectName: {}", objectName);
