@@ -53,7 +53,8 @@ public class FirebaseStorageService {
                 }
             }
         } catch (Exception e) {
-            log.warn("Firebase Storage 파일 삭제 실패 - url: {}", fileUrl, e);
+            String safeUrl = fileUrl.replaceAll("(?i)([?&]token=)[^&]+", "$1***");
+            log.warn("Firebase Storage 파일 삭제 실패 - url: {}", safeUrl, e);
         }
     }
 
