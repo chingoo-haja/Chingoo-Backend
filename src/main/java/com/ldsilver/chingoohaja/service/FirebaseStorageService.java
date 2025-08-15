@@ -25,6 +25,9 @@ public class FirebaseStorageService {
     );
 
     public String uploadProfileImage(MultipartFile file, Long userId) {
+        if (userId == null) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE);
+        }
         validateImageFile(file);
         return uploadFile(file, "profiles", userId);
     }
