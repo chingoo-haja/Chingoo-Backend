@@ -106,14 +106,20 @@ public class User extends BaseEntity {
     }
 
     public void updateNickname(String newNickname) {
-        if (newNickname != null && !newNickname.trim().isEmpty()) {
-            this.nickname = newNickname;
+        if (newNickname != null) {
+            String trimmed = newNickname.trim();
+            if (!trimmed.isEmpty()) {
+                this.nickname = trimmed;
+            }
         }
     }
 
     public void updateRealName(String newRealName) {
-        if (newRealName != null && !newRealName.trim().isEmpty()) {
-            this.realName = newRealName;
+        if (newRealName != null) {
+            String trimmed = newRealName.trim();
+            if (!trimmed.isEmpty()) {
+                this.realName = trimmed;
+            }
         }
     }
 
@@ -144,8 +150,8 @@ public class User extends BaseEntity {
     public void updateProviderInfo(String newProvider, String newProviderId) {
         if (newProvider != null && !newProvider.trim().isEmpty() &&
                 newProviderId != null && !newProviderId.trim().isEmpty()) {
-            this.provider = newProvider;
-            this.providerId = newProviderId;
+            this.provider = newProvider.trim();
+            this.providerId = newProviderId.trim();
         }
     }
 
