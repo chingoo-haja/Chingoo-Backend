@@ -12,6 +12,7 @@ import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 
@@ -84,10 +85,10 @@ public class ProfileUpdateRequest {
 
     @JsonIgnore
     public String getTrimmedRealName() {
-        return org.springframework.util.StringUtils.hasText(realName) ? realName.trim() : null;    }
+        return StringUtils.hasText(realName) ? realName.trim() : null;    }
 
     @JsonIgnore
     public String getTrimmedNickname() {
-        return org.springframework.util.StringUtils.hasText(nickname) ? nickname.trim() : null;
+        return StringUtils.hasText(nickname) ? nickname.trim() : null;
     }
 }
