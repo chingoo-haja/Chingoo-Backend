@@ -2,6 +2,8 @@ package com.ldsilver.chingoohaja.validation;
 
 import lombok.experimental.UtilityClass;
 
+import java.util.Set;
+
 @UtilityClass
 public class UserValidationConstants {
 
@@ -58,6 +60,12 @@ public class UserValidationConstants {
 
     @UtilityClass
     public static class Image {
+        public static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
+                "image/jpeg",
+                "image/jpg",
+                "image/png",
+                "image/webp"
+        );
         public static final String REQUIRED = "프로필 이미지 파일은 필수입니다.";
         public static final String INVALID_TYPE = "지원하지 않는 이미지 형식입니다. (jpeg, png, webp)";
         public static final String TOO_LARGE = "이미지 파일 크기는 5MB 이하여야 합니다.";

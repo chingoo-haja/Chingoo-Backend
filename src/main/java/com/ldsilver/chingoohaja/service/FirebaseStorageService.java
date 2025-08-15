@@ -12,17 +12,14 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Set;
 import java.util.UUID;
+
+import static com.ldsilver.chingoohaja.validation.UserValidationConstants.Image.ALLOWED_CONTENT_TYPES;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class FirebaseStorageService {
-
-    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of(
-            "image/jpeg", "image/jpg", "image/png", "image/webp"
-    );
 
     public String uploadProfileImage(MultipartFile file, Long userId) {
         if (userId == null) {
@@ -116,7 +113,7 @@ public class FirebaseStorageService {
         }
 
         String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType.toLowerCase())) {
+        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase())) {
             throw new CustomException(ErrorCode.INVALID_IMAGE_TYPE);
         }
     }
