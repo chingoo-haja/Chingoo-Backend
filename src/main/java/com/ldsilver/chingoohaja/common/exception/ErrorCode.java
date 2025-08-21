@@ -85,6 +85,9 @@ public enum ErrorCode {
     // 카테고리 관련 에러
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "T001", "카테고리를 찾을 수 없습니다."),
     CATEGORY_NOT_ACTIVE(HttpStatus.BAD_REQUEST, "T002", "비활성화된 카테고리입니다."),
+    CATEGORY_ALREADY_EXISTS(HttpStatus.CONFLICT, "T003", "이미 존재하는 카테고리 이름입니다."),
+    CATEGORY_IN_USE(HttpStatus.CONFLICT, "T004", "사용 중인 카테고리는 삭제할 수 없습니다."),
+    INVALID_CATEGORY_TYPE(HttpStatus.BAD_REQUEST, "T005", "유효하지 않은 카테고리 타입입니다."),
 
     // 평가 관련 에러
     EVALUATION_ALREADY_EXISTS(HttpStatus.CONFLICT, "E001", "이미 평가를 완료했습니다."),
