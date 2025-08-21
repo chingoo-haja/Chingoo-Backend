@@ -52,7 +52,6 @@ public class SecurityConfig {
     }
     /**
      * 개발 환경용 Security 설정
-     * - 모든 요청 허용 (개발 편의성 우선)
      * - CSRF 완전 비활성화
      */
     @Bean
