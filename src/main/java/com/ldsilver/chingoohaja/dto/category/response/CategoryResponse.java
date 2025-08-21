@@ -1,4 +1,4 @@
-package com.ldsilver.chingoohaja.dto.catetory.response;
+package com.ldsilver.chingoohaja.dto.category.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ldsilver.chingoohaja.domain.category.Category;

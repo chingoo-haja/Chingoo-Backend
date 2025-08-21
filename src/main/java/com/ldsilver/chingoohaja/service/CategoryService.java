@@ -1,7 +1,7 @@
 package com.ldsilver.chingoohaja.service;
 
 import com.ldsilver.chingoohaja.domain.category.Category;
-import com.ldsilver.chingoohaja.dto.catetory.response.CategoryResponse;
+import com.ldsilver.chingoohaja.dto.category.response.CategoryResponse;
 import com.ldsilver.chingoohaja.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -1,6 +1,6 @@
 package com.ldsilver.chingoohaja.controller;
 
-import com.ldsilver.chingoohaja.dto.catetory.response.CategoryResponse;
+import com.ldsilver.chingoohaja.dto.category.response.CategoryResponse;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.service.CategoryService;
 import io.swagger.v3.oas.annotations.Operation;
