@@ -36,4 +36,18 @@ public class CategoryService {
         log.debug("카테고리 목록 조회 완료 - 조회된 카테고리 수: {}", responses.size());
         return responses;
     }
+
+    @Transactional(readOnly = true)
+    public List<CategoryResponse> getActiveCategories() {
+        log.debug("활성 카테고리 목록 조회 시작");
+
+        List<Category> activeCategories = categoryRepository.findByIsActiveTrueOrderByName();
+
+        List<CategoryResponse> responses = activeCategories.stream()
+                .map(CategoryResponse::from)
+                .toList();
+
+        log.debug("활성 카테고리 목록 조회 완료 - 조회된 카테고리 수: {}", responses.size());
+        return responses;
+    }
 }

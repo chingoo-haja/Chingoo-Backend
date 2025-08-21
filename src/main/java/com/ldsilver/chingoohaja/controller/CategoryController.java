@@ -41,4 +41,18 @@ public class CategoryController {
 
         return ApiResponse.ok(message, categories);
     }
+
+
+    @Operation(
+            summary = "활성 카테고리 목록 조회",
+            description = "현재 사용 가능한 활성 카테고리 목록만 조회합니다. " +
+                    "매칭 시 사용할 카테고리 목록을 가져올 때 사용합니다."
+    )
+    @GetMapping("/active")
+    public ApiResponse<List<CategoryResponse>> getActiveCategories() {
+        log.debug("활성 카테고리 목록 조회 요청");
+
+        List<CategoryResponse> activeCategories = categoryService.getActiveCategories();
+        return ApiResponse.ok("활성 카테고리 조회 성공", activeCategories);
+    }
 }
