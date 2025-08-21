@@ -26,10 +26,10 @@ public record CategoryResponse(
     }
 
     public boolean isRandomMatchingCategory() {
-        return "RANDOM".equals(categoryType);
+        return CategoryType.RANDOM.equals(categoryType);
     }
 
     public boolean isGuardianCategory() {
-        return "GUARDIAN".equals(categoryType);
+        return CategoryType.GUARDIAN.equals(categoryType);
     }
 }
