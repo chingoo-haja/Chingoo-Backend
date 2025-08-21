@@ -20,11 +20,13 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     List<Category> findByCategoryTypeAndIsActiveTrueOrderByName(CategoryType categoryType);
     Optional<Category> findByNameAndIsActiveTrue(String name);
 
-    @Query("SELECT c FROM Category c WHERE c.categoryType = 'RANDOM' AND c.isActive = true ORDER BY c.name")
-    List<Category> findRandomMatchingCategories();
+    default List<Category> findRandomMatchingCategories() {
+        return findByCategoryTypeAndIsActiveTrueOrderByName(CategoryType.RANDOM);
+    }
 
-    @Query("SELECT c FROM Category c WHERE c.categoryType = 'GUARDIAN' AND c.isActive = true ORDER BY c.name")
-    List<Category> findGuardianCategories();
+    default List<Category> findGuardianCategories() {
+        return findByCategoryTypeAndIsActiveTrueOrderByName(CategoryType.GUARDIAN);
+    }
 
     // 카테고리 통계 (관리자용)
     @Query("SELECT c.categoryType, COUNT(c) FROM Category c WHERE c.isActive = true GROUP BY c.categoryType")
