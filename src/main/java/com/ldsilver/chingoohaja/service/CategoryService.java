@@ -13,21 +13,17 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
 
-    @Transactional(readOnly = true)
     public List<CategoryResponse> getAllCategories(Boolean isActive) {
         log.debug("카테고리 목록 조회 시작 - isActive: {}", isActive);
 
-        List<Category> categories;
-
-        if (isActive != null) {
-            categories = categoryRepository.findByIsActiveOrderByName(isActive);
-        } else {
-            categories = categoryRepository.findAllByOrderByName();
-        }
+        List<Category> categories = (isActive == null)
+                ? categoryRepository.findAllByOrderByName()
+                : categoryRepository.findByIsActiveOrderByName(isActive);
 
         List<CategoryResponse> responses = categories.stream()
                 .map(CategoryResponse::from)
@@ -37,7 +33,6 @@ public class CategoryService {
         return responses;
     }
 
-    @Transactional(readOnly = true)
     public List<CategoryResponse> getActiveCategories() {
         log.debug("활성 카테고리 목록 조회 시작");
 
