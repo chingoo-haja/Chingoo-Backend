@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -80,6 +81,33 @@ public class RedisMatchingQueueService {
             throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
     }
+
+
+    public int estimateWaitTime(Long userId, Long categoryId) {
+        String userQueueKey = USER_QUEUE_PREFIX + userId;
+        String queueId = (String) redisTemplate.opsForValue().get(userQueueKey);
+
+        if (queueId == null) {
+            return 0;
+        }
+        int queuePosition = getQueuePosition(queueId, categoryId);
+
+        // 평균 매칭 시간 30초로 가정 (임시)
+        return Math.max(0, (queuePosition -1) *30);
+    }
+
+    public int getQueuePosition(String queueId, Long categoryId) {
+        String categoryQueueKey = QUEUE_PREFIX + categoryId;
+        List<Object> queueIds = redisTemplate.opsForList().range(categoryQueueKey, 0, -1);
+        if (queueIds == null) {return 0;}
+        for (int i = 0; i < queueIds.size(); i++) {
+            if (queueId.equals(queueIds.get(i).toString())) {
+                return i+1;
+            }
+        }
+        return 0;
+    }
+
 
     private boolean isUserInAnyQueue(Long userId) {
         String userQueueKey = USER_QUEUE_PREFIX + userId;
