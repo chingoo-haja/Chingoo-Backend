@@ -12,7 +12,7 @@ public record MatchingResponse(
         @JsonProperty("queue_status") QueueStatus queueStatus,
         @JsonProperty("estimated_wait_time_seconds") Integer estimatedWaitTimeSeconds,
         @JsonProperty("queue_position") Integer queuePosition,
-        @JsonProperty("joined_at") LocalDateTime joinedAt
+        @JsonProperty("created_at") LocalDateTime createdAt
 ) {
     public static MatchingResponse of(
             String queueId,
@@ -21,7 +21,7 @@ public record MatchingResponse(
             QueueStatus queueStatus,
             Integer estimatedWaitTimeSeconds,
             Integer queuePosition,
-            LocalDateTime joinedAt) {
+            LocalDateTime createdAt) {
         return new MatchingResponse(
                 queueId,
                 categoryId,
@@ -29,7 +29,7 @@ public record MatchingResponse(
                 queueStatus,
                 estimatedWaitTimeSeconds,
                 queuePosition,
-                joinedAt
+                createdAt
         );
     }
 
