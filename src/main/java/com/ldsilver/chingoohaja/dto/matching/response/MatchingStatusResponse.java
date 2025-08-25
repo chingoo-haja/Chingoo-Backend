@@ -11,14 +11,15 @@ public record MatchingStatusResponse(
         @JsonProperty("category_id") Long categoryId,
         @JsonProperty("category_name") String categoryName,
         @JsonProperty("queue_status") QueueStatus queueStatus,
-        @JsonProperty("estimated_wait_time_seconds") Integer estimatedWaitTimeSeconds,
+        @JsonProperty("estimated_wait_time") Integer estimatedWaitTime,
         @JsonProperty("queue_position") Integer queuePosition,
-        @JsonProperty("joined_at") LocalDateTime joinedAt,
-        @JsonProperty("elapsed_time_seconds") Long elapsedTimeSeconds
+        @JsonProperty("waiting_count") Long waitingCount,
+        @JsonProperty("updated_at") LocalDateTime updatedAt
 ) {
     public static MatchingStatusResponse notInQueue() {
         return new MatchingStatusResponse(
-                false, null, null, null, null, null, null, null, null
+                false, null, null, null,
+                null, null, null, null, LocalDateTime.now()
         );
     }
 
@@ -29,8 +30,7 @@ public record MatchingStatusResponse(
             QueueStatus queueStatus,
             Integer estimatedWaitTimeSeconds,
             Integer queuePosition,
-            LocalDateTime joinedAt,
-            Long elapsedTimeSeconds) {
+            Long waitingCount) {
         return new MatchingStatusResponse(
                 true,
                 queueId,
@@ -39,8 +39,8 @@ public record MatchingStatusResponse(
                 queueStatus,
                 estimatedWaitTimeSeconds,
                 queuePosition,
-                joinedAt,
-                elapsedTimeSeconds
+                waitingCount,
+                LocalDateTime.now()
         );
     }
 }
