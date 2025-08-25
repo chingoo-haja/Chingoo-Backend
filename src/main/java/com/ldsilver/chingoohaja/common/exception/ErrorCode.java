@@ -74,6 +74,7 @@ public enum ErrorCode {
     QUEUE_NOT_FOUND(HttpStatus.NOT_FOUND, "M002", "매칭 대기열 정보를 찾을 수 없습니다."),
     MATCHING_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "M003", "매칭에 실패했습니다."),
     QUEUE_EXPIRED(HttpStatus.BAD_REQUEST, "M004", "매칭 대기열이 만료되었습니다."),
+    MATCHING_QUEUE_FULL(HttpStatus.INTERNAL_SERVER_ERROR, "M005", "매칭 대기열이 가득 찼습니다"),
 
     // 통화 관련 에러
     CALL_NOT_FOUND(HttpStatus.NOT_FOUND, "L001", "통화 정보를 찾을 수 없습니다."),
