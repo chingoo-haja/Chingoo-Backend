@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.serializer.GenericToStringSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 @Configuration
@@ -22,8 +23,8 @@ public class RedisConfig {
         template.setHashKeySerializer(stringSerializer);
 
         // Value Serializer
-        template.setValueSerializer(stringSerializer);
-        template.setHashValueSerializer(stringSerializer);
+        template.setValueSerializer(new GenericToStringSerializer<>(Object.class));
+        template.setHashValueSerializer(new GenericToStringSerializer<>(Object.class));
 
         return template;
     }
