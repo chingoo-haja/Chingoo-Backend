@@ -5,15 +5,16 @@ import com.ldsilver.chingoohaja.domain.matching.MatchingQueue;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueType;
 import com.ldsilver.chingoohaja.domain.user.User;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface MatchingQueueRepository extends JpaRepository<MatchingQueue, Long> {
@@ -79,4 +80,14 @@ public interface MatchingQueueRepository extends JpaRepository<MatchingQueue, Lo
             "WHERE mq.id = :id AND mq.queueStatus = 'WAITING'")
     int cancelMatchingQueueById(@Param("id") String id);
 
+    @Modifying
+    @Transactional
+    @Query("UPDATE MatchingQueue mq SET mq.queueStatus = 'CANCELLED' " +
+            "WHERE mq.queueId = :queueId AND mq.queueStatus = 'WAITING'")
+    int cancelMatchingQueueByQueueId(@Param("queueId") String queueId);
+
+    /**
+     * queueId로 매칭 큐 조회
+     */
+    Optional<MatchingQueue> findByQueueId(String queueId);
 }
