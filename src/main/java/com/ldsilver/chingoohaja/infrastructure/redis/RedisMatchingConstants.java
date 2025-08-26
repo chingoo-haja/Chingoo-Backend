@@ -65,22 +65,56 @@ public class RedisMatchingConstants {
     @UtilityClass
     public static class LuaScripts {
 
-        public static final String CLEANUP_MATCHED_USERS = """
-            local userCount = tonumber(ARGV[1])
+        // 대기순 매칭: 선정+제거 원자화 (경쟁 상황에서 중복 매칭 방지)
+        public static final String ATOMIC_MATCH_BY_WAIT = """
+            local waitQueueKey = KEYS[1]
+            local randomQueueKey = KEYS[2]
+            local matchCount = tonumber(ARGV[1])
             
-            for i = 1, userCount do
-                local userId = ARGV[i + 1]
-                local userQueueKey = 'user:queued:' .. userId
-                local queueId = redis.call('GET', userQueueKey)
-                
-                if queueId then
-                    local queueMetaKey = 'queue:meta:' .. queueId
-                    redis.call('DEL', userQueueKey)
-                    redis.call('DEL', queueMetaKey)
-                end
+            -- 가장 오래 기다린 사용자들 선택
+            local users = redis.call('ZRANGE', waitQueueKey, 0, matchCount - 1)
+            
+            if #users < matchCount then
+                return {0, 'INSUFFICIENT_USERS', #users}
             end
             
-            return userCount
+            -- 원자적으로 두 큐에서 모두 제거
+            for i = 1, #users do
+                redis.call('ZREM', waitQueueKey, users[i])
+                redis.call('SREM', randomQueueKey, users[i])
+            end
+            
+            return {1, 'SUCCESS', unpack(users)}
+            """;
+
+        // 매칭된 사용자들 정리 (ZSET 정리 포함, 올바른 반환 타입)
+        public static final String CLEANUP_MATCHED_USERS = """
+            local categoryId = ARGV[1]
+            local userCount = tonumber(ARGV[2])
+            local waitQueueKey = 'wait:z:{cat' .. categoryId .. '}:' .. categoryId
+            local cleanedCount = 0
+            
+            for i = 1, userCount do
+                local userId = ARGV[i + 2]
+                local userQueueKey = 'user:queued:{cat' .. categoryId .. '}:' .. userId
+                local queueMetaKey = 'queue:meta:{cat' .. categoryId .. '}:queue_' .. userId .. '_' .. categoryId
+                
+                -- 사용자 큐 정보 제거
+                if redis.call('EXISTS', userQueueKey) == 1 then
+                    redis.call('DEL', userQueueKey)
+                    cleanedCount = cleanedCount + 1
+                end
+                
+                -- 메타데이터 제거
+                if redis.call('EXISTS', queueMetaKey) == 1 then
+                    redis.call('DEL', queueMetaKey)
+                end
+                
+                -- ZSET에서도 제거 (혹시 남아있을 경우)
+                redis.call('ZREM', waitQueueKey, userId)
+            end
+            
+            return cleanedCount
             """;
     }
 
