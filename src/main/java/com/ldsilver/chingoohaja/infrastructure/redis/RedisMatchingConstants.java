@@ -2,31 +2,62 @@ package com.ldsilver.chingoohaja.infrastructure.redis;
 
 import lombok.experimental.UtilityClass;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @UtilityClass
 public class RedisMatchingConstants {
 
     // Redis 키 prefix
     @UtilityClass
     public static class KeyPrefix {
-        public static final String QUEUE_PREFIX = "matching:queue:";
-        public static final String USER_QUEUE_PREFIX = "user:queued:";
-        public static final String QUEUE_META_PREFIX = "queue:meta:";
-        public static final String CATEGORY_PREFIX = "category:";
+        public static final String QUEUE_PREFIX = "matching:queue:{cat}:";
+        public static final String WAIT_QUEUE_PREFIX = "wait:z:{cat}:";
+        public static final String USER_QUEUE_PREFIX = "user:queued:{user}:";
+        public static final String QUEUE_META_PREFIX = "queue:meta:{cat}:";
     }
 
     // Redis 키 생성 헬퍼
     @UtilityClass
     public static class KeyBuilder {
+        // 랜덤 매칭용 SET (해시태그로 동일 슬롯 보장)
         public static String queueKey(Long categoryId) {
-            return KeyPrefix.QUEUE_PREFIX + KeyPrefix.CATEGORY_PREFIX + categoryId;
+            return KeyPrefix.QUEUE_PREFIX.replace("{cat}", categoryId.toString());
+        }
+
+        // 대기 순서 우선순위 ZSET
+        public static String waitQueueKey(Long categoryId) {
+            return KeyPrefix.WAIT_QUEUE_PREFIX.replace("{cat}", categoryId.toString());
         }
 
         public static String userQueueKey(Long userId) {
-            return KeyPrefix.USER_QUEUE_PREFIX + userId;
+            return KeyPrefix.USER_QUEUE_PREFIX.replace("{user}", userId.toString());
         }
 
         public static String queueMetaKey(String queueId) {
-            return KeyPrefix.QUEUE_META_PREFIX + queueId;
+            // queueId 형식: queue_{userId}_{categoryId}_{random}
+            String[] parts = queueId.split("_");
+            if (parts.length >= 3) {
+                String categoryId = parts[2];
+                return KeyPrefix.QUEUE_META_PREFIX.replace("{cat}", categoryId) + queueId;
+            }
+            return "queue:meta:" + queueId;
+        }
+
+        // Lua 스크립트에서 사용할 키 목록 생성 (동일 해시태그)
+        public static List<String> getCleanupKeys(Long categoryId, List<Long> userIds) {
+            List<String> keys = new ArrayList<>();
+            String hashTag = "{cat" + categoryId + "}";
+
+            keys.add("cleanup" + hashTag); // 더미 키 (스크립트 요구사항)
+
+            for (Long userId : userIds) {
+                keys.add("user:queued:" + hashTag + ":" + userId);
+                keys.add("queue:meta:" + hashTag + ":queue_" + userId + "_" + categoryId);
+                keys.add("wait:z:" + hashTag + ":" + categoryId);
+            }
+
+            return keys;
         }
     }
 
@@ -34,91 +65,22 @@ public class RedisMatchingConstants {
     @UtilityClass
     public static class LuaScripts {
 
-        // 매칭 대기열 참가
-        public static final String ENQUEUE_SCRIPT = """
-            local queueKey     = tostring(KEYS[1])
-            local userQueueKey = tostring(KEYS[2])
-            local queueMetaKey = tostring(KEYS[3])
+        public static final String CLEANUP_MATCHED_USERS = """
+            local userCount = tonumber(ARGV[1])
             
-            local userId     = tostring(ARGV[1])
-            local queueId    = tostring(ARGV[2])
-            local categoryId = tostring(ARGV[3])
-            local scoreStr   = tostring(ARGV[4])
-            local ttlNum     = tonumber(ARGV[5])
-            
-            if not ttlNum then
-              return {0, 'INVALID_TTL'}
+            for i = 1, userCount do
+                local userId = ARGV[i + 1]
+                local userQueueKey = 'user:queued:' .. userId
+                local queueId = redis.call('GET', userQueueKey)
+                
+                if queueId then
+                    local queueMetaKey = 'queue:meta:' .. queueId
+                    redis.call('DEL', userQueueKey)
+                    redis.call('DEL', queueMetaKey)
+                end
             end
             
-            -- 중복 등록 확인
-            if redis.call('EXISTS', userQueueKey) == 1 then
-                return {0, 'ALREADY_IN_QUEUE'}
-            end
-            
-            -- 대기열에 추가 (ZSET)
-            redis.call('ZADD', queueKey, tonumber(score), userId)
-            redis.call('EXPIRE', queueKey, ttl)
-            
-            -- 사용자별 큐 정보 저장 (중복 방지)
-            redis.call('SETEX', userQueueKey, ttl, queueId)
-            
-            -- 큐 메타데이터 저장 (개별 HSET 호출)
-            redis.call('HSET', queueMetaKey, 'userId', userId)
-            redis.call('HSET', queueMetaKey, 'categoryId', categoryId)
-            redis.call('HSET', queueMetaKey, 'queueId', queueId)
-            redis.call('HSET', queueMetaKey, 'createdAt', score)
-            redis.call('EXPIRE', queueMetaKey, ttl)
-            
-            local position = redis.call('ZRANK', queueKey, userId)
-            return {1, 'SUCCESS', position + 1}
-            """;
-
-        // 매칭 대기열 탈퇴
-        public static final String DEQUEUE_SCRIPT = """
-            local queueKey = KEYS[1]
-            local userQueueKey = KEYS[2]
-            local queueMetaKey = KEYS[3]
-            local userId = ARGV[1]
-            
-            -- 존재 확인
-            if redis.call('EXISTS', userQueueKey) == 0 then
-                return {0, 'NOT_IN_QUEUE'}
-            end
-            
-            -- 제거
-            redis.call('ZREM', queueKey, userId)
-            redis.call('DEL', userQueueKey)
-            redis.call('DEL', queueMetaKey)
-            
-            return {1, 'SUCCESS'}
-            """;
-
-        // 매칭 후보 조회 및 제거
-        public static final String MATCH_SCRIPT = """
-            local queueKey = KEYS[1]
-            local matchCount = tonumber(ARGV[1])
-            
-            -- 대기열에서 가장 오래된 사용자들 조회
-            local users = redis.call('ZRANGE', queueKey, 0, matchCount - 1)
-            
-            if #users < matchCount then
-                return {0, 'INSUFFICIENT_USERS', #users}
-            end
-            
-            -- 선택된 사용자들을 대기열에서 제거
-            for i = 1, matchCount do
-                redis.call('ZREM', queueKey, users[i])
-            end
-            
-            -- 사용자별 큐 정보 제거
-            for i = 1, matchCount do
-                local userQueueKey = 'user:queued:' .. users[i]
-                local queueMetaKey = 'queue:meta:' .. redis.call('GET', userQueueKey) or ''
-                redis.call('DEL', userQueueKey)
-                redis.call('DEL', queueMetaKey)
-            end
-            
-            return {1, 'SUCCESS', unpack(users)}
+            return userCount
             """;
     }
 
