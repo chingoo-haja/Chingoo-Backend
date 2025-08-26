@@ -72,28 +72,75 @@ public class RedisMatchingQueueService {
         }
     }
 
+    public DequeueResult dequeueUser(Long userId) {
+        String userQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId);
+        String queueId = redisTemplate.opsForValue().get(userQueueKey);
+
+        if (queueId == null) {
+            return new DequeueResult(false, "NOT_IN_QUEUE");
+        }
+
+        try {
+            String queueMetaKey = RedisMatchingConstants.KeyBuilder.queueMetaKey(queueId);
+            Map<Object, Object> metaData = redisTemplate.opsForHash().entries(queueMetaKey);
+
+            if (metaData.isEmpty()) {
+                return new DequeueResult(false, "QUEUE_NOT_FOUND");
+            }
+
+            String categoryIdStr = (String) metaData.get("categoryId");
+            Long categoryId = Long.valueOf(categoryIdStr);
+
+            // 모든 큐에서 사용자 제거
+            String queueKey = RedisMatchingConstants.KeyBuilder.queueKey(categoryId);
+            String waitQueueKey = RedisMatchingConstants.KeyBuilder.waitQueueKey(categoryId);
+
+            redisTemplate.opsForSet().remove(queueKey, userId.toString());
+            redisTemplate.opsForZSet().remove(waitQueueKey, userId.toString());
+            redisTemplate.delete(userQueueKey);
+            redisTemplate.delete(queueMetaKey);
+
+            log.debug("매칭 큐 탈퇴 성공 - userId: {}", userId);
+            return new DequeueResult(true, "SUCCESS");
+
+        } catch (Exception e) {
+            log.error("매칭 큐 탈퇴 실패 - userId: {}", userId, e);
+            return new DequeueResult(false, "REDIS_ERROR");
+        }
+    }
+
 
     public QueueStatusInfo getQueueStatus(Long userId) {
         String userQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId);
-        String queueId = (String) redisTemplate.opsForValue().get(userQueueKey);
+        String queueId = redisTemplate.opsForValue().get(userQueueKey);
 
         if (queueId == null) {return null;}
 
-        String queueMetaKey = RedisMatchingConstants.KeyBuilder.queueMetaKey(queueId);
-        Map<Object, Object> metaData = redisTemplate.opsForHash().entries(queueMetaKey);
-
-        if (metaData.isEmpty()) {
-            return null;
-        }
-
-        String categoryIdStr = (String) metaData.get("categoryId");
-        Long categoryId = Long.valueOf(categoryIdStr);
-        String queueKey = RedisMatchingConstants.KeyBuilder.queueKey(categoryId);
-
         try {
+            String queueMetaKey = RedisMatchingConstants.KeyBuilder.queueMetaKey(queueId);
+            Map<Object, Object> metaData = redisTemplate.opsForHash().entries(queueMetaKey);
+
+            if (metaData.isEmpty()) {
+                return null;
+            }
+
+            String categoryIdStr = (String) metaData.get("categoryId");
+            Long categoryId = Long.valueOf(categoryIdStr);
+
+            String ttlStr = (String) metaData.get("ttl");
+            if (ttlStr != null) {
+                long expireTime = Long.parseLong(ttlStr);
+                if (Instant.now().getEpochSecond() > expireTime) {
+                    dequeueUser(userId);
+                    return null;
+                }
+            }
+
+
             // 대기열에서 위치 조회
-            Long rank = redisTemplate.opsForZSet().rank(queueKey, userId.toString());
-            Long totalWaiting = redisTemplate.opsForZSet().zCard(queueKey);
+            String waitQueueKey = RedisMatchingConstants.KeyBuilder.waitQueueKey(categoryId);
+            Long rank = redisTemplate.opsForZSet().rank(waitQueueKey, userId.toString());
+            Long totalWaiting = redisTemplate.opsForZSet().zCard(waitQueueKey);
 
             return new QueueStatusInfo(
                     queueId,
@@ -105,6 +152,18 @@ public class RedisMatchingQueueService {
         } catch (Exception e) {
             log.error("큐 상태 조회 실패 - userId: {}", userId, e);
             return null;
+        }
+    }
+
+    public long getWaitingCount(Long categoryId) {
+        String waitQueueKey = RedisMatchingConstants.KeyBuilder.waitQueueKey(categoryId);
+
+        try {
+            Long count = redisTemplate.opsForZSet().zCard(waitQueueKey);
+            return count != null ? count : 0L;
+        } catch (Exception e) {
+            log.error("대기 인원 수 조회 실패 - categoryId: {}", categoryId, e);
+            return 0L;
         }
     }
 

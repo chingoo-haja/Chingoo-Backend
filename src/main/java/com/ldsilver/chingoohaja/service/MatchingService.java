@@ -10,6 +10,7 @@ import com.ldsilver.chingoohaja.domain.matching.enums.QueueType;
 import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.dto.matching.request.MatchingRequest;
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingResponse;
+import com.ldsilver.chingoohaja.dto.matching.response.MatchingStatusResponse;
 import com.ldsilver.chingoohaja.repository.CategoryRepository;
 import com.ldsilver.chingoohaja.repository.MatchingQueueRepository;
 import com.ldsilver.chingoohaja.repository.UserRepository;
@@ -18,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -81,6 +83,40 @@ public class MatchingService {
         }
 
     }
+
+
+    @Transactional(readOnly = true)
+    public MatchingStatusResponse getMatchingStatus(Long userId) {
+        log.debug("매칭 상태 조회 - userId: {}", userId);
+
+        RedisMatchingQueueService.QueueStatusInfo queueStatusInfo = redisMatchingQueueService.getQueueStatus(userId);
+
+        if (queueStatusInfo == null) {
+            return MatchingStatusResponse.notInQueue();
+        }
+
+        Optional<Category> categoryOptional = categoryRepository.findById(queueStatusInfo.categoryId());
+        if (categoryOptional.isEmpty()) {
+            return MatchingStatusResponse.notInQueue();
+        }
+
+        Category category = categoryOptional.get();
+
+        long waitingCount = redisMatchingQueueService.getWaitingCount(queueStatusInfo.categoryId());
+        int estimateWaitTime = calculateEstimatedWaitTime(queueStatusInfo.position());
+
+        return MatchingStatusResponse.inQueue(
+                queueStatusInfo.queueId(),
+                category.getId(),
+                category.getName(),
+                QueueStatus.WAITING,
+                estimateWaitTime,
+                queueStatusInfo.position(),
+                waitingCount
+        );
+
+    }
+
 
     private String generateQueueId(Long userId, Long categoryId) {
         return String.format("queue_%d_%d_%s", userId, categoryId,
