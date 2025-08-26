@@ -1,10 +1,11 @@
 package com.ldsilver.chingoohaja.repository;
 
 import com.ldsilver.chingoohaja.domain.category.Category;
-import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.domain.matching.MatchingQueue;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueType;
+import com.ldsilver.chingoohaja.domain.user.User;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -59,5 +60,23 @@ public interface MatchingQueueRepository extends JpaRepository<MatchingQueue, Lo
             "FROM MatchingQueue mq WHERE mq.createdAt BETWEEN :startDate AND :endDate")
     List<Object[]> getMatchingSuccessRate(@Param("startDate") LocalDateTime startDate,
                                           @Param("endDate") LocalDateTime endDate);
+
+    /**
+     * 사용자의 대기 중인 매칭을 취소 상태로 변경
+     */
+    @Modifying
+    @Transactional
+    @Query("UPDATE MatchingQueue mq SET mq.queueStatus = 'CANCELLED' " +
+            "WHERE mq.user = :user AND mq.queueStatus = 'WAITING'")
+    int cancelUserWaitingQueue(@Param("user") User user);
+
+    /**
+     * 특정 매칭 큐의 상태를 취소로 변경
+     */
+    @Modifying
+    @Transactional
+    @Query("UPDATE MatchingQueue mq SET mq.queueStatus = 'CANCELLED' " +
+            "WHERE mq.id = :id AND mq.queueStatus = 'WAITING'")
+    int cancelMatchingQueueById(@Param("id") String id);
 
 }
