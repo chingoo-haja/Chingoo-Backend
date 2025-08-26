@@ -35,6 +35,7 @@ public class RedisMatchingConstants {
     public static class LuaScripts {
 
         // 매칭 대기열 참가
+        // 매칭 대기열 참가 스크립트 수정
         public static final String ENQUEUE_SCRIPT = """
             local queueKey = KEYS[1]
             local userQueueKey = KEYS[2]
@@ -43,7 +44,7 @@ public class RedisMatchingConstants {
             local queueId = ARGV[2]
             local categoryId = ARGV[3]
             local score = ARGV[4]
-            local ttl = ARGV[5]
+            local ttl = tonumber(ARGV[5])
             
             -- 중복 등록 확인
             if redis.call('EXISTS', userQueueKey) == 1 then
@@ -51,14 +52,14 @@ public class RedisMatchingConstants {
             end
             
             -- 대기열에 추가 (ZSET)
-            redis.call('ZADD', queueKey, score, userId)
+            redis.call('ZADD', queueKey, tonumber(score), userId)
             redis.call('EXPIRE', queueKey, ttl)
             
             -- 사용자별 큐 정보 저장 (중복 방지)
-            redis.call('SET', userQueueKey, queueId, 'EX', ttl)
+            redis.call('SETEX', userQueueKey, ttl, queueId)
             
-            -- 큐 메타데이터 저장
-            redis.call('HMSET', queueMetaKey,
+            -- 큐 메타데이터 저장 (HMSET 대신 HSET 사용)
+            redis.call('HSET', queueMetaKey,
                 'userId', userId,
                 'categoryId', categoryId,
                 'queueId', queueId,
