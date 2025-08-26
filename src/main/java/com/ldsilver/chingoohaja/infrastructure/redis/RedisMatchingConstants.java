@@ -35,16 +35,20 @@ public class RedisMatchingConstants {
     public static class LuaScripts {
 
         // 매칭 대기열 참가
-        // 매칭 대기열 참가 스크립트 수정
         public static final String ENQUEUE_SCRIPT = """
-            local queueKey = KEYS[1]
-            local userQueueKey = KEYS[2]
-            local queueMetaKey = KEYS[3]
-            local userId = ARGV[1]
-            local queueId = ARGV[2]
-            local categoryId = ARGV[3]
-            local score = ARGV[4]
-            local ttl = tonumber(ARGV[5])
+            local queueKey     = tostring(KEYS[1])
+            local userQueueKey = tostring(KEYS[2])
+            local queueMetaKey = tostring(KEYS[3])
+            
+            local userId     = tostring(ARGV[1])
+            local queueId    = tostring(ARGV[2])
+            local categoryId = tostring(ARGV[3])
+            local scoreStr   = tostring(ARGV[4])
+            local ttlNum     = tonumber(ARGV[5])
+            
+            if not ttlNum then
+              return {0, 'INVALID_TTL'}
+            end
             
             -- 중복 등록 확인
             if redis.call('EXISTS', userQueueKey) == 1 then
@@ -58,12 +62,11 @@ public class RedisMatchingConstants {
             -- 사용자별 큐 정보 저장 (중복 방지)
             redis.call('SETEX', userQueueKey, ttl, queueId)
             
-            -- 큐 메타데이터 저장 (HMSET 대신 HSET 사용)
-            redis.call('HSET', queueMetaKey,
-                'userId', userId,
-                'categoryId', categoryId,
-                'queueId', queueId,
-                'createdAt', score)
+            -- 큐 메타데이터 저장 (개별 HSET 호출)
+            redis.call('HSET', queueMetaKey, 'userId', userId)
+            redis.call('HSET', queueMetaKey, 'categoryId', categoryId)
+            redis.call('HSET', queueMetaKey, 'queueId', queueId)
+            redis.call('HSET', queueMetaKey, 'createdAt', score)
             redis.call('EXPIRE', queueMetaKey, ttl)
             
             local position = redis.call('ZRANK', queueKey, userId)

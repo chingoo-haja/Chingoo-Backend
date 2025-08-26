@@ -1,21 +1,19 @@
 package com.ldsilver.chingoohaja.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ldsilver.chingoohaja.common.exception.CustomException;
-import com.ldsilver.chingoohaja.common.exception.ErrorCode;
+import com.ldsilver.chingoohaja.domain.matching.MatchingConstants;
+import com.ldsilver.chingoohaja.infrastructure.redis.RedisMatchingConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataAccessException;
-import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.SessionCallback;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+
+import static com.ldsilver.chingoohaja.infrastructure.redis.RedisMatchingConstants.LuaScripts.ENQUEUE_SCRIPT;
 
 @Slf4j
 @Service
@@ -23,118 +21,84 @@ import java.util.List;
 public class RedisMatchingQueueService {
 
     private final RedisTemplate<String, Object> redisTemplate;
-    private final ObjectMapper objectMapper;
 
-    private static final String QUEUE_PREFIX = "matching_queue:category:";
-    private static final String USER_QUEUE_PREFIX = "user_queue:";
-    private static final String QUEUE_DATA_PREFIX = "queue_data:";
+    public EnqueueResult enqueueUser(Long userId, Long categoryId, String queueId) {
+        String queueKey = RedisMatchingConstants.KeyBuilder.queueKey(categoryId);
+        String userQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId);
+        String queueMetaKey = RedisMatchingConstants.KeyBuilder.queueMetaKey(queueId);
 
-    private static final Duration QUEUE_EXPIRATION = Duration.ofMinutes(10);
-    private static final int MAX_QUEUE_SIZE_PER_CATEGORY = 100;
-
-
-    public String joinQueue(Long userId, Long categoryId, String categoryName) {
-        String queueId = generateQueueId(userId, categoryId);
-        String categoryQueueKey = QUEUE_PREFIX + categoryId;
-        String userQueueKey = USER_QUEUE_PREFIX + userId;
-        String queueDataKey = QUEUE_DATA_PREFIX + queueId;
-
-        if (isUserInAnyQueue(userId)) {
-            throw new CustomException(ErrorCode.ALREADY_IN_QUEUE);
-        }
-
-        Long queueSize = redisTemplate.opsForList().size(categoryQueueKey);
-        if (queueSize != null && queueSize >= MAX_QUEUE_SIZE_PER_CATEGORY) {
-            throw new CustomException(ErrorCode.MATCHING_QUEUE_FULL);
-        }
+        double score = Instant.now().getEpochSecond();
+        long ttlSeconds = MatchingConstants.Queue.DEFAULT_TTL_SECONDS;
 
         try {
-            MatchingQueueData queueData = MatchingQueueData.of(
-                    queueId, userId, categoryId, categoryName, LocalDateTime.now()
-            );
+            RedisScript<List> script = RedisScript.of(ENQUEUE_SCRIPT, List.class);
+            List<Object> result = redisTemplate.execute(script,
+                    Arrays.asList(queueKey, userQueueKey, queueMetaKey),
+                    userId.toString(), queueId, categoryId.toString(),
+                    String.valueOf(score), String.valueOf(ttlSeconds));
 
-            String queueDataJson = objectMapper.writeValueAsString(queueData);
+            if (result != null && !result.isEmpty()) {
+                Integer success = (Integer) result.get(0);
+                String message = (String) result.get(1);
 
-            redisTemplate.execute(new SessionCallback<Object>() {
-                @Override
-                public Object execute(RedisOperations operations) throws DataAccessException {
-                    operations.multi();
-
-                    // 1. 카테고리별 큐에 추가
-                    redisTemplate.opsForList().rightPush(categoryQueueKey, queueId);
-                    redisTemplate.expire(categoryQueueKey, QUEUE_EXPIRATION);
-
-                    // 2. 사용자-큐 매핑 저장
-                    redisTemplate.opsForValue().set(userQueueKey, queueId, QUEUE_EXPIRATION);
-
-                    // 3. 큐 상세 데이터 저장
-                    redisTemplate.opsForValue().set(queueDataKey, queueDataJson, QUEUE_EXPIRATION);
-
-                    return operations.exec();
+                if (success == 1 && result.size() > 2) {
+                    Integer position = (Integer) result.get(2);
+                    log.debug("사용자 매칭 큐 참가 성공 - userId: {}, categoryId: {}, position: {}",
+                            userId, categoryId, position);
+                    return new EnqueueResult(true, message, position);
+                } else {
+                    log.debug("사용자 매칭 큐 참가 실패 - userId: {}, reason: {}", userId, message);
+                    return new EnqueueResult(false, message, null);
                 }
-            });
-
-            return queueId;
-
-        } catch (JsonProcessingException e) {
-            log.error("매칭 큐 데이터 직렬화 실패 - userId: {}", userId, e);
-            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+            }
+            return new EnqueueResult(false, "UNKNOWN_ERROR", null);
+        } catch (Exception e) {
+            log.error("Redis 매칭 큐 참가 실패 - userId: {}, categoryId: {}", userId, categoryId, e);
+            return new EnqueueResult(false, "REDIS_ERROR", null);
         }
     }
 
 
-    public int estimateWaitTime(Long userId, Long categoryId) {
-        String userQueueKey = USER_QUEUE_PREFIX + userId;
+    public QueueStatusInfo getQueueStatus(Long userId) {
+        String userQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId);
         String queueId = (String) redisTemplate.opsForValue().get(userQueueKey);
 
-        if (queueId == null) {
-            return 0;
+        if (queueId == null) {return null;}
+
+        String queueMetaKey = RedisMatchingConstants.KeyBuilder.queueMetaKey(queueId);
+        Map<Object, Object> metaData = redisTemplate.opsForHash().entries(queueMetaKey);
+
+        if (metaData.isEmpty()) {
+            return null;
         }
-        int queuePosition = getQueuePosition(queueId, categoryId);
 
-        // 평균 매칭 시간 30초로 가정 (임시)
-        return Math.max(0, (queuePosition -1) *30);
-    }
+        String categoryIdStr = (String) metaData.get("categoryId");
+        Long categoryId = Long.valueOf(categoryIdStr);
+        String queueKey = RedisMatchingConstants.KeyBuilder.queueKey(categoryId);
 
-    public int getQueuePosition(String queueId, Long categoryId) {
-        String categoryQueueKey = QUEUE_PREFIX + categoryId;
-        List<Object> queueIds = redisTemplate.opsForList().range(categoryQueueKey, 0, -1);
-        if (queueIds == null) {return 0;}
-        for (int i = 0; i < queueIds.size(); i++) {
-            if (queueId.equals(queueIds.get(i).toString())) {
-                return i+1;
-            }
-        }
-        return 0;
-    }
+        try {
+            // 대기열에서 위치 조회
+            Long rank = redisTemplate.opsForZSet().rank(queueKey, userId.toString());
+            Long totalWaiting = redisTemplate.opsForZSet().zCard(queueKey);
 
+            return new QueueStatusInfo(
+                    queueId,
+                    categoryId,
+                    rank != null ? rank.intValue() + 1 : null,
+                    totalWaiting != null ? totalWaiting.intValue() : 0
+            );
 
-    private boolean isUserInAnyQueue(Long userId) {
-        String userQueueKey = USER_QUEUE_PREFIX + userId;
-        return Boolean.TRUE.equals(redisTemplate.hasKey(userQueueKey));
-    }
-
-    private String generateQueueId(Long userId, Long categoryId) {
-        long timestamp = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC);
-        return String.format("queue_%d_%d_%d", userId, categoryId, timestamp);
-    }
-
-
-    public record MatchingQueueData(
-            String queueId,
-            Long userId,
-            Long categoryId,
-            String categoryName,
-            LocalDateTime joinedAt
-    ) {
-        public static MatchingQueueData of(
-                String queueId,
-                Long userId,
-                Long categoryId,
-                String categoryName,
-                LocalDateTime joinedAt
-        ) {
-            return new MatchingQueueData(queueId, userId, categoryId, categoryName, joinedAt);
+        } catch (Exception e) {
+            log.error("큐 상태 조회 실패 - userId: {}", userId, e);
+            return null;
         }
     }
+
+
+    // Result Classes
+    public record EnqueueResult(boolean success, String message, Integer position) {}
+    public record DequeueResult(boolean success, String message) {}
+    public record MatchResult(boolean success, String message, List<Long> userIds) {}
+    public record QueueStatusInfo(String queueId, Long categoryId, Integer position, Integer totalWaiting) {}
 }
+
