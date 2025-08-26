@@ -4,56 +4,70 @@ import com.ldsilver.chingoohaja.domain.matching.MatchingConstants;
 import com.ldsilver.chingoohaja.infrastructure.redis.RedisMatchingConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.script.RedisScript;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import static com.ldsilver.chingoohaja.infrastructure.redis.RedisMatchingConstants.LuaScripts.ENQUEUE_SCRIPT;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class RedisMatchingQueueService {
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate redisTemplate;
 
     public EnqueueResult enqueueUser(Long userId, Long categoryId, String queueId) {
         String queueKey = RedisMatchingConstants.KeyBuilder.queueKey(categoryId);
         String userQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId);
         String queueMetaKey = RedisMatchingConstants.KeyBuilder.queueMetaKey(queueId);
+        String waitQueueKey = RedisMatchingConstants.KeyBuilder.waitQueueKey(categoryId);
 
-        double score = Instant.now().getEpochSecond();
+        double score = Instant.now().toEpochMilli() + Math.random() * 100;
         long ttlSeconds = MatchingConstants.Queue.DEFAULT_TTL_SECONDS;
 
         try {
-            RedisScript<List> script = RedisScript.of(ENQUEUE_SCRIPT, List.class);
-            List<Object> result = redisTemplate.execute(script,
-                    Arrays.asList(queueKey, userQueueKey, queueMetaKey),
-                    userId.toString(), queueId, categoryId.toString(),
-                    String.valueOf(score), String.valueOf(ttlSeconds));
+            // 1. SET NX EX로 중복 입장 레이스 방지 (선점)
+            Boolean lockAcquired = redisTemplate.opsForValue()
+                    .setIfAbsent(userQueueKey, queueId, Duration.ofSeconds(ttlSeconds));
 
-            if (result != null && !result.isEmpty()) {
-                Integer success = (Integer) result.get(0);
-                String message = (String) result.get(1);
-
-                if (success == 1 && result.size() > 2) {
-                    Integer position = (Integer) result.get(2);
-                    log.debug("사용자 매칭 큐 참가 성공 - userId: {}, categoryId: {}, position: {}",
-                            userId, categoryId, position);
-                    return new EnqueueResult(true, message, position);
-                } else {
-                    log.debug("사용자 매칭 큐 참가 실패 - userId: {}, reason: {}", userId, message);
-                    return new EnqueueResult(false, message, null);
-                }
+            if (!Boolean.TRUE.equals(lockAcquired)) {
+                return new EnqueueResult(false, "ALREADY_IN_QUEUE", null);
             }
-            return new EnqueueResult(false, "UNKNOWN_ERROR", null);
+
+            // 2. 랜덤 매칭풀에 추가
+            redisTemplate.opsForSet().add(queueKey, userId.toString());
+            // 3. 대기 시간 기반 우선순위 큐에 추가
+            redisTemplate.opsForZSet().add(waitQueueKey, userId.toString(), score);
+
+            // 4. 큐 메타데이터 저장
+            Map<String, String> metaData = Map.of(
+                "userId", userId.toString(),
+                "categoryId", categoryId.toString(),
+                "queueId", queueId,
+                "createdAt", String.valueOf(score),
+                "ttl", String.valueOf(Instant.now().getEpochSecond() + ttlSeconds)
+            );
+
+            redisTemplate.opsForHash().putAll(queueMetaKey, metaData);
+            redisTemplate.expire(queueMetaKey, Duration.ofSeconds(ttlSeconds));
+
+            // 5. 위치 계산
+            Long rank = redisTemplate.opsForZSet().rank(waitQueueKey, userId.toString());
+            Integer position = rank != null ? rank.intValue() + 1 : 1;
+
+            log.debug("매칭 큐 참가 성공 - userId: {}, position: {}", userId, position);
+            return new EnqueueResult(true, "SUCCESS", position);
+
         } catch (Exception e) {
-            log.error("Redis 매칭 큐 참가 실패 - userId: {}, categoryId: {}", userId, categoryId, e);
+            redisTemplate.delete(userQueueKey);
+            redisTemplate.opsForSet().remove(queueKey, userId.toString());
+            redisTemplate.opsForZSet().remove(waitQueueKey, userId.toString());
+
+            log.error("Redis 매칭 큐 참가 실패 - userId: {}", userId, e);
             return new EnqueueResult(false, "REDIS_ERROR", null);
         }
     }
