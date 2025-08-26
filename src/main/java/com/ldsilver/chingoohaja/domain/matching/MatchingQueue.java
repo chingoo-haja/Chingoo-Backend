@@ -1,5 +1,7 @@
 package com.ldsilver.chingoohaja.domain.matching;
 
+import com.ldsilver.chingoohaja.common.exception.CustomException;
+import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.category.Category;
 import com.ldsilver.chingoohaja.domain.common.BaseEntity;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus;
@@ -51,5 +53,51 @@ public class MatchingQueue extends BaseEntity {
 
     public static MatchingQueue from(User user, Category category, QueueType queueType) {
         return of(user, category, queueType, QueueStatus.WAITING);
+    }
+
+    public void cancel() {
+        if (this.queueStatus == QueueStatus.WAITING) {
+            this.queueStatus = QueueStatus.CANCELLED;
+        } else {
+            throw new CustomException(ErrorCode.STATUS_NOT_WAITING, this.queueStatus);
+        }
+    }
+
+
+    public void startMatching() {
+        if (this.queueStatus == QueueStatus.WAITING) {
+            this.queueStatus = QueueStatus.MATCHING;
+        } else {
+            throw new CustomException(ErrorCode.START_MATCHING_FAILED, this.queueStatus);
+        }
+    }
+
+
+    public void expire() {
+        if (this.queueStatus == QueueStatus.WAITING) {
+            this.queueStatus = QueueStatus.EXPIRED;
+        } else {
+            throw new CustomException(ErrorCode.MATCHING_EXPIRED_FAILED, this.queueStatus);
+        }
+    }
+
+    public boolean isWaiting() {
+        return this.queueStatus == QueueStatus.WAITING;
+    }
+
+    public boolean isMatching() {
+        return this.queueStatus == QueueStatus.MATCHING;
+    }
+
+    public boolean isCancelled() {
+        return this.queueStatus == QueueStatus.CANCELLED;
+    }
+
+    public boolean isExpired() {
+        return this.queueStatus == QueueStatus.EXPIRED;
+    }
+
+    public boolean isActive() {
+        return this.queueStatus == QueueStatus.WAITING || this.queueStatus == QueueStatus.MATCHING;
     }
 }
