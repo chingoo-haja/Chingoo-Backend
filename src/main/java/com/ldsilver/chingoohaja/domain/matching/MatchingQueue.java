@@ -21,6 +21,9 @@ public class MatchingQueue extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(unique = true)
+    private String queueId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
@@ -41,18 +44,20 @@ public class MatchingQueue extends BaseEntity {
             User user,
             Category category,
             QueueType queueType,
-            QueueStatus queueStatus
+            QueueStatus queueStatus,
+            String queueId
     ) {
         MatchingQueue matchingQueue = new MatchingQueue();
         matchingQueue.user = user;
         matchingQueue.category = category;
         matchingQueue.queueType = queueType;
         matchingQueue.queueStatus = queueStatus;
+        matchingQueue.queueId = queueId;
         return matchingQueue;
     }
 
-    public static MatchingQueue from(User user, Category category, QueueType queueType) {
-        return of(user, category, queueType, QueueStatus.WAITING);
+    public static MatchingQueue from(User user, Category category, QueueType queueType, String queueId) {
+        return of(user, category, queueType, QueueStatus.WAITING, queueId);
     }
 
     public void cancel() {
