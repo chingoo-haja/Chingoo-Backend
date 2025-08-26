@@ -2,6 +2,7 @@ package com.ldsilver.chingoohaja.controller;
 
 import com.ldsilver.chingoohaja.domain.user.CustomUserDetails;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
+import com.ldsilver.chingoohaja.dto.matching.request.MatchingCancelRequest;
 import com.ldsilver.chingoohaja.dto.matching.request.MatchingRequest;
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingResponse;
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingStatusResponse;
@@ -57,5 +58,21 @@ public class MatchingController {
         MatchingStatusResponse response = matchingService.getMatchingStatus(userDetails.getUserId());
 
         return ApiResponse.ok("매칭 상태 조회 성공", response);
+    }
+
+
+    @Operation(
+            summary = "매칭 취소",
+            description = "현재 참가 중인 매칭 대기열에서 나갑니다." +
+                    "대기 중이 아닌 경우 오류를 반환합니다."
+    )
+    @DeleteMapping("/match")
+    public ApiResponse<Void> cancelMatching(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody MatchingCancelRequest request) {
+        log.debug("매칭 취소 요청 - userId: {}, queueId: {}", userDetails.getUserId(), request.queueId());
+
+        matchingService.cancelMatching(userDetails.getUserId(), request.queueId());
+        return ApiResponse.ok("매칭 취소 성공");
     }
 }

@@ -54,7 +54,7 @@ public class MatchingService {
 
         try {
             // DB에 매칭 큐 기록 (이력 관리용)
-            MatchingQueue matchingQueue = MatchingQueue.from(user, category, QueueType.RANDOM_MATCH);
+            MatchingQueue matchingQueue = MatchingQueue.from(user, category, QueueType.RANDOM_MATCH, queueId);
             MatchingQueue savedQueue = matchingQueueRepository.save(matchingQueue);
 
             // Redis 대기열에 참가
@@ -114,6 +114,29 @@ public class MatchingService {
                 queueStatusInfo.position(),
                 waitingCount
         );
+
+    }
+
+
+    @Transactional
+    public void cancelMatching(Long userId, String queueId) {
+        log.debug("매칭 취소 - userId: {}, queueId: {}", userId, queueId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        RedisMatchingQueueService.DequeueResult result = redisMatchingQueueService.dequeueUser(userId);
+
+        if (!result.success()) {
+            if ("NOT_IN_QUEUE".equals(result.message())){
+                throw new CustomException(ErrorCode.QUEUE_NOT_FOUND);
+            }
+            throw new CustomException(ErrorCode.MATCHING_FAILED, result.message());
+        }
+
+        matchingQueueRepository.cancelMatchingQueueByQueueId(queueId);
+
+        log.info("매칭 취소 성공 - userId: {}, queueId: {}", userId, queueId);
 
     }
 
