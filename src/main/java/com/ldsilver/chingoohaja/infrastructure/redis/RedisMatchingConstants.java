@@ -11,37 +11,39 @@ public class RedisMatchingConstants {
     // Redis 키 prefix
     @UtilityClass
     public static class KeyPrefix {
-        public static final String QUEUE_PREFIX = "matching:queue:{cat}:";
-        public static final String WAIT_QUEUE_PREFIX = "wait:z:{cat}:";
-        public static final String USER_QUEUE_PREFIX = "user:queued:{user}:";
-        public static final String QUEUE_META_PREFIX = "queue:meta:{cat}:";
+        public static final String QUEUE_PREFIX = "matching:queue:";
+        public static final String WAIT_QUEUE_PREFIX = "wait:z:";
+        public static final String USER_QUEUE_PREFIX = "user:queued:";
+        public static final String QUEUE_META_PREFIX = "queue:meta:";
     }
 
     // Redis 키 생성 헬퍼
     @UtilityClass
     public static class KeyBuilder {
+
+        private static String catTag(Long categoryId) {return "{cat:" + categoryId + "}";}
+
         // 랜덤 매칭용 SET (해시태그로 동일 슬롯 보장)
         public static String queueKey(Long categoryId) {
-            return KeyPrefix.QUEUE_PREFIX.replace("{cat}", categoryId.toString());
+            return KeyPrefix.QUEUE_PREFIX + catTag(categoryId);
         }
 
         // 대기 순서 우선순위 ZSET
         public static String waitQueueKey(Long categoryId) {
-            return KeyPrefix.WAIT_QUEUE_PREFIX.replace("{cat}", categoryId.toString());
+            return KeyPrefix.WAIT_QUEUE_PREFIX + catTag(categoryId) + ":" + categoryId;
         }
 
         public static String userQueueKey(Long userId) {
-            return KeyPrefix.USER_QUEUE_PREFIX.replace("{user}", userId.toString());
+            return KeyPrefix.USER_QUEUE_PREFIX + userId + ":";
         }
 
         public static String queueMetaKey(String queueId) {
             // queueId 형식: queue_{userId}_{categoryId}_{random}
-            String[] parts = queueId.split("_");
-            if (parts.length >= 3) {
-                String categoryId = parts[2];
-                return KeyPrefix.QUEUE_META_PREFIX.replace("{cat}", categoryId) + queueId;
+            Long categoryId = parseCategoryIdFromQueueId(queueId);
+            if (categoryId != null) {
+                return KeyPrefix.QUEUE_META_PREFIX + catTag(categoryId) + ":" + queueId;
             }
-            return "queue:meta:" + queueId;
+            return KeyPrefix.QUEUE_META_PREFIX + queueId;
         }
 
         // Lua 스크립트에서 사용할 키 목록 생성 (동일 해시태그)
@@ -58,6 +60,20 @@ public class RedisMatchingConstants {
             }
 
             return keys;
+        }
+
+        private static Long parseCategoryIdFromQueueId(String queueId) {
+            if (queueId != null && queueId.startsWith("queue_")) {
+                String[] parts = queueId.split("_");
+                if (parts.length >= 3) {
+                    try {
+                        return Long.valueOf(parts[2]);
+                    } catch (NumberFormatException e) {
+                        return null;
+                    }
+                }
+            }
+            return null;
         }
     }
 
