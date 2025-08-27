@@ -74,6 +74,12 @@ public enum ErrorCode {
     QUEUE_NOT_FOUND(HttpStatus.NOT_FOUND, "M002", "매칭 대기열 정보를 찾을 수 없습니다."),
     MATCHING_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "M003", "매칭에 실패했습니다."),
     QUEUE_EXPIRED(HttpStatus.BAD_REQUEST, "M004", "매칭 대기열이 만료되었습니다."),
+    MATCHING_QUEUE_FULL(HttpStatus.INTERNAL_SERVER_ERROR, "M005", "매칭 대기열이 가득 찼습니다"),
+    MATCHING_REDIS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "M006", "Redis 매칭 서비스 연결에 실패했습니다."),
+    STATUS_NOT_WAITING(HttpStatus.BAD_REQUEST, "M007", "대기 중인 상태에서만 취소할 수 있습니다. 현재 상태: %s"),
+    START_MATCHING_FAILED(HttpStatus.BAD_REQUEST, "M008", "대기 중인 상태에서만 매칭을 시작할 수 있습니다. 현재 상태: %s"),
+    MATCHING_EXPIRED_FAILED(HttpStatus.BAD_REQUEST, "M009", "대기 중인 상태에서만 만료할 수 있습니다. 현재 상태: %s"),
+
 
     // 통화 관련 에러
     CALL_NOT_FOUND(HttpStatus.NOT_FOUND, "L001", "통화 정보를 찾을 수 없습니다."),

@@ -1,18 +1,20 @@
 package com.ldsilver.chingoohaja.repository;
 
 import com.ldsilver.chingoohaja.domain.category.Category;
-import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.domain.matching.MatchingQueue;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueType;
+import com.ldsilver.chingoohaja.domain.user.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface MatchingQueueRepository extends JpaRepository<MatchingQueue, Long> {
@@ -60,4 +62,32 @@ public interface MatchingQueueRepository extends JpaRepository<MatchingQueue, Lo
     List<Object[]> getMatchingSuccessRate(@Param("startDate") LocalDateTime startDate,
                                           @Param("endDate") LocalDateTime endDate);
 
+    /**
+     * 사용자의 대기 중인 매칭을 취소 상태로 변경
+     */
+    @Modifying
+    @Transactional
+    @Query("UPDATE MatchingQueue mq SET mq.queueStatus = com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus.CANCELLED " +
+            "WHERE mq.user = :user AND mq.queueStatus = com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus.WAITING")
+    int cancelUserWaitingQueue(@Param("user") User user);
+
+    /**
+     * 특정 매칭 큐의 상태를 취소로 변경
+     */
+    @Modifying
+    @Transactional
+    @Query("UPDATE MatchingQueue mq SET mq.queueStatus = com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus.CANCELLED " +
+            "WHERE mq.id = :id AND mq.queueStatus = com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus.WAITING")
+    int cancelMatchingQueueById(@Param("id") String id);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE MatchingQueue mq SET mq.queueStatus = com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus.CANCELLED " +
+            "WHERE mq.queueId = :queueId AND mq.queueStatus = com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus.WAITING")
+    int cancelMatchingQueueByQueueId(@Param("queueId") String queueId);
+
+    /**
+     * queueId로 매칭 큐 조회
+     */
+    Optional<MatchingQueue> findByQueueId(String queueId);
 }
