@@ -55,8 +55,7 @@ public class RedisMatchingConstants {
             keys.add("wait:z:" + tag + ":" + categoryId);
 
             for (Long userId : userIds) {
-                keys.add("user:queued:" + tag + ":" + userId);
-                keys.add("queue:meta:" + tag + ":queue_" + userId + "_" + categoryId);
+                keys.add("user:queued:" + userId + ":");
             }
             return keys;
         }
