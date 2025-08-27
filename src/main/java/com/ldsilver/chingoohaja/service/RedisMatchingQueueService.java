@@ -93,7 +93,17 @@ public class RedisMatchingQueueService {
             Map<Object, Object> metaData = redisTemplate.opsForHash().entries(queueMetaKey);
 
             if (metaData.isEmpty()) {
-                return new DequeueResult(false, "QUEUE_NOT_FOUND");
+                // fallback: queueId에서 categoryId 파싱
+                Long parsedCategoryId = parseCategoryIdFromQueueId(queueId);
+                if (parsedCategoryId == null) {
+                    return new DequeueResult(false, "QUEUE_NOT_FOUND");
+                }
+                String queueKey = RedisMatchingConstants.KeyBuilder.queueKey(parsedCategoryId);
+                String waitQueueKey = RedisMatchingConstants.KeyBuilder.waitQueueKey(parsedCategoryId);
+                redisTemplate.opsForSet().remove(queueKey, userId.toString());
+                redisTemplate.opsForZSet().remove(waitQueueKey, userId.toString());
+                redisTemplate.delete(userQueueKey);
+                return new DequeueResult(true, "SUCCESS");
             }
 
             String categoryIdStr = (String) metaData.get("categoryId");
@@ -181,5 +191,19 @@ public class RedisMatchingQueueService {
     public record DequeueResult(boolean success, String message) {}
     public record MatchResult(boolean success, String message, List<Long> userIds) {}
     public record QueueStatusInfo(String queueId, Long categoryId, Integer position, Integer totalWaiting) {}
+
+    private Long parseCategoryIdFromQueueId(String queueId) {
+        // 예: queue_123_45_ab12cd34  => categoryId = 45
+        try {
+            String[] parts = queueId.split("_");
+            if (parts.length >= 4) {
+                return Long.parseLong(parts[2]);
+            }
+            return null;
+        } catch (Exception e) {
+            log.error("queueId에서 categoryId 파싱 실패");
+            return null;
+        }
+    }
 }
 
