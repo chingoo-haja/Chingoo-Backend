@@ -77,6 +77,8 @@ public class MatchingService {
                     result.position(),
                     savedQueue.getCreatedAt()
             );
+        } catch (CustomException ce) {
+            throw ce;
         } catch (Exception e) {
             log.error("매칭 대기열 참가 실패 - userId: {}, categoryId: {}", userId, request.categoryId(), e);
             throw new CustomException(ErrorCode.MATCHING_FAILED);
