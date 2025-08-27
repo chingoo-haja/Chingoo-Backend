@@ -66,7 +66,7 @@ public class MatchingService {
 
             int estimatedWaitTime = calculateEstimatedWaitTime(result.position());
 
-            log.debug("매칭 대기열 참가 완료 - userId: {}, queueId: {}, position: {}", userId, request.categoryId(), result.position());
+            log.debug("매칭 대기열 참가 완료 - userId: {}, queueId: {}, position: {}", userId, queueId, result.position());
 
             return MatchingResponse.of(
                     queueId,
@@ -122,18 +122,25 @@ public class MatchingService {
     public void cancelMatching(Long userId, String queueId) {
         log.debug("매칭 취소 - userId: {}, queueId: {}", userId, queueId);
 
-        User user = userRepository.findById(userId)
+        userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+        // 1. 소유권 검증
+        MatchingQueue queue = matchingQueueRepository.findByQueueId(queueId)
+                .orElseThrow(() -> new CustomException(ErrorCode.QUEUE_NOT_FOUND));
+        if (!queue.getUser().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+
+        // 2. Redis 탈퇴 시도
         RedisMatchingQueueService.DequeueResult result = redisMatchingQueueService.dequeueUser(userId);
 
-        if (!result.success()) {
-            if ("NOT_IN_QUEUE".equals(result.message())){
-                throw new CustomException(ErrorCode.QUEUE_NOT_FOUND);
-            }
+        // 3. Redis 결과에 따른 처리 정책
+        if (!result.success() && !"NOT_IN_QUEUE".equals(result.message())) {
             throw new CustomException(ErrorCode.MATCHING_FAILED, result.message());
         }
 
+        // 4. DB 상태 변경 (소유권 검증을 통과한 경우에만)
         matchingQueueRepository.cancelMatchingQueueByQueueId(queueId);
 
         log.info("매칭 취소 성공 - userId: {}, queueId: {}", userId, queueId);
