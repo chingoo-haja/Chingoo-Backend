@@ -11,7 +11,7 @@ public record MatchingStatusResponse(
         @JsonProperty("category_id") Long categoryId,
         @JsonProperty("category_name") String categoryName,
         @JsonProperty("queue_status") QueueStatus queueStatus,
-        @JsonProperty("estimated_wait_time") Integer estimatedWaitTime,
+        @JsonProperty("estimated_wait_time_seconds") Integer estimatedWaitTimeSeconds,
         @JsonProperty("queue_position") Integer queuePosition,
         @JsonProperty("waiting_count") Long waitingCount,
         @JsonProperty("updated_at") LocalDateTime updatedAt
