@@ -105,7 +105,7 @@ public class RedisMatchingConstants {
         public static final String CLEANUP_MATCHED_USERS = """
             local categoryId = ARGV[1]
             local userCount = tonumber(ARGV[2])
-            local waitQueueKey = 'wait:z:{cat' .. categoryId .. '}:' .. categoryId
+            local waitQueueKey = 'wait:z:{cat:' .. categoryId .. '}:' .. categoryId
             local cleanedCount = 0
             
             for i = 1, userCount do
