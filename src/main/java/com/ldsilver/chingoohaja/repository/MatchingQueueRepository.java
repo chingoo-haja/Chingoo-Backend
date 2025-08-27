@@ -67,8 +67,8 @@ public interface MatchingQueueRepository extends JpaRepository<MatchingQueue, Lo
      */
     @Modifying
     @Transactional
-    @Query("UPDATE MatchingQueue mq SET mq.queueStatus = 'CANCELLED' " +
-            "WHERE mq.user = :user AND mq.queueStatus = 'WAITING'")
+    @Query("UPDATE MatchingQueue mq SET mq.queueStatus = com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus.CANCELLED " +
+            "WHERE mq.user = :user AND mq.queueStatus = com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus.WAITING")
     int cancelUserWaitingQueue(@Param("user") User user);
 
     /**
@@ -76,14 +76,14 @@ public interface MatchingQueueRepository extends JpaRepository<MatchingQueue, Lo
      */
     @Modifying
     @Transactional
-    @Query("UPDATE MatchingQueue mq SET mq.queueStatus = 'CANCELLED' " +
-            "WHERE mq.id = :id AND mq.queueStatus = 'WAITING'")
+    @Query("UPDATE MatchingQueue mq SET mq.queueStatus = com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus.CANCELLED " +
+            "WHERE mq.id = :id AND mq.queueStatus = com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus.WAITING")
     int cancelMatchingQueueById(@Param("id") String id);
 
     @Modifying
     @Transactional
-    @Query("UPDATE MatchingQueue mq SET mq.queueStatus = 'CANCELLED' " +
-            "WHERE mq.queueId = :queueId AND mq.queueStatus = 'WAITING'")
+    @Query("UPDATE MatchingQueue mq SET mq.queueStatus = com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus.CANCELLED " +
+            "WHERE mq.queueId = :queueId AND mq.queueStatus = com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus.WAITING")
     int cancelMatchingQueueByQueueId(@Param("queueId") String queueId);
 
     /**
