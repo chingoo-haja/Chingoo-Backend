@@ -49,16 +49,15 @@ public class RedisMatchingConstants {
         // Lua 스크립트에서 사용할 키 목록 생성 (동일 해시태그)
         public static List<String> getCleanupKeys(Long categoryId, List<Long> userIds) {
             List<String> keys = new ArrayList<>();
-            String hashTag = "{cat" + categoryId + "}";
+            String tag = "{cat:" + categoryId + "}";
 
-            keys.add("cleanup" + hashTag); // 더미 키 (스크립트 요구사항)
+            keys.add("cleanup" + tag); // 더미 키 (스크립트 요구사항)
+            keys.add("wait:z:" + tag + ":" + categoryId);
 
             for (Long userId : userIds) {
-                keys.add("user:queued:" + hashTag + ":" + userId);
-                keys.add("queue:meta:" + hashTag + ":queue_" + userId + "_" + categoryId);
-                keys.add("wait:z:" + hashTag + ":" + categoryId);
+                keys.add("user:queued:" + tag + ":" + userId);
+                keys.add("queue:meta:" + tag + ":queue_" + userId + "_" + categoryId);
             }
-
             return keys;
         }
 
