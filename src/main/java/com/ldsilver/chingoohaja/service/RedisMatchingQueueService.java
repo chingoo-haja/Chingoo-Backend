@@ -63,9 +63,17 @@ public class RedisMatchingQueueService {
             return new EnqueueResult(true, "SUCCESS", position);
 
         } catch (Exception e) {
-            redisTemplate.delete(userQueueKey);
-            redisTemplate.opsForSet().remove(queueKey, userId.toString());
-            redisTemplate.opsForZSet().remove(waitQueueKey, userId.toString());
+            try {
+                String current = redisTemplate.opsForValue().get(userQueueKey);
+                if (queueId.equals(current)) {
+                    redisTemplate.delete(userQueueKey);
+                    redisTemplate.opsForSet().remove(queueKey, userId.toString());
+                    redisTemplate.opsForZSet().remove(waitQueueKey, userId.toString());
+                    redisTemplate.delete(queueMetaKey);
+                }
+            } catch (Exception ignore) {
+                log.error("Redis 매칭 큐 참가 실패 & 클린업 오류");
+            }
 
             log.error("Redis 매칭 큐 참가 실패 - userId: {}", userId, e);
             return new EnqueueResult(false, "REDIS_ERROR", null);
