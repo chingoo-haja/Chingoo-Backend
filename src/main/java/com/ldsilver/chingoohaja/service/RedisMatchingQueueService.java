@@ -35,7 +35,7 @@ public class RedisMatchingQueueService {
                     .setIfAbsent(userQueueKey, queueId, Duration.ofSeconds(ttlSeconds));
 
             if (!Boolean.TRUE.equals(lockAcquired)) {
-                return new EnqueueResult(false, "ALREADY_IN_QUEUE", null);
+                return new EnqueueResult(false, RedisMatchingConstants.ResponseMessage.ALREADY_IN_QUEUE, null);
             }
 
             // 2. 랜덤 매칭풀에 추가
@@ -60,7 +60,7 @@ public class RedisMatchingQueueService {
             Integer position = rank != null ? rank.intValue() + 1 : 1;
 
             log.debug("매칭 큐 참가 성공 - userId: {}, position: {}", userId, position);
-            return new EnqueueResult(true, "SUCCESS", position);
+            return new EnqueueResult(true, RedisMatchingConstants.ResponseMessage.SUCCESS, position);
 
         } catch (Exception e) {
             try {
@@ -76,7 +76,7 @@ public class RedisMatchingQueueService {
             }
 
             log.error("Redis 매칭 큐 참가 실패 - userId: {}", userId, e);
-            return new EnqueueResult(false, "REDIS_ERROR", null);
+            return new EnqueueResult(false, RedisMatchingConstants.ResponseMessage.REDIS_ERROR, null);
         }
     }
 
@@ -85,7 +85,7 @@ public class RedisMatchingQueueService {
         String queueId = redisTemplate.opsForValue().get(userQueueKey);
 
         if (queueId == null) {
-            return new DequeueResult(false, "NOT_IN_QUEUE");
+            return new DequeueResult(false, RedisMatchingConstants.ResponseMessage.NOT_IN_QUEUE);
         }
 
         try {
@@ -96,14 +96,14 @@ public class RedisMatchingQueueService {
                 // fallback: queueId에서 categoryId 파싱
                 Long parsedCategoryId = parseCategoryIdFromQueueId(queueId);
                 if (parsedCategoryId == null) {
-                    return new DequeueResult(false, "QUEUE_NOT_FOUND");
+                    return new DequeueResult(false, RedisMatchingConstants.ResponseMessage.QUEUE_NOT_FOUND);
                 }
                 String queueKey = RedisMatchingConstants.KeyBuilder.queueKey(parsedCategoryId);
                 String waitQueueKey = RedisMatchingConstants.KeyBuilder.waitQueueKey(parsedCategoryId);
                 redisTemplate.opsForSet().remove(queueKey, userId.toString());
                 redisTemplate.opsForZSet().remove(waitQueueKey, userId.toString());
                 redisTemplate.delete(userQueueKey);
-                return new DequeueResult(true, "SUCCESS");
+                return new DequeueResult(true, RedisMatchingConstants.ResponseMessage.SUCCESS);
             }
 
             String categoryIdStr = (String) metaData.get("categoryId");
@@ -119,11 +119,11 @@ public class RedisMatchingQueueService {
             redisTemplate.delete(queueMetaKey);
 
             log.debug("매칭 큐 탈퇴 성공 - userId: {}", userId);
-            return new DequeueResult(true, "SUCCESS");
+            return new DequeueResult(true, RedisMatchingConstants.ResponseMessage.SUCCESS);
 
         } catch (Exception e) {
             log.error("매칭 큐 탈퇴 실패 - userId: {}", userId, e);
-            return new DequeueResult(false, "REDIS_ERROR");
+            return new DequeueResult(false, RedisMatchingConstants.ResponseMessage.REDIS_ERROR);
         }
     }
 
