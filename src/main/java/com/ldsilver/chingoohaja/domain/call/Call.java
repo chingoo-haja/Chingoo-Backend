@@ -73,4 +73,13 @@ public class Call extends BaseEntity {
         }
     }
 
+    public void startCall() {
+        if (this.callStatus == CallStatus.READY) {
+            this.callStatus = CallStatus.IN_PROGRESS;
+            this.startAt = LocalDateTime.now();
+        } else {
+            throw new IllegalStateException("통화를 시작할 수 없는 상태입니다: " + this.callStatus);
+        }
+    }
+
 }
