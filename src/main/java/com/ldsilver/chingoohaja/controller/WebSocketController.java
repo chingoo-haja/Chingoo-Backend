@@ -30,7 +30,7 @@ public class WebSocketController {
         try {
             return matchingService.getMatchingStatus(userDetails.getUserId());
         } catch (Exception e) {
-            log.error("매칭 상태 구독 처리 실패 - userId: {}", userDetails.getUserId());
+            log.error("매칭 상태 구독 처리 실패 - userId: {}", userDetails.getUserId(), e);
             return MatchingStatusResponse.notInQueue();
         }
     }
@@ -39,14 +39,16 @@ public class WebSocketController {
      * 하트비트 처리 (연결 상태 확인)
      */
     @MessageMapping("/heartbeat")
-    public void handleHeartbeat(
+    @SendToUser("/queue/heartbeat")
+    public HeartbeatResponse handleHeartbeat(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @Payload HeartbeatMessage message) {
+            @Payload HeartbeatMessage message)
+    {
+        Long userId = (userDetails != null ? userDetails.getUserId() : null);
+        log.debug("하트비트 수신 - userId: {}, timestamp: {}", userId, message.timestamp());
 
-        log.debug("하트비트 수신 - userId: {}, timestamp: {}",
-                userDetails.getUserId(), message.timestamp());
-
-        // 응답은 자동으로 클라이언트에게 전송됨
+        // 서버 타임스탬프와 함께 ACK 응답
+        return new HeartbeatResponse(message.timestamp(), System.currentTimeMillis());
     }
 
     /**
@@ -70,7 +72,9 @@ public class WebSocketController {
 
 
     /**
-     * 하트비트 메시지
+     * 하트비트 요청 메시지, 응답 메시지
      */
     public record HeartbeatMessage(long timestamp) {}
+    public record HeartbeatResponse(long clientTimestamp, long serverTimestamp) {}
+
 }
