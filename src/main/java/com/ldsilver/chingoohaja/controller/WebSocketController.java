@@ -50,6 +50,26 @@ public class WebSocketController {
     }
 
     /**
+     * 클라이언트 연결 해제 알림
+     */
+    @MessageMapping("/disconnect")
+    public void handleDisconnect(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        log.debug("클라이언트 연결 해제 알림 - userId: {}", userDetails.getUserId());
+
+        try {
+            // 대기 중인 매칭이 있으면 취소 처리
+            MatchingStatusResponse status = matchingService.getMatchingStatus(userDetails.getUserId());
+            if (status.isInQueue()) {
+                matchingService.cancelMatching(userDetails.getUserId(), status.queueId());
+                log.info("연결 해제로 인한 매칭 자동 취소 - userId: {}", userDetails.getUserId());
+            }
+        } catch (Exception e) {
+            log.error("연결 해제 처리 실패 - userId: {}", userDetails.getUserId(), e);
+        }
+    }
+
+
+    /**
      * 하트비트 메시지
      */
     public record HeartbeatMessage(long timestamp) {}
