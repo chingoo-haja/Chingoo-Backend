@@ -127,7 +127,7 @@ public class RedisMatchingQueueService {
             log.debug("랜덤 매칭 성공 - categoryId: {}, users: {}", categoryId, userIds);
             return new MatchResult(true, RedisMatchingConstants.ResponseMessage.SUCCESS, userIds);
         } catch (Exception e) {
-            log.debug("랜덤 매칭 실패 - categoryId: {}", categoryId, e);
+            log.error("랜덤 매칭 실패 - categoryId: {}", categoryId, e);
             return new MatchResult(false, RedisMatchingConstants.ResponseMessage.REDIS_ERROR, Collections.emptyList());
         }
     }
@@ -171,7 +171,7 @@ public class RedisMatchingQueueService {
             }
             return new MatchResult(false, RedisMatchingConstants.ResponseMessage.UNKNOWN_ERROR, Collections.emptyList());
         } catch (Exception e) {
-            log.debug("대기순 매칭 실패 - categoryId: {}", categoryId, e);
+            log.error("대기순 매칭 실패 - categoryId: {}", categoryId, e);
             return new MatchResult(false, RedisMatchingConstants.ResponseMessage.REDIS_ERROR, Collections.emptyList());
         }
     }
