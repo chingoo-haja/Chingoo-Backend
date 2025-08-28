@@ -6,14 +6,12 @@ import com.ldsilver.chingoohaja.domain.category.Category;
 import com.ldsilver.chingoohaja.domain.matching.MatchingQueue;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus;
 import com.ldsilver.chingoohaja.domain.user.User;
-import com.ldsilver.chingoohaja.dto.matching.response.MatchingNotificationResponse;
 import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.repository.CategoryRepository;
 import com.ldsilver.chingoohaja.repository.MatchingQueueRepository;
 import com.ldsilver.chingoohaja.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,7 +30,6 @@ public class MatchingSchedulerService {
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final CallRepository callRepository;
-    private final SimpMessagingTemplate messagingTemplate;
     private final MatchingQueueRepository matchingQueueRepository;
     private final WebSocketEventService webSocketEventService;
 
@@ -94,6 +91,8 @@ public class MatchingSchedulerService {
             // 4. Call 엔티티 생성
             Call call = Call.from(user1, user2, category, CallType.RANDOM_MATCH);
             Call savedCall = callRepository.save(call);
+            savedCall.startCall();
+            callRepository.save(savedCall);
 
             // 5. DB 매칭 큐 상태 업데이트 (WAITING -> MATCHING)
             updateMatchingQueueStatus(userIds, QueueStatus.MATCHING);
@@ -159,17 +158,6 @@ public class MatchingSchedulerService {
     }
 
 
-    private void sendNotificationToUser(Long userId, MatchingNotificationResponse notification) {
-        try {
-            String destination = "/topic/matching/" + userId;
-            messagingTemplate.convertAndSend(destination, notification);
-
-            log.debug("WebSocket 알림 전송 - userId: {}, type: {}", userId, notification.type());
-        } catch (Exception e) {
-            log.error("WebSocket 알림 전송 실패 - userId: {}", userId, e);
-        }
-    }
-
     private String generateSessionToken() {
         return "session_" + UUID.randomUUID().toString().replace("-", "");
     }
@@ -203,8 +191,9 @@ public class MatchingSchedulerService {
 
     private void sendExpirationNotification(Long userId) {
         try {
-            MatchingNotificationResponse response = MatchingNotificationResponse.expired();
-            sendNotificationToUser(userId, response);
+            webSocketEventService.sendMatchingCancelledNotification(
+                    userId, "매칭 대기 시간이 만료되었습니다."
+            );
         } catch (Exception e) {
             log.debug("만료 알림 전송 실패 - userId: {}", userId, e);
         }
