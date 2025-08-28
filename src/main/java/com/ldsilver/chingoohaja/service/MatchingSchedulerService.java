@@ -3,10 +3,12 @@ package com.ldsilver.chingoohaja.service;
 import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.enums.CallType;
 import com.ldsilver.chingoohaja.domain.category.Category;
+import com.ldsilver.chingoohaja.domain.matching.MatchingQueue;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus;
 import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.repository.CategoryRepository;
+import com.ldsilver.chingoohaja.repository.MatchingQueueRepository;
 import com.ldsilver.chingoohaja.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +31,7 @@ public class MatchingSchedulerService {
     private final CategoryRepository categoryRepository;
     private final CallRepository callRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final MatchingQueueRepository matchingQueueRepository;
 
     @Scheduled(fixedDelay = 5000)
     @Transactional
@@ -107,7 +110,30 @@ public class MatchingSchedulerService {
     }
 
     private void updateMatchingQueueStatus(List<Long> userIds, QueueStatus newStatus) {
+        try {
+            for (Long userId: userIds) {
+                User user = userRepository.findById(userId).orElse(null);
+                if (user != null) {
+                    List<MatchingQueue> waitingQueues = matchingQueueRepository
+                            .findByUserOrderByCreatedAtDesc(user)
+                            .stream()
+                            .filter(q -> q.getQueueStatus() == QueueStatus.WAITING)
+                            .limit(1)
+                            .toList();
 
+                    for (MatchingQueue queue : waitingQueues) {
+                        if (newStatus == QueueStatus.MATCHING) {
+                            queue.startMatching();;
+                        }
+                        matchingQueueRepository.save(queue);
+                        log.debug("매칭 큐 상태 업데이트 - userId: {}, queueId: {}, status: {}",
+                                userId, queue.getQueueId(), newStatus);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("매칭 큐 상태 업데이트 실패 - userIds: {}", userIds, e);
+        }
     }
 
     private void notifyMatchingSuccess(User user1, User user2, Call call, Category category, String sessionToken) {
