@@ -196,7 +196,7 @@ public class MatchingSchedulerService {
                     userId, "매칭 대기 시간이 만료되었습니다."
             );
         } catch (Exception e) {
-            log.debug("만료 알림 전송 실패 - userId: {}", userId, e);
+            log.warn("만료 알림 전송 실패 - userId: {}", userId, e);
         }
     }
 
