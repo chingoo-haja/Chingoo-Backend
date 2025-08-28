@@ -6,6 +6,7 @@ import com.ldsilver.chingoohaja.service.MatchingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -33,4 +34,23 @@ public class WebSocketController {
             return MatchingStatusResponse.notInQueue();
         }
     }
+
+    /**
+     * 하트비트 처리 (연결 상태 확인)
+     */
+    @MessageMapping("/heartbeat")
+    public void handleHeartbeat(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Payload HeartbeatMessage message) {
+
+        log.debug("하트비트 수신 - userId: {}, timestamp: {}",
+                userDetails.getUserId(), message.timestamp());
+
+        // 응답은 자동으로 클라이언트에게 전송됨
+    }
+
+    /**
+     * 하트비트 메시지
+     */
+    public record HeartbeatMessage(long timestamp) {}
 }
