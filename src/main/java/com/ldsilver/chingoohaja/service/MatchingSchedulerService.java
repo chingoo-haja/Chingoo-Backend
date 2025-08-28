@@ -6,6 +6,7 @@ import com.ldsilver.chingoohaja.domain.category.Category;
 import com.ldsilver.chingoohaja.domain.matching.MatchingQueue;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus;
 import com.ldsilver.chingoohaja.domain.user.User;
+import com.ldsilver.chingoohaja.dto.matching.response.MatchingNotificationResponse;
 import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.repository.CategoryRepository;
 import com.ldsilver.chingoohaja.repository.MatchingQueueRepository;
@@ -17,6 +18,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -137,7 +139,50 @@ public class MatchingSchedulerService {
     }
 
     private void notifyMatchingSuccess(User user1, User user2, Call call, Category category, String sessionToken) {
+        try {
+            // 각 사용자에게 상대방 정보와 함께 매칭 성공 알림
+            MatchingNotificationResponse notification1 = createMatchingSuccessNotification(
+                    call.getId(), user2.getId(), user2.getNickname(), sessionToken
+            );
+            sendNotificationToUser(user1.getId(), notification1);
 
+            MatchingNotificationResponse notification2 = createMatchingSuccessNotification(
+                    call.getId(), user1.getId(), user1.getNickname(), sessionToken
+            );
+            sendNotificationToUser(user2.getId(), notification2);
+
+            log.debug("매칭 성공 알림 전송 완료 - callId: {}, users: [{}, {}]",
+                    call.getId(), user1.getId(), user2.getId());
+        } catch (Exception e) {
+            log.error("매칭 성공 알림 전송 실패 - callId: {}", call.getId(), e);
+        }
+
+    }
+
+    private MatchingNotificationResponse createMatchingSuccessNotification(
+            Long callId, Long partnerId, String partnerNickname, String sessionToken) {
+
+        return new MatchingNotificationResponse(
+                "MATCHING_SUCCESS",
+                "매칭이 성공했습니다! " + partnerNickname + "님과 연결됩니다.",
+                callId,
+                partnerId,
+                partnerNickname,
+                null,
+                null,
+                LocalDateTime.now()
+        );
+    }
+
+    private void sendNotificationToUser(Long userId, MatchingNotificationResponse notification) {
+        try {
+            String destination = "/topic/matching/" + userId;
+            messagingTemplate.convertAndSend(destination, notification);
+
+            log.debug("WebSocket 알림 전송 - userId: {}, type: {}", userId, notification.type());
+        } catch (Exception e) {
+            log.error("WebSocket 알림 전송 실패 - userId: {}", userId, e);
+        }
     }
 
     private String generateSessionToken() {
