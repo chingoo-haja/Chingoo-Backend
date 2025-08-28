@@ -224,4 +224,32 @@ public class MatchingSchedulerService {
             log.debug("만료 알림 전송 실패 - userId: {}", userId, e);
         }
     }
+
+    /**
+     * 매칭 통계 갱신 - 매일 자정 실행
+     */
+    @Scheduled(cron = "0 0 0 * * *")
+    @Transactional(readOnly = true)
+    public void updateDailyMatchingStatistics() {
+        try {
+            LocalDateTime yesterday = LocalDateTime.now().minusDays(1);
+            LocalDateTime today = LocalDateTime.now();
+
+            // 일일 매칭 성공률 계산
+            List<Object[]> dailyStats = matchingQueueRepository.getMatchingSuccessRate(yesterday, today);
+
+            if (!dailyStats.isEmpty()) {
+                Object[] stats = dailyStats.get(0);
+                long matchedCount = ((Number) stats[0]).longValue();
+                long totalCount = ((Number) stats[1]).longValue();
+                double successRate = totalCount > 0 ? (double) matchedCount / totalCount * 100 : 0.0;
+
+                log.info("어제 매칭 통계 - 전체: {}, 성공: {}, 성공률: {:.2f}%",
+                        totalCount, matchedCount, successRate);
+            }
+
+        } catch (Exception e) {
+            log.error("일일 매칭 통계 갱신 실패", e);
+        }
+    }
 }
