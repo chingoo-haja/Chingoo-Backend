@@ -1,5 +1,7 @@
 package com.ldsilver.chingoohaja.domain.call;
 
+import com.ldsilver.chingoohaja.common.exception.CustomException;
+import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.call.enums.CallStatus;
 import com.ldsilver.chingoohaja.domain.call.enums.CallType;
 import com.ldsilver.chingoohaja.domain.category.Category;
@@ -78,7 +80,7 @@ public class Call extends BaseEntity {
             this.callStatus = CallStatus.IN_PROGRESS;
             this.startAt = LocalDateTime.now();
         } else {
-            throw new IllegalStateException("통화를 시작할 수 없는 상태입니다: " + this.callStatus);
+            throw new CustomException(ErrorCode.CALL_START_FAILED, this.callStatus.name());
         }
     }
 
