@@ -10,6 +10,7 @@ import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.repository.CategoryRepository;
 import com.ldsilver.chingoohaja.repository.MatchingQueueRepository;
 import com.ldsilver.chingoohaja.repository.UserRepository;
+import com.ldsilver.chingoohaja.validation.MatchingValidatoinConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -167,11 +168,11 @@ public class MatchingSchedulerService {
      * 만료된 대기열 정리 - 1분마다 실행
      * DB 이력을 위한 별도 실행
      */
-    @Scheduled(fixedDelay = 60000)
+    @Scheduled(fixedDelay = MatchingValidatoinConstants.Scheduler.DEFAULT_CLEANUP_DELAY)
     @Transactional
     public void cleanupExpiredQueues() {
         try {
-            LocalDateTime expiredTime = LocalDateTime.now().minusSeconds(600); //10분 전
+            LocalDateTime expiredTime = LocalDateTime.now().minusSeconds(MatchingValidatoinConstants.Scheduler.DEFAULT_TTL_SECONDS); //10분 전
 
             List<MatchingQueue> expiredQueues = matchingQueueRepository.findExpiredQueues(expiredTime);
 
