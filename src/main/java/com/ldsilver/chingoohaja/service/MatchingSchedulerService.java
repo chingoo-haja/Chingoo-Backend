@@ -34,6 +34,7 @@ public class MatchingSchedulerService {
     private final CallRepository callRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final MatchingQueueRepository matchingQueueRepository;
+    private final WebSocketEventService webSocketEventService;
 
     @Scheduled(fixedDelay = 5000)
     @Transactional
@@ -141,15 +142,13 @@ public class MatchingSchedulerService {
     private void notifyMatchingSuccess(User user1, User user2, Call call, Category category, String sessionToken) {
         try {
             // 각 사용자에게 상대방 정보와 함께 매칭 성공 알림
-            MatchingNotificationResponse notification1 = createMatchingSuccessNotification(
-                    call.getId(), user2.getId(), user2.getNickname(), sessionToken
+            webSocketEventService.sendMatchingSuccessNotification(
+                    user1.getId(), call.getId(), user2.getId(), user2.getNickname()
             );
-            sendNotificationToUser(user1.getId(), notification1);
 
-            MatchingNotificationResponse notification2 = createMatchingSuccessNotification(
-                    call.getId(), user1.getId(), user1.getNickname(), sessionToken
+            webSocketEventService.sendMatchingSuccessNotification(
+                    user2.getId(), call.getId(), user1.getId(), user1.getNickname()
             );
-            sendNotificationToUser(user2.getId(), notification2);
 
             log.debug("매칭 성공 알림 전송 완료 - callId: {}, users: [{}, {}]",
                     call.getId(), user1.getId(), user2.getId());
@@ -159,20 +158,6 @@ public class MatchingSchedulerService {
 
     }
 
-    private MatchingNotificationResponse createMatchingSuccessNotification(
-            Long callId, Long partnerId, String partnerNickname, String sessionToken) {
-
-        return new MatchingNotificationResponse(
-                "MATCHING_SUCCESS",
-                "매칭이 성공했습니다! " + partnerNickname + "님과 연결됩니다.",
-                callId,
-                partnerId,
-                partnerNickname,
-                null,
-                null,
-                LocalDateTime.now()
-        );
-    }
 
     private void sendNotificationToUser(Long userId, MatchingNotificationResponse notification) {
         try {
