@@ -1,0 +1,120 @@
+package com.ldsilver.chingoohaja.service;
+
+import com.ldsilver.chingoohaja.domain.call.Call;
+import com.ldsilver.chingoohaja.domain.call.enums.CallType;
+import com.ldsilver.chingoohaja.domain.category.Category;
+import com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus;
+import com.ldsilver.chingoohaja.domain.user.User;
+import com.ldsilver.chingoohaja.repository.CallRepository;
+import com.ldsilver.chingoohaja.repository.CategoryRepository;
+import com.ldsilver.chingoohaja.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class MatchingSchedulerService {
+
+    private final RedisMatchingQueueService redisMatchingQueueService;
+    private final UserRepository userRepository;
+    private final CategoryRepository categoryRepository;
+    private final CallRepository callRepository;
+    private final SimpMessagingTemplate messagingTemplate;
+
+    @Scheduled(fixedDelay = 5000)
+    @Transactional
+    public void processMatching() {
+        log.debug("하이브리드 매칭 스케줄러 실행");
+
+        try {
+            List<Category> activeCategories = categoryRepository.findByIsActiveTrueOrderByName();
+
+            for (Category category : activeCategories) {
+                processMatchingForCategory(category);
+            }
+        } catch (Exception e) {
+            log.error("매칭 스케줄러 실행 중 오류 발생", e);
+        }
+
+        log.debug("하이브리드 매칭 스케줄러 완료");
+    }
+
+    private void processMatchingForCategory(Category category) {
+        try {
+            // 1. 대기 인원 확인
+            long waitingCount = redisMatchingQueueService.getWaitingCount(category.getId());
+
+            if (waitingCount < 2) {
+                log.debug("매칭 대기 인원 부족 - categoryId: {}, waiting: {}",
+                        category.getId(), waitingCount);
+                return;
+            }
+
+            // 2. 하이브리드 매칭 실행
+            RedisMatchingQueueService.MatchResult matchResult =
+                    redisMatchingQueueService.findMatchesHybrid(category.getId(), 2);
+
+            if (!matchResult.success() || matchResult.userIds().size() < 2) {
+                log.debug("하이브리드 매칭 실패 - categoryId: {}, reason: {}",
+                        category.getId(), matchResult.message());
+                return;
+            }
+
+            // 3. 매칭된 사용자들 검증
+            List<Long> userIds = matchResult.userIds();
+            Long user1Id = userIds.get(0);
+            Long user2Id = userIds.get(1);
+
+            Optional<User> user1Opt = userRepository.findById(user1Id);
+            Optional<User> user2Opt = userRepository.findById(user2Id);
+
+            if (user1Opt.isEmpty() || user2Opt.isEmpty()) {
+                log.error("매칭된 사용자 조회 실패 - userId: {}, user2Id: {}", user1Id, user2Id);
+                return;
+            }
+
+            User user1 = user1Opt.get();
+            User user2 = user2Opt.get();
+
+            // 4. Call 엔티티 생성
+            Call call = Call.from(user1, user2, category, CallType.RANDOM_MATCH);
+            Call savedCall = callRepository.save(call);
+
+            // 5. DB 매칭 큐 상태 업데이트 (WAITING -> MATCHING)
+            updateMatchingQueueStatus(userIds, QueueStatus.MATCHING);
+
+            // 6. 통화방 입장용 세션 토큰 생성
+            String sessionToken = generateSessionToken();
+
+            // 7. WebSocket 매칭 성공 알림 전송
+            notifyMatchingSuccess(user1, user2, savedCall, category, sessionToken);
+
+            log.debug("매칭 성공 완료 - categoryId: {}, callId: {}, users: [{}, {}]",
+                    category.getId(), savedCall.getId(), user1Id, user2Id);
+
+        } catch (Exception e) {
+            log.error("카테고리 매칭 처리 실패 - categoryId: {}", category.getId(), e);
+        }
+    }
+
+    private void updateMatchingQueueStatus(List<Long> userIds, QueueStatus newStatus) {
+
+    }
+
+    private void notifyMatchingSuccess(User user1, User user2, Call call, Category category, String sessionToken) {
+
+    }
+
+    private String generateSessionToken() {
+        return "session_" + UUID.randomUUID().toString().replace("-", "");
+    }
+}
