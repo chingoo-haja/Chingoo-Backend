@@ -188,4 +188,40 @@ public class MatchingSchedulerService {
     private String generateSessionToken() {
         return "session_" + UUID.randomUUID().toString().replace("-", "");
     }
+
+
+    /**
+     * 만료된 대기열 정리 - 1분마다 실행
+     * DB 이력을 위한 별도 실행
+     */
+    @Scheduled(fixedDelay = 60000)
+    @Transactional
+    public void cleanupExpiredQueues() {
+        try {
+            LocalDateTime expiredTime = LocalDateTime.now().minusSeconds(600); //10분 전
+
+            List<MatchingQueue> expiredQueues = matchingQueueRepository.findExpiredQueues(expiredTime);
+
+            if (!expiredQueues.isEmpty()) {
+                int updatedCount = matchingQueueRepository.updateExpiredQueues(
+                        QueueStatus.EXPIRED, expiredTime);
+
+                for (MatchingQueue queue : expiredQueues) {
+                    sendExpirationNotification(queue.getUser().getId());
+                }
+                log.debug("만료된 매칭 큐 정리 완료 - 정리된 큐 수: {}", updatedCount);
+            }
+        } catch (Exception e) {
+            log.error("만료된 매칭 큐 정리 실패", e);
+        }
+    }
+
+    private void sendExpirationNotification(Long userId) {
+        try {
+            MatchingNotificationResponse response = MatchingNotificationResponse.expired();
+            sendNotificationToUser(userId, response);
+        } catch (Exception e) {
+            log.debug("만료 알림 전송 실패 - userId: {}", userId, e);
+        }
+    }
 }
