@@ -4,6 +4,8 @@ import com.ldsilver.chingoohaja.dto.matching.response.MatchingNotificationRespon
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -19,8 +21,14 @@ public class WebSocketEventService {
                     callId, partnerId, partnerNickname
             );
 
-            String destination = "/topic/matching/" + userId;
-            messagingTemplate.convertAndSend(destination, response);
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String username = authentication.getName();
+
+            messagingTemplate.convertAndSendToUser(
+                    username,
+                    "/queue/matching",
+                    response
+            );
 
             log.debug("매칭 성공 알림 전송 완료 - userId: {}, callId: {}", userId, callId);
         } catch (Exception e) {
@@ -32,8 +40,11 @@ public class WebSocketEventService {
         try {
             MatchingNotificationResponse response = MatchingNotificationResponse.cancelled(reason);
 
-            String destination = "/topic/matching/" + userId;
-            messagingTemplate.convertAndSend(destination, response);
+            messagingTemplate.convertAndSendToUser(
+                    String.valueOf(userId),
+                    "/queue/matching",
+                    response
+            );
 
             log.debug("매칭 취소 알림 전송 완료 - userId: {}", userId);
         } catch (Exception e) {
@@ -47,8 +58,11 @@ public class WebSocketEventService {
                     position, estimateWaitTime
             );
 
-            String destination = "/topic/matching/" + userId;
-            messagingTemplate.convertAndSend(destination, response);
+            messagingTemplate.convertAndSendToUser(
+                    String.valueOf(userId),
+                    "/queue/matching",
+                    response
+            );
 
             log.debug("대기열 상태 전송 완료 - userId: {}, position: {}", userId, position);
         } catch (Exception e) {
@@ -59,9 +73,11 @@ public class WebSocketEventService {
     public void sendCallStatusUpdate(Long callId, String status, Long... userIds) {
         try {
             for (Long userId : userIds) {
-                String destination = "/topic/calls/" + userId;
-                messagingTemplate.convertAndSend(destination,
-                        new CallStatusUpdateMessage(callId, status));
+                messagingTemplate.convertAndSendToUser(
+                        String.valueOf(userId),
+                        "/queue/calls",
+                        new CallStatusUpdateMessage(callId, status)
+                );
             }
 
             log.debug("통화 상태 변경 알림 전송 완료 - callId: {}, status: {}", callId, status);
