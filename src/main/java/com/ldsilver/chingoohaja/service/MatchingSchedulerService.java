@@ -91,9 +91,8 @@ public class MatchingSchedulerService {
 
             // 4. Call 엔티티 생성
             Call call = Call.from(user1, user2, category, CallType.RANDOM_MATCH);
+            call.startCall();
             Call savedCall = callRepository.save(call);
-            savedCall.startCall();
-            callRepository.save(savedCall);
 
             // 5. DB 매칭 큐 상태 업데이트 (WAITING -> MATCHING)
             updateMatchingQueueStatus(userIds, QueueStatus.MATCHING);
