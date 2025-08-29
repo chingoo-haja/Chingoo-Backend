@@ -10,7 +10,7 @@ import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.repository.CategoryRepository;
 import com.ldsilver.chingoohaja.repository.MatchingQueueRepository;
 import com.ldsilver.chingoohaja.repository.UserRepository;
-import com.ldsilver.chingoohaja.validation.MatchingValidatoinConstants;
+import com.ldsilver.chingoohaja.validation.MatchingValidationConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -37,7 +37,7 @@ public class MatchingSchedulerService {
     private final MatchingQueueRepository matchingQueueRepository;
     private final WebSocketEventService webSocketEventService;
 
-    @Scheduled(fixedDelay = MatchingValidatoinConstants.Scheduler.DEFAULT_MATCHING_DELAY)
+    @Scheduled(fixedDelay = MatchingValidationConstants.Scheduler.DEFAULT_MATCHING_DELAY)
     @Transactional
     public void processMatching() {
         log.debug("하이브리드 매칭 스케줄러 실행");
@@ -178,11 +178,11 @@ public class MatchingSchedulerService {
      * 만료된 대기열 정리 - 1분마다 실행
      * DB 이력을 위한 별도 실행
      */
-    @Scheduled(fixedDelay = MatchingValidatoinConstants.Scheduler.DEFAULT_CLEANUP_DELAY)
+    @Scheduled(fixedDelay = MatchingValidationConstants.Scheduler.DEFAULT_CLEANUP_DELAY)
     @Transactional
     public void cleanupExpiredQueues() {
         try {
-            LocalDateTime expiredTime = LocalDateTime.now().minusSeconds(MatchingValidatoinConstants.Scheduler.DEFAULT_TTL_SECONDS); //10분 전
+            LocalDateTime expiredTime = LocalDateTime.now().minusSeconds(MatchingValidationConstants.Scheduler.DEFAULT_TTL_SECONDS); //10분 전
 
             List<MatchingQueue> expiredQueues = matchingQueueRepository.findExpiredQueues(expiredTime);
 

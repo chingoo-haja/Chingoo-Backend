@@ -1,7 +1,7 @@
 package com.ldsilver.chingoohaja.service;
 
-import com.ldsilver.chingoohaja.domain.matching.MatchingConstants;
 import com.ldsilver.chingoohaja.infrastructure.redis.RedisMatchingConstants;
+import com.ldsilver.chingoohaja.validation.MatchingValidationConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -27,7 +27,7 @@ public class RedisMatchingQueueService {
         String waitQueueKey = RedisMatchingConstants.KeyBuilder.waitQueueKey(categoryId);
 
         double score = Instant.now().toEpochMilli() + Math.random() * 100;
-        long ttlSeconds = MatchingConstants.Queue.DEFAULT_TTL_SECONDS;
+        long ttlSeconds = MatchingValidationConstants.Queue.DEFAULT_TTL_SECONDS;
 
         try {
             // 1. SET NX EX로 중복 입장 레이스 방지 (선점)
