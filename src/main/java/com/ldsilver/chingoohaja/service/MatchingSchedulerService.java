@@ -134,7 +134,7 @@ public class MatchingSchedulerService {
 
                     for (MatchingQueue queue : waitingQueues) {
                         if (newStatus == QueueStatus.MATCHING) {
-                            queue.startMatching();;
+                            queue.startMatching();
                         }
                         matchingQueueRepository.save(queue);
                         log.debug("매칭 큐 상태 업데이트 - userId: {}, queueId: {}, status: {}",
@@ -143,7 +143,8 @@ public class MatchingSchedulerService {
                 }
             }
         } catch (Exception e) {
-            log.debug("매칭 큐 상태 업데이트 실패 - userIds: {}", userIds, e);
+            log.error("매칭 큐 상태 업데이트 실패 - userIds: {}", userIds, e);
+            throw e;
         }
     }
 
