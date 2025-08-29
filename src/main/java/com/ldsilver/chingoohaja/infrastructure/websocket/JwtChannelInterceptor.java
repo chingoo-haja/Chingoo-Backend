@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.MessagingException;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
@@ -39,9 +40,12 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
                     accessor.setUser(authentication);
                     log.debug("WebSocket 연결 인증 성공 - userId: {}",
                             ((CustomUserDetails) authentication.getPrincipal()).getUserId());
+                } catch (CustomException ce) {
+                    log.warn("WebSocket 인증 실패 - code: {}, message: {}", ce.getErrorCode().name(), ce.getMessage());
+                    throw ce;
                 } catch (Exception e) {
                     log.error("WebSocket 인증 실패: {}", e.getMessage());
-                    throw new RuntimeException("WebSocket authentication failed", e);
+                    throw new MessagingException("WebSocket authentication failed", e);
                 }
             } else {
                 log.error("WebSocket 연결 시 토큰이 없음");
@@ -58,8 +62,7 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
             return authHeader.substring(7);
         }
 
-        String tokenParam = accessor.getFirstNativeHeader("token"); //fallback
-        return tokenParam;
+        return null;
     }
 
     private Authentication authenticateToken(String token) {
