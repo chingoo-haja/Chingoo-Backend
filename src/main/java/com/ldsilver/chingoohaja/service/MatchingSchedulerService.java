@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -216,8 +217,9 @@ public class MatchingSchedulerService {
     @Transactional(readOnly = true)
     public void updateDailyMatchingStatistics() {
         try {
-            LocalDateTime yesterday = LocalDateTime.now().minusDays(1);
-            LocalDateTime today = LocalDateTime.now();
+            LocalDate todayDate = LocalDate.now();
+            LocalDateTime yesterday = todayDate.minusDays(1).atStartOfDay();
+            LocalDateTime today = todayDate.atStartOfDay();
 
             // 일일 매칭 성공률 계산
             List<Object[]> dailyStats = matchingQueueRepository.getMatchingSuccessRate(yesterday, today);
@@ -228,8 +230,8 @@ public class MatchingSchedulerService {
                 long totalCount = ((Number) stats[1]).longValue();
                 double successRate = totalCount > 0 ? (double) matchedCount / totalCount * 100 : 0.0;
 
-                log.info("어제 매칭 통계 - 전체: {}, 성공: {}, 성공률: {:.2f}%",
-                        totalCount, matchedCount, successRate);
+                log.info("어제 매칭 통계 - 전체: {}, 성공: {}, 성공률: {}%",
+                        totalCount, matchedCount, String.format("%.2f", successRate));
             }
 
         } catch (Exception e) {
