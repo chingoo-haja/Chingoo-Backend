@@ -34,7 +34,7 @@ public class MatchingSchedulerService {
     private final MatchingQueueRepository matchingQueueRepository;
     private final WebSocketEventService webSocketEventService;
 
-    @Scheduled(fixedDelay = 5000)
+    @Scheduled(fixedDelay = MatchingValidatoinConstants.Scheduler.DEFAULT_MATCHING_DELAY)
     @Transactional
     public void processMatching() {
         log.debug("하이브리드 매칭 스케줄러 실행");
