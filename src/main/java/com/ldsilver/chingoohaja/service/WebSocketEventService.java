@@ -83,8 +83,11 @@ public class WebSocketEventService {
 
     public void sendPersonalMessage(Long userId, Object message) {
         try {
-            String destination = "/queue/user/" + userId;
-            messagingTemplate.convertAndSend(destination, message);
+            messagingTemplate.convertAndSendToUser(
+                    String.valueOf(userId),
+                    "/queue/personal",
+                    message
+            );
 
             log.debug("개인 메시지 전송 완료 - userId: {}", userId);
         } catch (Exception e) {
