@@ -105,13 +105,14 @@ public class RedisMatchingQueueService {
         String waitQueueKey = RedisMatchingConstants.KeyBuilder.waitQueueKey(categoryId);
 
         try {
-            List<String> selectedUsers = redisTemplate.opsForSet().pop(queueKey, matchCount);
-
-            if (selectedUsers == null || selectedUsers.size() < matchCount) {
+            Long available = redisTemplate.opsForSet().size(queueKey);
+            if (available == null || available < matchCount) {
                 log.debug("랜덤 매칭 대기 인원 부족 - categoryId: {}, available: {}",
-                        categoryId, selectedUsers != null ? selectedUsers.size() : 0);
+                        categoryId, available != null ? available : 0);
                 return new MatchResult(false, RedisMatchingConstants.ResponseMessage.INSUFFICIENT_USERS, Collections.emptyList());
             }
+
+            List<String> selectedUsers = redisTemplate.opsForSet().pop(queueKey, matchCount);
 
             List<Long> userIds = selectedUsers.stream()
                     .map(Long::valueOf)
