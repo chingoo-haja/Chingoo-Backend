@@ -110,7 +110,7 @@ public class RedisMatchingConstants {
             
             for i = 1, userCount do
                 local userId = ARGV[i + 2]
-                local userQueueKey = 'user:queued:{cat' .. categoryId .. '}:' .. userId
+                local userQueueKey = 'user:queued:' .. userId .. ':'
                 local queueId = ARGV[2 + userCount + i]  -- i번째 queueId 전달
                 local queueMetaKey = 'queue:meta:{cat:' .. categoryId .. '}:' .. queueId
                 
