@@ -1,11 +1,12 @@
 package com.ldsilver.chingoohaja.dto.matching.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.ldsilver.chingoohaja.domain.matching.enums.NotificationType;
 
 import java.time.LocalDateTime;
 
 public record MatchingNotificationResponse(
-        @JsonProperty("type") String type,
+        @JsonProperty("type") NotificationType type,
         @JsonProperty("message") String message,
         @JsonProperty("call_id") Long callId,
         @JsonProperty("partner_id") Long partnerId,
@@ -16,7 +17,7 @@ public record MatchingNotificationResponse(
 ) {
     public static MatchingNotificationResponse success(Long callId, Long partnerId, String partnerNickname) {
         return new MatchingNotificationResponse(
-                "MATCHING_SUCCESS",
+                NotificationType.MATCHING_SUCCESS,
                 "매칭이 성공했습니다!",
                 callId,
                 partnerId,
@@ -29,7 +30,7 @@ public record MatchingNotificationResponse(
 
     public static MatchingNotificationResponse cancelled(String reason) {
         return new MatchingNotificationResponse(
-                "MATCHING_CANCELLED",
+                NotificationType.MATCHING_CANCELLED,
                 "매칭이 취소되었습니다: " + reason,
                 null,
                 null,
@@ -42,7 +43,7 @@ public record MatchingNotificationResponse(
 
     public static MatchingNotificationResponse queueUpdate(Integer position, Integer estimatedWaitTime) {
         return new MatchingNotificationResponse(
-                "QUEUE_UPDATE",
+                NotificationType.QUEUE_UPDATE,
                 "대기열 위치가 업데이트되었습니다.",
                 null,
                 null,
@@ -55,7 +56,7 @@ public record MatchingNotificationResponse(
 
     public static MatchingNotificationResponse expired() {
         return new MatchingNotificationResponse(
-                "MATCHING_EXPIRED",
+                NotificationType.MATCHING_EXPIRED,
                 "매칭 대기 시간이 만료되었습니다.",
                 null,
                 null,
