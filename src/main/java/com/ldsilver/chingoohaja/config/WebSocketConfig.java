@@ -17,7 +17,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final JwtChannelInterceptor jwtChannelInterceptor;
 
-    @Value("${ws.allowed-origins}")
+    @Value("${ws.allowed-origins[0]}")
     private String[] allowedOrigins;
 
     @Override
