@@ -193,11 +193,16 @@ public class RedisMatchingQueueService {
                     Long.class
             );
 
-            List<String> keys = Collections.singletonList("cleanup");
+            List<String> keys = RedisMatchingConstants.KeyBuilder.getCleanupKeys(categoryId, userIds);
+
             List<String> args = new ArrayList<>();
             args.add(categoryId.toString());
             args.add(String.valueOf(userIds.size()));
             userIds.forEach(id -> args.add(id.toString()));
+            userIds.forEach(id -> {
+                String qid = redisTemplate.opsForValue().get(RedisMatchingConstants.KeyBuilder.userQueueKey(id));
+                args.add(qid != null ? qid : "");
+            });
 
             Long cleanedCount = redisTemplate.execute(script, keys, args.toArray());
 
