@@ -8,8 +8,8 @@ public class MatchingValidationConstants {
     @UtilityClass
     public static class Scheduler {
         public static final int DEFAULT_MATCHING_DELAY = 5000;
-        public static final int DEFAULT_CLEANUP_DELAY = 6000;
-        public static final int DEFAULT_TTL_SECONDS = 600;
+        public static final int DEFAULT_CLEANUP_DELAY = 60000; //60초
+        public static final int DEFAULT_EXPIRED_TIME = 600;
     }
 
     @UtilityClass

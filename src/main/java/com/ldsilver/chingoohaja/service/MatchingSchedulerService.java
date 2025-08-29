@@ -182,7 +182,7 @@ public class MatchingSchedulerService {
     @Transactional
     public void cleanupExpiredQueues() {
         try {
-            LocalDateTime expiredTime = LocalDateTime.now().minusSeconds(MatchingValidationConstants.Scheduler.DEFAULT_TTL_SECONDS); //10분 전
+            LocalDateTime expiredTime = LocalDateTime.now().minusSeconds(MatchingValidationConstants.Scheduler.DEFAULT_EXPIRED_TIME); //10분 전
 
             List<MatchingQueue> expiredQueues = matchingQueueRepository.findExpiredQueues(expiredTime);
 
