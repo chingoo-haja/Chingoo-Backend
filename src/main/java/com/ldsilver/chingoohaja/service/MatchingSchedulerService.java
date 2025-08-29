@@ -16,6 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -101,7 +103,14 @@ public class MatchingSchedulerService {
             String sessionToken = generateSessionToken();
 
             // 7. WebSocket 매칭 성공 알림 전송
-            notifyMatchingSuccess(user1, user2, savedCall, category, sessionToken);
+            TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            notifyMatchingSuccess(user1, user2, savedCall, category, sessionToken);
+                        }
+                    }
+            );
 
             log.debug("매칭 성공 완료 - categoryId: {}, callId: {}, users: [{}, {}]",
                     category.getId(), savedCall.getId(), user1Id, user2Id);
