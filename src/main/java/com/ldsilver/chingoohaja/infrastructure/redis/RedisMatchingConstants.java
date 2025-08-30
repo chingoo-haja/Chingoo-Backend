@@ -37,6 +37,10 @@ public class RedisMatchingConstants {
             return KeyPrefix.USER_QUEUE_PREFIX + userId + ":";
         }
 
+        public static String userQueueKey(Long userId, Long categoryId) {
+            return KeyPrefix.USER_QUEUE_PREFIX + catTag(categoryId) + ":" + userId + ":";
+        }
+
         public static String queueMetaKey(String queueId) {
             // queueId 형식: queue_{userId}_{categoryId}_{random}
             Long categoryId = parseCategoryIdFromQueueId(queueId);
@@ -49,18 +53,18 @@ public class RedisMatchingConstants {
         // Lua 스크립트에서 사용할 키 목록 생성 (동일 해시태그)
         public static List<String> getCleanupKeys(Long categoryId, List<Long> userIds) {
             List<String> keys = new ArrayList<>();
-            String tag = "{cat:" + categoryId + "}";
+            String tag = catTag(categoryId);
 
             keys.add("cleanup" + tag); // 더미 키 (스크립트 요구사항)
             keys.add("wait:z:" + tag + ":" + categoryId);
 
             for (Long userId : userIds) {
-                keys.add("user:queued:" + userId + ":");
+                keys.add("user:queued:" + tag + ":" + userId + ":");
             }
             return keys;
         }
 
-        private static Long parseCategoryIdFromQueueId(String queueId) {
+        public static Long parseCategoryIdFromQueueId(String queueId) {
             if (queueId != null && queueId.startsWith("queue_")) {
                 String[] parts = queueId.split("_");
                 if (parts.length >= 3) {
@@ -105,12 +109,15 @@ public class RedisMatchingConstants {
         public static final String CLEANUP_MATCHED_USERS = """
             local categoryId = ARGV[1]
             local userCount = tonumber(ARGV[2])
-            local waitQueueKey = 'wait:z:{cat:' .. categoryId .. '}:' .. categoryId
+            
+            -- 동적 키 조립 대신 KEYS 배열 사용
+            local waitQueueKey = KEYS[2] -- getCleanupKeys에서 전달받은 waitQueueKey
             local cleanedCount = 0
             
             for i = 1, userCount do
                 local userId = ARGV[i + 2]
-                local userQueueKey = 'user:queued:' .. userId .. ':'
+                
+                local userQueueKey = KEYS[2 + i]
                 local queueId = ARGV[2 + userCount + i]  -- i번째 queueId 전달
                 local queueMetaKey = 'queue:meta:{cat:' .. categoryId .. '}:' .. queueId
                 

@@ -22,7 +22,7 @@ public class RedisMatchingQueueService {
 
     public EnqueueResult enqueueUser(Long userId, Long categoryId, String queueId) {
         String queueKey = RedisMatchingConstants.KeyBuilder.queueKey(categoryId);
-        String userQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId);
+        String userQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId, categoryId);
         String queueMetaKey = RedisMatchingConstants.KeyBuilder.queueMetaKey(queueId);
         String waitQueueKey = RedisMatchingConstants.KeyBuilder.waitQueueKey(categoryId);
 
@@ -200,7 +200,7 @@ public class RedisMatchingQueueService {
             args.add(String.valueOf(userIds.size()));
             userIds.forEach(id -> args.add(id.toString()));
             userIds.forEach(id -> {
-                String qid = redisTemplate.opsForValue().get(RedisMatchingConstants.KeyBuilder.userQueueKey(id));
+                String qid = redisTemplate.opsForValue().get(RedisMatchingConstants.KeyBuilder.userQueueKey(id, categoryId));
                 args.add(qid != null ? qid : "");
             });
 
@@ -212,8 +212,8 @@ public class RedisMatchingQueueService {
         }
     }
 
-    public DequeueResult dequeueUser(Long userId) {
-        String userQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId);
+    public DequeueResult dequeueUser(Long userId, Long categoryId) {
+        String userQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId, categoryId);
         String queueId = redisTemplate.opsForValue().get(userQueueKey);
 
         if (queueId == null) {
@@ -238,8 +238,8 @@ public class RedisMatchingQueueService {
                 return new DequeueResult(true, RedisMatchingConstants.ResponseMessage.SUCCESS);
             }
 
-            String categoryIdStr = (String) metaData.get("categoryId");
-            Long categoryId = Long.valueOf(categoryIdStr);
+//            String categoryIdStr = (String) metaData.get("categoryId");
+//            Long categoryId = Long.valueOf(categoryIdStr);
 
             // 모든 큐에서 사용자 제거
             String queueKey = RedisMatchingConstants.KeyBuilder.queueKey(categoryId);
@@ -261,10 +261,15 @@ public class RedisMatchingQueueService {
 
 
     public QueueStatusInfo getQueueStatus(Long userId) {
-        String userQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId);
-        String queueId = redisTemplate.opsForValue().get(userQueueKey);
+        String legacyUserQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId);
+        String queueId = redisTemplate.opsForValue().get(legacyUserQueueKey);
 
-        if (queueId == null) {return null;}
+        if (queueId != null) {
+            Long categoryId = RedisMatchingConstants.KeyBuilder.parseCategoryIdFromQueueId(queueId);
+            if (categoryId != null) {
+                String correctUserQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId, categoryId);
+            }
+        }
 
         try {
             String queueMetaKey = RedisMatchingConstants.KeyBuilder.queueMetaKey(queueId);
@@ -281,7 +286,7 @@ public class RedisMatchingQueueService {
             if (ttlStr != null) {
                 long expireTime = Long.parseLong(ttlStr);
                 if (Instant.now().getEpochSecond() > expireTime) {
-                    dequeueUser(userId);
+                    dequeueUser(userId, categoryId);
                     return null;
                 }
             }

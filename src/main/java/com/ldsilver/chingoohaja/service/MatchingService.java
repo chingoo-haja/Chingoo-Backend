@@ -134,8 +134,10 @@ public class MatchingService {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
 
+        Long categoryId = queue.getCategory().getId();
+
         // 2. Redis 탈퇴 시도
-        RedisMatchingQueueService.DequeueResult result = redisMatchingQueueService.dequeueUser(userId);
+        RedisMatchingQueueService.DequeueResult result = redisMatchingQueueService.dequeueUser(userId, categoryId);
 
         // 3. Redis 결과에 따른 처리 정책
         if (!result.success() && !"NOT_IN_QUEUE".equals(result.message())) {
