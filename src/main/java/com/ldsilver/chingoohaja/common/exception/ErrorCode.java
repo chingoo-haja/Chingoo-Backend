@@ -21,6 +21,7 @@ public enum ErrorCode {
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "A005", "유효하지 않은 리프레시 토큰입니다."),
     IS_NOT_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "A006", "리프레시 토큰이 아닙니다."),
     REFRESH_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "A007", "데이터베이스에서 리프레시 토큰을 찾을 수 없습니다."),
+    INVALID_ACCESS_TOKEN(HttpStatus.UNAUTHORIZED, "A008", "유효하지 않은 액세스 토큰입니다."),
 
     // JWT 관련 에러
     JWT_INVALID(HttpStatus.UNAUTHORIZED, "J001", "유효하지 않은 JWT 토큰입니다."),
@@ -87,6 +88,7 @@ public enum ErrorCode {
     CALL_ALREADY_ENDED(HttpStatus.CONFLICT, "L003", "이미 종료된 통화입니다."),
     CALL_NOT_PARTICIPANT(HttpStatus.FORBIDDEN, "L004", "통화 참가자가 아닙니다."),
     CALL_SESSION_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "L005", "통화 세션 생성에 실패했습니다."),
+    CALL_START_FAILED(HttpStatus.BAD_REQUEST, "L006", "통화를 시작할 수 없는 상태입니다."),
 
     // 카테고리 관련 에러
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "T001", "카테고리를 찾을 수 없습니다."),

@@ -1,16 +1,16 @@
 package com.ldsilver.chingoohaja.service;
 
-import com.ldsilver.chingoohaja.domain.matching.MatchingConstants;
 import com.ldsilver.chingoohaja.infrastructure.redis.RedisMatchingConstants;
+import com.ldsilver.chingoohaja.validation.MatchingValidationConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 @Slf4j
@@ -22,12 +22,12 @@ public class RedisMatchingQueueService {
 
     public EnqueueResult enqueueUser(Long userId, Long categoryId, String queueId) {
         String queueKey = RedisMatchingConstants.KeyBuilder.queueKey(categoryId);
-        String userQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId);
+        String userQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId, categoryId);
         String queueMetaKey = RedisMatchingConstants.KeyBuilder.queueMetaKey(queueId);
         String waitQueueKey = RedisMatchingConstants.KeyBuilder.waitQueueKey(categoryId);
 
         double score = Instant.now().toEpochMilli() + Math.random() * 100;
-        long ttlSeconds = MatchingConstants.Queue.DEFAULT_TTL_SECONDS;
+        long ttlSeconds = MatchingValidationConstants.Queue.DEFAULT_TTL_SECONDS;
 
         try {
             // 1. SET NX EX로 중복 입장 레이스 방지 (선점)
@@ -80,8 +80,140 @@ public class RedisMatchingQueueService {
         }
     }
 
-    public DequeueResult dequeueUser(Long userId) {
-        String userQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId);
+    /**
+     * 하이브리드 매칭 실행 (랜덤 80% (빠른 매칭) + 대기순 20%(공정성))
+     */
+    public MatchResult findMatchesHybrid(Long categoryId, int matchCount) {
+        try {
+            // 20% 확률로 대기 순서 우선
+            if (Math.random() < 0.2) {
+                return findMatchesByWaitTimeAtomic(categoryId, matchCount);
+            } else {
+                return findMatchesRandom(categoryId, matchCount);
+            }
+        } catch (Exception e) {
+            log.error("하이브리드 매칭 실패 - categoryId: {}", categoryId, e);
+            return new MatchResult(false, RedisMatchingConstants.ResponseMessage.REDIS_ERROR, Collections.emptyList());
+        }
+    }
+
+    /**
+     * 랜덤 매칭: SET에서 무작위로 사용자 선택
+     */
+    private MatchResult findMatchesRandom(Long categoryId, int matchCount) {
+        String queueKey = RedisMatchingConstants.KeyBuilder.queueKey(categoryId);
+        String waitQueueKey = RedisMatchingConstants.KeyBuilder.waitQueueKey(categoryId);
+
+        try {
+            Long available = redisTemplate.opsForSet().size(queueKey);
+            if (available == null || available < matchCount) {
+                log.debug("랜덤 매칭 대기 인원 부족 - categoryId: {}, available: {}",
+                        categoryId, available != null ? available : 0);
+                return new MatchResult(false, RedisMatchingConstants.ResponseMessage.INSUFFICIENT_USERS, Collections.emptyList());
+            }
+
+            List<String> selectedUsers = redisTemplate.opsForSet().pop(queueKey, matchCount);
+
+            List<Long> userIds = selectedUsers.stream()
+                    .map(Long::valueOf)
+                    .toList();
+
+            // ZSET에서도 제거 (데이터 정합성 유지)
+            for (String userId : selectedUsers) {
+                redisTemplate.opsForZSet().remove(waitQueueKey, userId);
+            }
+
+            cleanupMatchedUsers(categoryId, userIds);
+
+            log.debug("랜덤 매칭 성공 - categoryId: {}, users: {}", categoryId, userIds);
+            return new MatchResult(true, RedisMatchingConstants.ResponseMessage.SUCCESS, userIds);
+        } catch (Exception e) {
+            log.error("랜덤 매칭 실패 - categoryId: {}", categoryId, e);
+            return new MatchResult(false, RedisMatchingConstants.ResponseMessage.REDIS_ERROR, Collections.emptyList());
+        }
+    }
+
+
+    /**
+     * 대기순 매칭: Lua 스크립트로 원자적 처리
+     * - ZRANGE로 선택 → 선택된 사용자들을 ZREM, SREM으로 제거
+     */
+    private MatchResult findMatchesByWaitTimeAtomic(Long categoryId, int matchCount) {
+        String waitQueueKey = RedisMatchingConstants.KeyBuilder.waitQueueKey(categoryId);
+        String queueKey = RedisMatchingConstants.KeyBuilder.queueKey(categoryId);
+
+        try {
+            RedisScript<List> script = RedisScript.of(
+                    RedisMatchingConstants.LuaScripts.ATOMIC_MATCH_BY_WAIT,
+                    List.class
+            );
+
+            List<String> keys = Arrays.asList(waitQueueKey, queueKey);
+            List<Object> result = redisTemplate.execute(script, keys, String.valueOf(matchCount));
+
+            if (result != null && !result.isEmpty()) {
+                Integer success = Integer.parseInt(result.get(0).toString());
+                String message = result.get(1).toString();
+
+                if (success == 1 && result.size() > 2) {
+                    List<Long> userIds = result.subList(2, result.size()).stream()
+                            .map(obj -> Long.valueOf(obj.toString()))
+                            .toList();
+
+                    cleanupMatchedUsers(categoryId, userIds);
+
+                    log.debug("대기순 매칭 성공 - categoryId: {}, users: {}",categoryId, userIds);
+                    return new MatchResult(true, message, userIds);
+                } else {
+                    log.debug("대기순 매칭 인원 부족 - categoryId: {}, available: {}",
+                            categoryId, result.size() > 2 ? result.get(2) : 0);
+                    return new MatchResult(false, message, Collections.emptyList());
+                }
+            }
+            return new MatchResult(false, RedisMatchingConstants.ResponseMessage.UNKNOWN_ERROR, Collections.emptyList());
+        } catch (Exception e) {
+            log.error("대기순 매칭 실패 - categoryId: {}", categoryId, e);
+            return new MatchResult(false, RedisMatchingConstants.ResponseMessage.REDIS_ERROR, Collections.emptyList());
+        }
+    }
+
+    /**
+     * 매칭된 사용자들의 메타 데이터 정리 (Lua 스크립트)
+     * 정리 대상:
+     * - user:queued:{userId}: 키 삭제
+     * - queue:meta:{cat:categoryId}:queueId 해시 삭제
+     * - 혹시 남아있을 ZSET 엔트리 삭제
+     */
+    private void cleanupMatchedUsers(Long categoryId, List<Long> userIds) {
+        if (userIds.isEmpty()) return;
+
+        try {
+            RedisScript<Long> script = RedisScript.of(
+                    RedisMatchingConstants.LuaScripts.CLEANUP_MATCHED_USERS,
+                    Long.class
+            );
+
+            List<String> keys = RedisMatchingConstants.KeyBuilder.getCleanupKeys(categoryId, userIds);
+
+            List<String> args = new ArrayList<>();
+            args.add(categoryId.toString());
+            args.add(String.valueOf(userIds.size()));
+            userIds.forEach(id -> args.add(id.toString()));
+            userIds.forEach(id -> {
+                String qid = redisTemplate.opsForValue().get(RedisMatchingConstants.KeyBuilder.userQueueKey(id, categoryId));
+                args.add(qid != null ? qid : "");
+            });
+
+            Long cleanedCount = redisTemplate.execute(script, keys, args.toArray());
+
+            log.debug("매칭된 사용자 정리 완료 - categoryId: {}, cleaned: {}",categoryId, cleanedCount);
+        } catch (Exception e) {
+            log.error("매칭된 사용자 정리 실패 - categoryId: {}, userIds: {}", categoryId, userIds, e);
+        }
+    }
+
+    public DequeueResult dequeueUser(Long userId, Long categoryId) {
+        String userQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId, categoryId);
         String queueId = redisTemplate.opsForValue().get(userQueueKey);
 
         if (queueId == null) {
@@ -106,8 +238,8 @@ public class RedisMatchingQueueService {
                 return new DequeueResult(true, RedisMatchingConstants.ResponseMessage.SUCCESS);
             }
 
-            String categoryIdStr = (String) metaData.get("categoryId");
-            Long categoryId = Long.valueOf(categoryIdStr);
+//            String categoryIdStr = (String) metaData.get("categoryId");
+//            Long categoryId = Long.valueOf(categoryIdStr);
 
             // 모든 큐에서 사용자 제거
             String queueKey = RedisMatchingConstants.KeyBuilder.queueKey(categoryId);
@@ -129,10 +261,15 @@ public class RedisMatchingQueueService {
 
 
     public QueueStatusInfo getQueueStatus(Long userId) {
-        String userQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId);
-        String queueId = redisTemplate.opsForValue().get(userQueueKey);
+        String legacyUserQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId);
+        String queueId = redisTemplate.opsForValue().get(legacyUserQueueKey);
 
-        if (queueId == null) {return null;}
+        if (queueId != null) {
+            Long categoryId = RedisMatchingConstants.KeyBuilder.parseCategoryIdFromQueueId(queueId);
+            if (categoryId != null) {
+                String correctUserQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId, categoryId);
+            }
+        }
 
         try {
             String queueMetaKey = RedisMatchingConstants.KeyBuilder.queueMetaKey(queueId);
@@ -149,11 +286,10 @@ public class RedisMatchingQueueService {
             if (ttlStr != null) {
                 long expireTime = Long.parseLong(ttlStr);
                 if (Instant.now().getEpochSecond() > expireTime) {
-                    dequeueUser(userId);
+                    dequeueUser(userId, categoryId);
                     return null;
                 }
             }
-
 
             // 대기열에서 위치 조회
             String waitQueueKey = RedisMatchingConstants.KeyBuilder.waitQueueKey(categoryId);

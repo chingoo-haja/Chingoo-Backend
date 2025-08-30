@@ -1,5 +1,7 @@
 package com.ldsilver.chingoohaja.domain.call;
 
+import com.ldsilver.chingoohaja.common.exception.CustomException;
+import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.call.enums.CallStatus;
 import com.ldsilver.chingoohaja.domain.call.enums.CallType;
 import com.ldsilver.chingoohaja.domain.category.Category;
@@ -70,6 +72,15 @@ public class Call extends BaseEntity {
     private static void validateUsers(User user1, User user2) {
         if (user1.equals(user2)) {
             throw new IllegalArgumentException("통화 참가자는 서로 다른 사용자여야 합니다.");
+        }
+    }
+
+    public void startCall() {
+        if (this.callStatus == CallStatus.READY) {
+            this.callStatus = CallStatus.IN_PROGRESS;
+            this.startAt = LocalDateTime.now();
+        } else {
+            throw new CustomException(ErrorCode.CALL_START_FAILED, this.callStatus.name());
         }
     }
 

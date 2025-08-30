@@ -3,7 +3,6 @@ package com.ldsilver.chingoohaja.service;
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.category.Category;
-import com.ldsilver.chingoohaja.domain.matching.MatchingConstants;
 import com.ldsilver.chingoohaja.domain.matching.MatchingQueue;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueType;
@@ -14,6 +13,7 @@ import com.ldsilver.chingoohaja.dto.matching.response.MatchingStatusResponse;
 import com.ldsilver.chingoohaja.repository.CategoryRepository;
 import com.ldsilver.chingoohaja.repository.MatchingQueueRepository;
 import com.ldsilver.chingoohaja.repository.UserRepository;
+import com.ldsilver.chingoohaja.validation.MatchingValidationConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -134,8 +134,10 @@ public class MatchingService {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
 
+        Long categoryId = queue.getCategory().getId();
+
         // 2. Redis 탈퇴 시도
-        RedisMatchingQueueService.DequeueResult result = redisMatchingQueueService.dequeueUser(userId);
+        RedisMatchingQueueService.DequeueResult result = redisMatchingQueueService.dequeueUser(userId, categoryId);
 
         // 3. Redis 결과에 따른 처리 정책
         if (!result.success() && !"NOT_IN_QUEUE".equals(result.message())) {
@@ -159,7 +161,7 @@ public class MatchingService {
         if (position == null || position <= 1) {
             return 0;
         }
-        int waitTime = (position -1) * MatchingConstants.WaitTime.ESTIMATED_WAIT_TIME_PER_PERSON;
-        return Math.min(waitTime, MatchingConstants.WaitTime.MAX_ESTIMATED_WAIT_TIME);
+        int waitTime = (position -1) * MatchingValidationConstants.WaitTime.ESTIMATED_WAIT_TIME_PER_PERSON;
+        return Math.min(waitTime, MatchingValidationConstants.WaitTime.MAX_ESTIMATED_WAIT_TIME);
     }
 }
