@@ -11,10 +11,9 @@ public class RedisMatchingConstants {
     // Redis 키 prefix
     @UtilityClass
     public static class KeyPrefix {
-        public static final String QUEUE_PREFIX = "matching:queue:";
-        public static final String WAIT_QUEUE_PREFIX = "wait:z:";
-        public static final String USER_QUEUE_PREFIX = "user:queued:";
-        public static final String QUEUE_META_PREFIX = "queue:meta:";
+        public static final String QUEUE_PREFIX = "queue:";           // ZSET - 통합 대기열
+        public static final String USER_QUEUE_PREFIX = "queue:user:"; // STRING - 사용자 참가 정보
+        public static final String LOCK_PREFIX = "queue:lock:";       // STRING - 분산 락
     }
 
     // Redis 키 생성 헬퍼
