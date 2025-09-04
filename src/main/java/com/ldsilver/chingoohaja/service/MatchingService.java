@@ -7,6 +7,7 @@ import com.ldsilver.chingoohaja.domain.matching.MatchingQueue;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueType;
 import com.ldsilver.chingoohaja.domain.user.User;
+import com.ldsilver.chingoohaja.dto.matching.MatchingCategoryStats;
 import com.ldsilver.chingoohaja.dto.matching.request.MatchingRequest;
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingResponse;
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingStatusResponse;
@@ -20,8 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -160,6 +160,41 @@ public class MatchingService {
         }
         log.info("매칭 취소 성공 - userId: {}, queueId: {}", userId, queueId);
 
+    }
+
+    @Transactional(readOnly = true)
+    public Map<Long, MatchingCategoryStats> getAllMatchingStats() {
+        log.debug("전체 매칭 통계 조회");
+
+        Map<Long, MatchingCategoryStats> statsMap = new HashMap<>();
+
+        try {
+            // Redis에서 실시간 대기 현황 조회
+            Map<Long, Long> waitingStats = redisMatchingQueueService.getAllCategoryStats();
+
+            // 활성 카테고리 정보와 결합
+            List<Category> activeCategories = categoryRepository.findByIsActiveTrueOrderByName();
+
+            for (Category category : activeCategories) {
+                Long waitingCount = waitingStats.getOrDefault(category.getId(), 0L);
+
+                MatchingCategoryStats stats = new MatchingCategoryStats(
+                        category.getId(),
+                        category.getName(),
+                        waitingCount,
+                        category.getCategoryType()
+                );
+
+                statsMap.put(category.getId(), stats);
+            }
+
+            log.debug("매칭 통계 조회 완료 - 카테고리 수: {}", statsMap.size());
+            return statsMap;
+
+        } catch (Exception e) {
+            log.error("매칭 통계 조회 실패", e);
+            return Collections.emptyMap();
+        }
     }
 
 

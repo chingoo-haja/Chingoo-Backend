@@ -10,10 +10,7 @@ import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 
 @Slf4j
@@ -250,6 +247,29 @@ public class RedisMatchingQueueService {
         } catch (Exception e) {
             log.error("대기 인원 수 조회 실패 - categoryId: {}", categoryId, e);
             return 0L;
+        }
+    }
+
+    public Map<Long, Long> getAllCategoryStats() {
+        log.debug("전체 카테고리 통계 조회");
+
+        Map<Long, Long> stats = new HashMap<>();
+
+        try {
+            // 카테고리 1-20 범위에서 활성 큐 확인
+            for (long categoryId = 1; categoryId <= 20; categoryId++) {
+                long waitingCount = getWaitingCount(categoryId);
+                if (waitingCount > 0) {
+                    stats.put(categoryId, waitingCount);
+                }
+            }
+
+            log.debug("카테고리 통계 조회 완료 - 활성 카테고리 수: {}", stats.size());
+            return stats;
+
+        } catch (Exception e) {
+            log.error("카테고리 통계 조회 실패", e);
+            return Collections.emptyMap();
         }
     }
 
