@@ -246,6 +246,19 @@ public class RedisMatchingQueueService {
         }
     }
 
+    public long getWaitingCount(Long categoryId) {
+        try {
+            String queueKey = RedisMatchingConstants.KeyBuilder.queueKey(categoryId);
+            Long count = redisTemplate.opsForZSet().zCard(queueKey);
+            return count != null ? count : 0L;
+        } catch (Exception e) {
+            log.error("대기 인원 수 조회 실패 - categoryId: {}", categoryId, e);
+            return 0L;
+        }
+    }
+
+
+
     private void cleanupExpiredUser(Long userId, Long categoryId) {
         try {
             String queueKey = RedisMatchingConstants.KeyBuilder.queueKey(categoryId);
@@ -260,17 +273,7 @@ public class RedisMatchingQueueService {
         }
     }
 
-    public long getWaitingCount(Long categoryId) {
-        String waitQueueKey = RedisMatchingConstants.KeyBuilder.waitQueueKey(categoryId);
 
-        try {
-            Long count = redisTemplate.opsForZSet().zCard(waitQueueKey);
-            return count != null ? count : 0L;
-        } catch (Exception e) {
-            log.error("대기 인원 수 조회 실패 - categoryId: {}", categoryId, e);
-            return 0L;
-        }
-    }
 
 
     // Result Classes
