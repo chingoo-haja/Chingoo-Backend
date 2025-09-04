@@ -151,6 +151,11 @@ public class MatchingService {
             throw new CustomException(ErrorCode.MATCHING_FAILED, result.message());
         }
 
+        if (RedisMatchingConstants.ResponseMessage.LOCK_FAILED.equals(result.message())) {
+            log.warn("Redis 락 이슈로 취소 보류 - userId: {}, categoryId: {}, message: {}",
+                    userId, categoryId, result.message());
+        }
+
         // 4. DB 상태 변경 (소유권 검증을 통과한 경우에만)
         try {
             queue.cancel();
@@ -166,7 +171,7 @@ public class MatchingService {
     public Map<Long, MatchingCategoryStats> getAllMatchingStats() {
         log.debug("전체 매칭 통계 조회");
 
-        Map<Long, MatchingCategoryStats> statsMap = new HashMap<>();
+        Map<Long, MatchingCategoryStats> statsMap = new LinkedHashMap<>();
 
         try {
             // Redis에서 실시간 대기 현황 조회
