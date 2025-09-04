@@ -7,9 +7,11 @@ import com.ldsilver.chingoohaja.domain.matching.MatchingQueue;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueType;
 import com.ldsilver.chingoohaja.domain.user.User;
+import com.ldsilver.chingoohaja.dto.matching.MatchingCategoryStats;
 import com.ldsilver.chingoohaja.dto.matching.request.MatchingRequest;
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingResponse;
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingStatusResponse;
+import com.ldsilver.chingoohaja.infrastructure.redis.RedisMatchingConstants;
 import com.ldsilver.chingoohaja.repository.CategoryRepository;
 import com.ldsilver.chingoohaja.repository.MatchingQueueRepository;
 import com.ldsilver.chingoohaja.repository.UserRepository;
@@ -19,8 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -104,7 +105,7 @@ public class MatchingService {
 
         Category category = categoryOptional.get();
 
-        long waitingCount = redisMatchingQueueService.getWaitingCount(queueStatusInfo.categoryId());
+        long waitingCount = queueStatusInfo.totalWaiting();
         int estimateWaitTime = calculateEstimatedWaitTime(queueStatusInfo.position());
 
         return MatchingStatusResponse.inQueue(
@@ -134,21 +135,71 @@ public class MatchingService {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
 
-        Long categoryId = queue.getCategory().getId();
+        Long categoryId = RedisMatchingConstants.KeyBuilder.parseCategoryIdFromQueueId(queueId);
+        if (categoryId == null) {
+            categoryId = queue.getCategory().getId();
+        }
 
         // 2. Redis 탈퇴 시도
-        RedisMatchingQueueService.DequeueResult result = redisMatchingQueueService.dequeueUser(userId, categoryId);
+        RedisMatchingQueueService.DequeueResult result =
+                redisMatchingQueueService.dequeueUser(userId, categoryId);
 
         // 3. Redis 결과에 따른 처리 정책
-        if (!result.success() && !"NOT_IN_QUEUE".equals(result.message())) {
+        if (!result.success() &&
+                !RedisMatchingConstants.ResponseMessage.NOT_IN_QUEUE.equals(result.message()) &&
+                !RedisMatchingConstants.ResponseMessage.LOCK_FAILED.equals(result.message())) {
             throw new CustomException(ErrorCode.MATCHING_FAILED, result.message());
         }
 
-        // 4. DB 상태 변경 (소유권 검증을 통과한 경우에만)
-        matchingQueueRepository.cancelMatchingQueueByQueueId(queueId);
+        if (RedisMatchingConstants.ResponseMessage.LOCK_FAILED.equals(result.message())) {
+            log.warn("Redis 락 이슈로 취소 보류 - userId: {}, categoryId: {}, message: {}",
+                    userId, categoryId, result.message());
+        }
 
+        // 4. DB 상태 변경 (소유권 검증을 통과한 경우에만)
+        try {
+            queue.cancel();
+            matchingQueueRepository.save(queue);
+        } catch (Exception e) {
+            log.error("DB 매칭 큐 취소 실패 - queueId: {}", queueId, e);
+        }
         log.info("매칭 취소 성공 - userId: {}, queueId: {}", userId, queueId);
 
+    }
+
+    @Transactional(readOnly = true)
+    public Map<Long, MatchingCategoryStats> getAllMatchingStats() {
+        log.debug("전체 매칭 통계 조회");
+
+        Map<Long, MatchingCategoryStats> statsMap = new LinkedHashMap<>();
+
+        try {
+            // Redis에서 실시간 대기 현황 조회
+            Map<Long, Long> waitingStats = redisMatchingQueueService.getAllCategoryStats();
+
+            // 활성 카테고리 정보와 결합
+            List<Category> activeCategories = categoryRepository.findByIsActiveTrueOrderByName();
+
+            for (Category category : activeCategories) {
+                Long waitingCount = waitingStats.getOrDefault(category.getId(), 0L);
+
+                MatchingCategoryStats stats = new MatchingCategoryStats(
+                        category.getId(),
+                        category.getName(),
+                        waitingCount,
+                        category.getCategoryType()
+                );
+
+                statsMap.put(category.getId(), stats);
+            }
+
+            log.debug("매칭 통계 조회 완료 - 카테고리 수: {}", statsMap.size());
+            return statsMap;
+
+        } catch (Exception e) {
+            log.error("매칭 통계 조회 실패", e);
+            return Collections.emptyMap();
+        }
     }
 
 
