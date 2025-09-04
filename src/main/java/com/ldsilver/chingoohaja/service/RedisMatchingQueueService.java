@@ -77,13 +77,44 @@ public class RedisMatchingQueueService {
      * 하이브리드 매칭 실행 (랜덤 80% (빠른 매칭) + 대기순 20%(공정성))
      */
     public MatchResult findMatchesHybrid(Long categoryId, int matchCount) {
+        log.debug("하이브리드 매칭 실행 - categoryId: {}, matchCount: {}", categoryId, matchCount);
         try {
-            // 20% 확률로 대기 순서 우선
-            if (Math.random() < 0.2) {
-                return findMatchesByWaitTimeAtomic(categoryId, matchCount);
-            } else {
-                return findMatchesRandom(categoryId, matchCount);
+            boolean userWaitOrder = Math.random() < (1 - MatchingValidationConstants.Queue.RANDOM_MATCH_RATIO);
+
+            List<String> keys = Arrays.asList(
+                    RedisMatchingConstants.KeyBuilder.queueKey(categoryId)
+            );
+
+            List<String> args = Arrays.asList(
+                    String.valueOf(matchCount),
+                    userWaitOrder ? "1" : "0"
+            );
+
+            RedisScript<List> script = RedisScript.of(
+                    RedisMatchingConstants.LuaScripts.FIND_MATCHES, List.class);
+
+            List<Object> result = redisTemplate.execute(script, keys, args.toArray());
+
+            if (result != null && !result.isEmpty()) {
+                Integer success = Integer.parseInt(result.get(0).toString());
+                String message = result.get(1).toString();
+
+                if (success == 1 && result.size() > 2) {
+                    List<Long> userIds = result.subList(2, result.size()).stream()
+                            .map(obj -> Long.valueOf(obj.toString()))
+                            .toList();
+
+                    cleanupMatchedUsers(categoryId, userIds);
+
+                    String strategy = userWaitOrder ? "대기순" : "랜덤";
+                    log.debug("{} 매칭 성공 - categoryId: {}, users: {}", strategy, categoryId, userIds);
+                    return new MatchResult(true, message, userIds);
+                } else {
+                    log.debug("매칭 실패 - categoryId: {}, reason: {}", categoryId, message);
+                    return new MatchResult(false, message, Collections.emptyList());
+                }
             }
+            return new MatchResult(false, RedisMatchingConstants.ResponseMessage.UNKNOWN_ERROR, Collections.emptyList());
         } catch (Exception e) {
             log.error("하이브리드 매칭 실패 - categoryId: {}", categoryId, e);
             return new MatchResult(false, RedisMatchingConstants.ResponseMessage.REDIS_ERROR, Collections.emptyList());
