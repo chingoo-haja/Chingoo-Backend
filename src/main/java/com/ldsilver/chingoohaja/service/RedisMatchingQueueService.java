@@ -5,14 +5,15 @@ import com.ldsilver.chingoohaja.infrastructure.redis.RedisMatchingConstants;
 import com.ldsilver.chingoohaja.validation.MatchingValidationConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.cache.CacheProperties;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 
 @Slf4j
@@ -133,21 +134,20 @@ public class RedisMatchingQueueService {
         if (userIds.isEmpty()) return;
 
         try {
-            RedisScript<Long> script = RedisScript.of(
-                    RedisMatchingConstants.LuaScripts.CLEANUP_MATCHED_USERS,
-                    Long.class
-            );
+            List<String> keys = new ArrayList<>();
+            keys.add(RedisMatchingConstants.KeyBuilder.queueKey(categoryId));
 
-            List<String> keys = RedisMatchingConstants.KeyBuilder.getCleanupKeys(categoryId, userIds);
+            for (Long userId : userIds) {
+                keys.add(RedisMatchingConstants.KeyBuilder.userQueueKey(userId));
+            }
 
             List<String> args = new ArrayList<>();
-            args.add(categoryId.toString());
             args.add(String.valueOf(userIds.size()));
             userIds.forEach(id -> args.add(id.toString()));
-            userIds.forEach(id -> {
-                String qid = redisTemplate.opsForValue().get(RedisMatchingConstants.KeyBuilder.userQueueKey(id, categoryId));
-                args.add(qid != null ? qid : "");
-            });
+
+            RedisScript<Long> script = RedisScript.of(
+                    RedisMatchingConstants.LuaScripts.CLEANUP_MATCHED_USERS, Long.class
+            );
 
             Long cleanedCount = redisTemplate.execute(script, keys, args.toArray());
 
