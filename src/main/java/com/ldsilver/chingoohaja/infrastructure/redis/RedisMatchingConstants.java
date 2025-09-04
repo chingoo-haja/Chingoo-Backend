@@ -296,5 +296,8 @@ public class RedisMatchingConstants {
         public static final String REDIS_ERROR = "REDIS_ERROR";
         public static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
         public static final String QUEUE_NOT_FOUND = "QUEUE_NOT_FOUND";
+        public static final String LOCK_FAILED = "LOCK_FAILED";
+        public static final String INVALID_DATA = "INVALID_DATA";
+        public static final String NO_EXPIRED_USERS = "NO_EXPIRED_USERS";
     }
 }
