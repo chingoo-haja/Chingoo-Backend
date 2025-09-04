@@ -1,5 +1,6 @@
 package com.ldsilver.chingoohaja.infrastructure.redis;
 
+import com.ldsilver.chingoohaja.dto.matching.UserQueueInfo;
 import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
@@ -20,47 +21,41 @@ public class RedisMatchingConstants {
     @UtilityClass
     public static class KeyBuilder {
 
-        private static String catTag(Long categoryId) {return "{cat:" + categoryId + "}";}
-
-        // 랜덤 매칭용 SET (해시태그로 동일 슬롯 보장)
+        // 카테고리별 통합 대기열 키
         public static String queueKey(Long categoryId) {
-            return KeyPrefix.QUEUE_PREFIX + catTag(categoryId);
+            return KeyPrefix.QUEUE_PREFIX + categoryId;
         }
 
-        // 대기 순서 우선순위 ZSET
-        public static String waitQueueKey(Long categoryId) {
-            return KeyPrefix.WAIT_QUEUE_PREFIX + catTag(categoryId) + ":" + categoryId;
-        }
-
+        // 사용자별 참가 정보 키
         public static String userQueueKey(Long userId) {
-            return KeyPrefix.USER_QUEUE_PREFIX + userId + ":";
+            return KeyPrefix.USER_QUEUE_PREFIX + userId;
         }
 
-        public static String userQueueKey(Long userId, Long categoryId) {
-            return KeyPrefix.USER_QUEUE_PREFIX + catTag(categoryId) + ":" + userId + ":";
+        // 분산 락 키
+        public static String lockKey(Long userId) {
+            return KeyPrefix.LOCK_PREFIX + userId;
         }
 
-        public static String queueMetaKey(String queueId) {
-            // queueId 형식: queue_{userId}_{categoryId}_{random}
-            Long categoryId = parseCategoryIdFromQueueId(queueId);
-            if (categoryId != null) {
-                return KeyPrefix.QUEUE_META_PREFIX + catTag(categoryId) + ":" + queueId;
+        public static String userQueueValue(Long categoryId, String queueId, long timestamp) {
+            return categoryId + ":" + queueId + ":" + timestamp;
+        }
+
+        public static UserQueueInfo parseUserQueueValue(String value) {
+            if (value == null || value.trim().isEmpty()) {
+                return null;
             }
-            return KeyPrefix.QUEUE_META_PREFIX + queueId;
-        }
 
-        // Lua 스크립트에서 사용할 키 목록 생성 (동일 해시태그)
-        public static List<String> getCleanupKeys(Long categoryId, List<Long> userIds) {
-            List<String> keys = new ArrayList<>();
-            String tag = catTag(categoryId);
+            String[] parts = value.split(":");
+            if (parts.length != 3) {return null;}
 
-            keys.add("cleanup" + tag); // 더미 키 (스크립트 요구사항)
-            keys.add("wait:z:" + tag + ":" + categoryId);
-
-            for (Long userId : userIds) {
-                keys.add("user:queued:" + tag + ":" + userId + ":");
+            try {
+                Long categoryId = Long.valueOf(parts[0]);
+                String queueId = parts[1];
+                Long timestamp = Long.valueOf(parts[2]);
+                return new UserQueueInfo(categoryId, queueId, timestamp);
+            } catch (NumberFormatException e) {
+                return null;
             }
-            return keys;
         }
 
         public static Long parseCategoryIdFromQueueId(String queueId) {
@@ -150,4 +145,6 @@ public class RedisMatchingConstants {
         public static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
         public static final String QUEUE_NOT_FOUND = "QUEUE_NOT_FOUND";
     }
+
+    public record
 }
