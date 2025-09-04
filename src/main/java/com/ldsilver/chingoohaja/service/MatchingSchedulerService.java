@@ -93,9 +93,12 @@ public class MatchingSchedulerService {
             User user2 = user2Opt.get();
 
             // 4. Call 엔티티 생성
-            Call call = Call.from(user1, user2, category, CallType.RANDOM_MATCH);
-            call.startCall();
-            Call savedCall = callRepository.save(call);
+            Call savedCall = createCallFromMatchedUsers(user1, user2, category);
+
+            if (savedCall == null) {
+                log.error("Call 생성 실패 - categoryId: {}, userId: {}", category.getId(), userIds);
+                return;
+            }
 
             // 5. DB 매칭 큐 상태 업데이트 (WAITING -> MATCHING)
             updateMatchingQueueStatus(userIds, QueueStatus.MATCHING);
@@ -108,16 +111,28 @@ public class MatchingSchedulerService {
                     new TransactionSynchronization() {
                         @Override
                         public void afterCommit() {
-                            notifyMatchingSuccess(user1, user2, savedCall, category, sessionToken);
+                            sendMatchingSuccessNotification(user1, user2, savedCall, category, sessionToken);
                         }
                     }
             );
 
-            log.debug("매칭 성공 완료 - categoryId: {}, callId: {}, users: [{}, {}]",
-                    category.getId(), savedCall.getId(), user1Id, user2Id);
+            log.debug("매칭 성공 완료 - categoryId: {}, callId: {}, users: {}",
+                    category.getId(), savedCall.getId(), userIds);
 
         } catch (Exception e) {
             log.error("카테고리 매칭 처리 실패 - categoryId: {}", category.getId(), e);
+        }
+    }
+
+    private Call createCallFromMatchedUsers(User user1, User user2, Category category) {
+        try {
+            Call call = Call.from(user1, user2, category, CallType.RANDOM_MATCH);
+            call.startCall();
+
+            return callRepository.save(call);
+        } catch (Exception e) {
+            log.error("Call 생성 실패 - user1Id: {}, user2Id: {}", user1.getId(), user2.getId(), e);
+            return null;
         }
     }
 
@@ -149,7 +164,7 @@ public class MatchingSchedulerService {
         }
     }
 
-    private void notifyMatchingSuccess(User user1, User user2, Call call, Category category, String sessionToken) {
+    private void sendMatchingSuccessNotification(User user1, User user2, Call call, Category category, String sessionToken) {
         try {
             // 각 사용자에게 상대방 정보와 함께 매칭 성공 알림
             webSocketEventService.sendMatchingSuccessNotification(
