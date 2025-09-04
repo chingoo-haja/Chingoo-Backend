@@ -165,6 +165,61 @@ public class RedisMatchingConstants {
                 return {1, 'SUCCESS', unpack(selectedUsers)}
                """;
 
+        // 매칭 후보만 찾고 dequeue하지 않음
+        public static final String FIND_MATCH_CANDIDATES = """
+                local queueKey = KEYS[1]
+                local matchCount = tonumber(ARGV[1])
+                local useWaitOrder = tonumber(ARGV[2])
+               \s
+                -- 1. 대기 인원 확인
+                local availableCount = redis.call('ZCARD', queueKey)
+                if availableCount < matchCount then
+                    return {0, 'INSUFFICIENT_USERS', availableCount}
+                end
+               \s
+                local selectedUsers = {}
+               \s
+                if useWaitOrder == 1 then
+                    -- 대기순 매칭: 가장 오래 기다린 사용자들
+                    selectedUsers = redis.call('ZRANGE', queueKey, 0, matchCount - 1)
+                else
+                    -- 랜덤 매칭: 무작위 선택
+                    selectedUsers = redis.call('ZRANDMEMBER', queueKey, matchCount)
+                end
+               \s
+                if #selectedUsers < matchCount then
+                    return {0, 'INSUFFICIENT_USERS', #selectedUsers}
+                end
+               \s
+                -- 🔥 KEY POINT: dequeue는 하지 않고 후보만 반환
+                return {1, 'SUCCESS', unpack(selectedUsers)}
+               """;
+
+        // 매칭 성공 후 사용자들을 큐에서 제거
+        public static final String REMOVE_MATCHED_USERS = """
+                local queueKey = KEYS[1]
+                local userCount = tonumber(ARGV[1])
+               \s
+                local removedCount = 0
+               \s
+                -- 각 사용자를 대기열에서 제거
+                for i = 1, userCount do
+                    local userId = ARGV[i + 1]
+                    local userQueueKey = KEYS[i + 1]
+                   \s
+                    -- ZSET에서 제거
+                    local removed = redis.call('ZREM', queueKey, userId)
+                    if removed == 1 then
+                        removedCount = removedCount + 1
+                    end
+                   \s
+                    -- 사용자 큐 정보 제거
+                    redis.call('DEL', userQueueKey)
+                end
+               \s
+                return removedCount
+               """;
+
         // 대기열 탈퇴
         public static final String LEAVE_QUEUE = """
                 local queueKey = KEYS[1]
