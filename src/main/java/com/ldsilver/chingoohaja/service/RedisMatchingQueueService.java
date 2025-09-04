@@ -1,5 +1,6 @@
 package com.ldsilver.chingoohaja.service;
 
+import com.ldsilver.chingoohaja.dto.matching.UserQueueInfo;
 import com.ldsilver.chingoohaja.infrastructure.redis.RedisMatchingConstants;
 import com.ldsilver.chingoohaja.validation.MatchingValidationConstants;
 import lombok.RequiredArgsConstructor;
@@ -192,51 +193,70 @@ public class RedisMatchingQueueService {
 
 
     public QueueStatusInfo getQueueStatus(Long userId) {
-        String legacyUserQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId);
-        String queueId = redisTemplate.opsForValue().get(legacyUserQueueKey);
-
-        if (queueId != null) {
-            Long categoryId = RedisMatchingConstants.KeyBuilder.parseCategoryIdFromQueueId(queueId);
-            if (categoryId != null) {
-                String correctUserQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId, categoryId);
-            }
-        }
+        log.debug("큐 상태 조회 - userId: {}", userId);
 
         try {
-            String queueMetaKey = RedisMatchingConstants.KeyBuilder.queueMetaKey(queueId);
-            Map<Object, Object> metaData = redisTemplate.opsForHash().entries(queueMetaKey);
+            // 1. 사용자 참가 정보 직접 조회
+            String userQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId);
+            String userQueueValue = redisTemplate.opsForValue().get(userQueueKey);
 
-            if (metaData.isEmpty()) {
+            if (userQueueValue == null) {
                 return null;
             }
 
-            String categoryIdStr = (String) metaData.get("categoryId");
-            Long categoryId = Long.valueOf(categoryIdStr);
+            // 2. 참가 정보 파싱
+            UserQueueInfo queueInfo = RedisMatchingConstants.KeyBuilder.parseUserQueueValue(userQueueValue);
 
-            String ttlStr = (String) metaData.get("ttl");
-            if (ttlStr != null) {
-                long expireTime = Long.parseLong(ttlStr);
-                if (Instant.now().getEpochSecond() > expireTime) {
-                    dequeueUser(userId, categoryId);
-                    return null;
-                }
+            if (queueInfo == null) {
+                log.warn("잘못된 큐 형식 - userId: {}, value: {}", userId, userQueueValue);
+
+                redisTemplate.delete(userQueueKey);
+                return null;
             }
 
-            // 대기열에서 위치 조회
-            String waitQueueKey = RedisMatchingConstants.KeyBuilder.waitQueueKey(categoryId);
-            Long rank = redisTemplate.opsForZSet().rank(waitQueueKey, userId.toString());
-            Long totalWaiting = redisTemplate.opsForZSet().zCard(waitQueueKey);
+            // 3. 만료 확인
+            long currentTimestamp = Instant.now().toEpochMilli();
+            if (queueInfo.isExpired(currentTimestamp, MatchingValidationConstants.Queue.DEFAULT_TTL_SECONDS)) {
+                log.debug("만료된 큐 정보 발견 - userId: {}", userId);
+                cleanupExpiredUser(userId, queueInfo.categoryId());
+                return null;
+            }
+
+
+            // 4. 대기 순서 조회
+            String queueKey = RedisMatchingConstants.KeyBuilder.queueKey(queueInfo.categoryId());
+            Long rank = redisTemplate.opsForZSet().rank(queueKey, userId.toString());
+            Long totalWaiting = redisTemplate.opsForZSet().zCard(queueKey);
+
+            Integer position = rank != null ? rank.intValue() + 1  : null;
+            Integer totalCount = totalWaiting != null ? totalWaiting.intValue() : 0;
+
+            log.debug("큐 상태 조회 성공 - userId: {}, position: {}/{}", userId, position, totalCount);
 
             return new QueueStatusInfo(
-                    queueId,
-                    categoryId,
-                    rank != null ? rank.intValue() + 1 : null,
-                    totalWaiting != null ? totalWaiting.intValue() : 0
+                    queueInfo.queueId(),
+                    queueInfo.categoryId(),
+                    position,
+                    totalCount
             );
 
         } catch (Exception e) {
             log.error("큐 상태 조회 실패 - userId: {}", userId, e);
             return null;
+        }
+    }
+
+    private void cleanupExpiredUser(Long userId, Long categoryId) {
+        try {
+            String queueKey = RedisMatchingConstants.KeyBuilder.queueKey(categoryId);
+            String userQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(userId);
+
+            redisTemplate.opsForZSet().remove(queueKey, userId.toString());
+            redisTemplate.delete(userQueueKey);
+
+            log.debug("만료된 사용자 정리 완료 - userId: {}", userId);
+        } catch (Exception e) {
+            log.error("만료된 사용자 정리 실패 - userId: {}", userId, e);
         }
     }
 

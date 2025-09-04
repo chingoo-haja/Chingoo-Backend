@@ -14,7 +14,7 @@ public class MatchingValidationConstants {
 
     @UtilityClass
     public static class Queue {
-        public static final long DEFAULT_TTL_SECONDS = 600; // 10분
+        public static final int DEFAULT_TTL_SECONDS = 600; // 10분
         public static final int LOCK_TTL_SECONDS = 30;      // 락 TTL 30초
         public static final double RANDOM_MATCH_RATIO = 0.8;// 랜덤매칭 80%
     }
