@@ -67,17 +67,17 @@ public class MatchingSchedulerService {
             }
 
             // 2. 하이브리드 매칭 실행
-            RedisMatchingQueueService.MatchResult matchResult =
-                    redisMatchingQueueService.findMatchesHybrid(category.getId(), 2);
+            RedisMatchingQueueService.MatchCandicateResult candicateResult =
+                    redisMatchingQueueService.findMatchCandidates(category.getId(), 2);
 
-            if (!matchResult.success() || matchResult.userIds().size() < 2) {
+            if (!candicateResult.success() || candicateResult.userIds().size() < 2) {
                 log.debug("하이브리드 매칭 실패 - categoryId: {}, reason: {}",
-                        category.getId(), matchResult.message());
+                        category.getId(), candicateResult.message());
                 return;
             }
 
             // 3. 매칭된 사용자들 검증
-            List<Long> userIds = matchResult.userIds();
+            List<Long> userIds = candicateResult.userIds();
             Long user1Id = userIds.get(0);
             Long user2Id = userIds.get(1);
 
@@ -100,13 +100,23 @@ public class MatchingSchedulerService {
                 return;
             }
 
-            // 5. DB 매칭 큐 상태 업데이트 (WAITING -> MATCHING)
+            // 5. DB 성공했을 때만 Redis에서 사용자 제거
+            RedisMatchingQueueService.RemoveUserResult removeResult =
+                    redisMatchingQueueService.removeMatchedUsers(category.getId(), userIds);
+
+            if (!removeResult.success()) {
+                log.warn("Redis 사용자 제거 실패 - categoryId: {}, userIds: {}, reason: {}",
+                        category.getId(), userIds, removeResult.message());
+                // DB는 성공했으므로 매칭은 진행하되, Redis 정리만 실패한 상황
+            }
+
+            // 6. DB 매칭 큐 상태 업데이트 (WAITING -> MATCHING)
             updateMatchingQueueStatus(userIds, QueueStatus.MATCHING);
 
-            // 6. 통화방 입장용 세션 토큰 생성
+            // 7. 통화방 입장용 세션 토큰 생성
             String sessionToken = generateSessionToken();
 
-            // 7. WebSocket 매칭 성공 알림 전송
+            // 8. WebSocket 매칭 성공 알림 전송
             TransactionSynchronizationManager.registerSynchronization(
                     new TransactionSynchronization() {
                         @Override

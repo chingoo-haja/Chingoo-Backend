@@ -124,7 +124,7 @@ public class RedisMatchingQueueService {
     /**
      * 매칭된 사용자들의 메타 데이터 정리 (Lua 스크립트)
      */
-    private RemoveUserResult removeMatchedUsers(Long categoryId, List<Long> userIds) {
+    public RemoveUserResult removeMatchedUsers(Long categoryId, List<Long> userIds) {
         log.debug("매칭된 사용자 제거 - categoryId: {}, users: {}", categoryId, userIds);
 
         try {
