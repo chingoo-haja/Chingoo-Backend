@@ -96,7 +96,7 @@ public class MatchingSchedulerService {
             Call savedCall = createCallFromMatchedUsers(user1, user2, category);
 
             if (savedCall == null) {
-                log.error("Call 생성 실패 - categoryId: {}, userId: {}", category.getId(), userIds);
+                log.error("Call 생성 실패 - categoryId: {}, userIds: {}", category.getId(), userIds);
                 return;
             }
 
@@ -111,7 +111,7 @@ public class MatchingSchedulerService {
                     new TransactionSynchronization() {
                         @Override
                         public void afterCommit() {
-                            sendMatchingSuccessNotification(user1, user2, savedCall, category, sessionToken);
+                            sendMatchingSuccessNotification(user1, user2, savedCall);
                         }
                     }
             );
@@ -164,7 +164,7 @@ public class MatchingSchedulerService {
         }
     }
 
-    private void sendMatchingSuccessNotification(User user1, User user2, Call call, Category category, String sessionToken) {
+    private void sendMatchingSuccessNotification(User user1, User user2, Call call) {
         try {
             // 각 사용자에게 상대방 정보와 함께 매칭 성공 알림
             webSocketEventService.sendMatchingSuccessNotification(
