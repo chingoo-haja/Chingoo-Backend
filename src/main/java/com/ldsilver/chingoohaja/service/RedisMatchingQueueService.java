@@ -294,7 +294,7 @@ public class RedisMatchingQueueService {
                     .getConnection().ping();
             return "PONG".equals(result);
         } catch (Exception e) {
-            log.error("Redis 연결 확인 실패, e");
+            log.error("Redis 연결 확인 실패", e);
             return false;
         }
     }
