@@ -10,6 +10,7 @@ import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.dto.matching.request.MatchingRequest;
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingResponse;
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingStatusResponse;
+import com.ldsilver.chingoohaja.infrastructure.redis.RedisMatchingConstants;
 import com.ldsilver.chingoohaja.repository.CategoryRepository;
 import com.ldsilver.chingoohaja.repository.MatchingQueueRepository;
 import com.ldsilver.chingoohaja.repository.UserRepository;
@@ -104,7 +105,7 @@ public class MatchingService {
 
         Category category = categoryOptional.get();
 
-        long waitingCount = redisMatchingQueueService.getWaitingCount(queueStatusInfo.categoryId());
+        long waitingCount = queueStatusInfo.totalWaiting();
         int estimateWaitTime = calculateEstimatedWaitTime(queueStatusInfo.position());
 
         return MatchingStatusResponse.inQueue(
@@ -134,19 +135,29 @@ public class MatchingService {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
 
-        Long categoryId = queue.getCategory().getId();
+        Long categoryId = RedisMatchingConstants.KeyBuilder.parseCategoryIdFromQueueId(queueId);
+        if (categoryId == null) {
+            categoryId = queue.getCategory().getId();
+        }
 
         // 2. Redis 탈퇴 시도
-        RedisMatchingQueueService.DequeueResult result = redisMatchingQueueService.dequeueUser(userId, categoryId);
+        RedisMatchingQueueService.DequeueResult result =
+                redisMatchingQueueService.dequeueUser(userId, categoryId);
 
         // 3. Redis 결과에 따른 처리 정책
-        if (!result.success() && !"NOT_IN_QUEUE".equals(result.message())) {
+        if (!result.success() &&
+                !RedisMatchingConstants.ResponseMessage.NOT_IN_QUEUE.equals(result.message()) &&
+                !RedisMatchingConstants.ResponseMessage.LOCK_FAILED.equals(result.message())) {
             throw new CustomException(ErrorCode.MATCHING_FAILED, result.message());
         }
 
         // 4. DB 상태 변경 (소유권 검증을 통과한 경우에만)
-        matchingQueueRepository.cancelMatchingQueueByQueueId(queueId);
-
+        try {
+            queue.cancel();
+            matchingQueueRepository.save(queue);
+        } catch (Exception e) {
+            log.error("DB 매칭 큐 취소 실패 - queueId: {}", queueId, e);
+        }
         log.info("매칭 취소 성공 - userId: {}, queueId: {}", userId, queueId);
 
     }
