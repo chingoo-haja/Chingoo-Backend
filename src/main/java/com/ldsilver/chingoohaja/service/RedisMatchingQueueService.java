@@ -57,7 +57,7 @@ public class RedisMatchingQueueService {
                 if (success == 1 && result.size() > 2) {
                     Integer position = Integer.parseInt(result.get(2).toString());
                     log.debug("매칭 대기열 참가 성공 - userId: {}, position: {}", userId, position);
-                    return new EnqueueResult(false, message, null);
+                    return new EnqueueResult(true, message, position);
                 } else {
                     log.debug("매칭 대기열 참가 실패 - userId: {}, reason: {}", userId, message);
                     return new EnqueueResult(false, message, null);
