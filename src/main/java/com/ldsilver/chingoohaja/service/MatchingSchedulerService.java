@@ -85,7 +85,8 @@ public class MatchingSchedulerService {
             Optional<User> user2Opt = userRepository.findById(user2Id);
 
             if (user1Opt.isEmpty() || user2Opt.isEmpty()) {
-                log.error("매칭된 사용자 조회 실패 - userId: {}, user2Id: {}", user1Id, user2Id);
+                log.error("매칭된 사용자 조회 실패 - user1Id: {}, user2Id: {}, user1Exists: {}, user2Exists: {}",
+                        user1Id, user2Id, user1Opt.isPresent(), user2Opt.isPresent());
                 return;
             }
 
@@ -97,6 +98,7 @@ public class MatchingSchedulerService {
 
             if (savedCall == null) {
                 log.error("Call 생성 실패 - categoryId: {}, userIds: {}", category.getId(), userIds);
+                // Call 생성 실패 시 Redis 큐에서 사용자를 제거할지 아니면 다시 시도할지 결정 필요
                 return;
             }
 
