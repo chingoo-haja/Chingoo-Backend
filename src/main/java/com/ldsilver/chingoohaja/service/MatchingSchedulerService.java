@@ -67,17 +67,17 @@ public class MatchingSchedulerService {
             }
 
             // 2. 하이브리드 매칭 실행
-            RedisMatchingQueueService.MatchCandicateResult candicateResult =
+            RedisMatchingQueueService.MatchCandicateResult candidateResult =
                     redisMatchingQueueService.findMatchCandidates(category.getId(), 2);
 
-            if (!candicateResult.success() || candicateResult.userIds().size() < 2) {
+            if (!candidateResult.success() || candidateResult.userIds().size() < 2) {
                 log.debug("하이브리드 매칭 실패 - categoryId: {}, reason: {}",
-                        category.getId(), candicateResult.message());
+                        category.getId(), candidateResult.message());
                 return;
             }
 
             // 3. 매칭된 사용자들 검증
-            List<Long> userIds = candicateResult.userIds();
+            List<Long> userIds = candidateResult.userIds();
             Long user1Id = userIds.get(0);
             Long user2Id = userIds.get(1);
 
