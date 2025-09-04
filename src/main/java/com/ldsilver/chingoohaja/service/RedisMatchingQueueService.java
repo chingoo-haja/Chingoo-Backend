@@ -125,10 +125,6 @@ public class RedisMatchingQueueService {
 
     /**
      * 매칭된 사용자들의 메타 데이터 정리 (Lua 스크립트)
-     * 정리 대상:
-     * - user:queued:{userId}: 키 삭제
-     * - queue:meta:{cat:categoryId}:queueId 해시 삭제
-     * - 혹시 남아있을 ZSET 엔트리 삭제
      */
     private void cleanupMatchedUsers(Long categoryId, List<Long> userIds) {
         if (userIds.isEmpty()) return;
@@ -258,7 +254,6 @@ public class RedisMatchingQueueService {
     }
 
 
-
     private void cleanupExpiredUser(Long userId, Long categoryId) {
         try {
             String queueKey = RedisMatchingConstants.KeyBuilder.queueKey(categoryId);
@@ -273,6 +268,16 @@ public class RedisMatchingQueueService {
         }
     }
 
+    public boolean isRedisAvailable() {
+        try {
+            String result = redisTemplate.getConnectionFactory()
+                    .getConnection().ping();
+            return "PONG".equals(result);
+        } catch (Exception e) {
+            log.error("Redis 연결 확인 실패, e");
+            return false;
+        }
+    }
 
 
 
@@ -281,19 +286,5 @@ public class RedisMatchingQueueService {
     public record DequeueResult(boolean success, String message) {}
     public record MatchResult(boolean success, String message, List<Long> userIds) {}
     public record QueueStatusInfo(String queueId, Long categoryId, Integer position, Integer totalWaiting) {}
-
-    private Long parseCategoryIdFromQueueId(String queueId) {
-        // 예: queue_123_45_ab12cd34  => categoryId = 45
-        try {
-            String[] parts = queueId.split("_");
-            if (parts.length >= 4) {
-                return Long.parseLong(parts[2]);
-            }
-            return null;
-        } catch (Exception e) {
-            log.error("queueId에서 categoryId 파싱 실패");
-            return null;
-        }
-    }
 }
 
