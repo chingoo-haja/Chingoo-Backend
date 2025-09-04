@@ -71,67 +71,219 @@ public class RedisMatchingConstants {
             }
             return null;
         }
+
+        // Lua 스크립트용 키 목록 생성
+        public static List<String> getScriptKeys(Long categoryId, List<Long> userIds) {
+            List<String> keys = new ArrayList<>();
+
+            keys.add(queueKey(categoryId));
+
+            for (Long userId: userIds) {
+                keys.add(userQueueKey(userId));
+            }
+
+            for (Long userId: userIds) {
+                keys.add(lockKey(userId));
+            }
+            return keys;
+        }
     }
 
-    // Lua 스크립트
     @UtilityClass
     public static class LuaScripts {
 
-        // 대기순 매칭: 선정+제거 원자화 (경쟁 상황에서 중복 매칭 방지)
-        public static final String ATOMIC_MATCH_BY_WAIT = """
-            local waitQueueKey = KEYS[1]
-            local randomQueueKey = KEYS[2]
-            local matchCount = tonumber(ARGV[1])
-            
-            -- 가장 오래 기다린 사용자들 선택
-            local users = redis.call('ZRANGE', waitQueueKey, 0, matchCount - 1)
-            
-            if #users < matchCount then
-                return {0, 'INSUFFICIENT_USERS', #users}
-            end
-            
-            -- 원자적으로 두 큐에서 모두 제거
-            for i = 1, #users do
-                redis.call('ZREM', waitQueueKey, users[i])
-                redis.call('SREM', randomQueueKey, users[i])
-            end
-            
-            return {1, 'SUCCESS', unpack(users)}
-            """;
+        // 매칭 대기열 참가
+        public static final String JOIN_QUEUE = """
+                local queueKey = KEYS[1]
+                local userQueueKey = KEYS[2]
+                local lockKey = KEYS[3]
+                local userId = ARGV[1]
+                local score = tonumber(ARGV[2])
+                local userQueueValue = ARGV[3]
+                local ttlSeconds = tonumber(ARGV[4])
+               \s
+                -- 1. 분산 락 획득 (중복 참가 방지)
+                local lockAcquired = redis.call('SET', lockKey, '1', 'NX', 'EX', 30)
+                if not lockAcquired then
+                    return {0, 'ALREADY_IN_QUEUE', 0}
+                end
+               \s
+                -- 2. 이미 다른 큐에 참가 중인지 확인
+                local existingQueue = redis.call('GET', userQueueKey)
+                if existingQueue then
+                    redis.call('DEL', lockKey)  -- 락 해제
+                    return {0, 'ALREADY_IN_QUEUE', 0}
+                end
+               \s
+                -- 3. 대기열에 추가
+                redis.call('ZADD', queueKey, score, userId)
+               \s
+                -- 4. 사용자 참가 정보 저장
+                redis.call('SETEX', userQueueKey, ttlSeconds, userQueueValue)
+               \s
+                -- 5. 대기 순서 계산
+                local rank = redis.call('ZRANK', queueKey, userId)
+                local position = rank and (rank + 1) or 1
+               \s
+                -- 6. 락 해제
+                redis.call('DEL', lockKey)
+               \s
+                return {1, 'SUCCESS', position}
+               """;
 
-        // 매칭된 사용자들 정리 (ZSET 정리 포함, 올바른 반환 타입)
-        public static final String CLEANUP_MATCHED_USERS = """
-            local categoryId = ARGV[1]
-            local userCount = tonumber(ARGV[2])
-            
-            -- 동적 키 조립 대신 KEYS 배열 사용
-            local waitQueueKey = KEYS[2] -- getCleanupKeys에서 전달받은 waitQueueKey
-            local cleanedCount = 0
-            
-            for i = 1, userCount do
-                local userId = ARGV[i + 2]
-                
-                local userQueueKey = KEYS[2 + i]
-                local queueId = ARGV[2 + userCount + i]  -- i번째 queueId 전달
-                local queueMetaKey = 'queue:meta:{cat:' .. categoryId .. '}:' .. queueId
-                
-                -- 사용자 큐 정보 제거
-                if redis.call('EXISTS', userQueueKey) == 1 then
+        // 통합 매칭 처리 (랜덤 + 대기순 하이라이트)
+        public static final String FIND_MATCHES = """
+                local queueKey = KEYS[1]
+                local matchCount = tonumber(ARGV[1])
+                local useWaitOrder = tonumber(ARGV[2])
+               \s
+                -- 1. 대기 인원 확인
+                local availableCount = redis.call('ZCARD', queueKey)
+                if availableCount < matchCount then
+                    return {0, 'INSUFFICIENT_USERS', availableCount}
+                end
+               \s
+                local selectedUsers = {}
+               \s
+                if useWaitOrder == 1 then
+                    -- 대기순 매칭: 가장 오래 기다린 사용자들
+                    selectedUsers = redis.call('ZRANGE', queueKey, 0, matchCount - 1)
+                else
+                    -- 랜덤 매칭: 무작위 선택
+                    selectedUsers = redis.call('ZRANDMEMBER', queueKey, matchCount)
+                end
+               \s
+                if #selectedUsers < matchCount then
+                    return {0, 'INSUFFICIENT_USERS', #selectedUsers}
+                end
+               \s
+                -- 2. 선택된 사용자들을 대기열에서 제거
+                for i = 1, #selectedUsers do
+                    redis.call('ZREM', queueKey, selectedUsers[i])
+                end
+               \s
+                return {1, 'SUCCESS', unpack(selectedUsers)}
+               """;
+
+        // 대기열 탈퇴
+        public static final String LEAVE_QUEUE = """
+                local queueKey = KEYS[1]
+                local userQueueKey = KEYS[2]
+                local lockKey = KEYS[3]
+                local userId = ARGV[1]
+               \s
+                -- 1. 참가 상태 확인
+                local userQueueValue = redis.call('GET', userQueueKey)
+                if not userQueueValue then
+                    return {0, 'NOT_IN_QUEUE'}
+                end
+               \s
+                -- 2. 분산 락 획득
+                local lockAcquired = redis.call('SET', lockKey, '1', 'NX', 'EX', 10)
+                if not lockAcquired then
+                    return {0, 'LOCK_FAILED'}
+                end
+               \s
+                -- 3. 대기열에서 제거
+                local removed = redis.call('ZREM', queueKey, userId)
+               \s
+                -- 4. 사용자 참가 정보 삭제
+                redis.call('DEL', userQueueKey)
+               \s
+                -- 5. 락 해제
+                redis.call('DEL', lockKey)
+               \s
+                if removed == 1 then
+                    return {1, 'SUCCESS'}
+                else
+                    return {0, 'NOT_IN_QUEUE'}
+                end
+               """;
+
+        public static final String GET_QUEUE_STATUS = """
+                local userQueueKey = KEYS[1]
+                local userId = ARGV[1]
+               \s
+                -- 1. 사용자 참가 정보 조회
+                local userQueueValue = redis.call('GET', userQueueKey)
+                if not userQueueValue then
+                    return {0, 'NOT_IN_QUEUE'}
+                end
+               \s
+                -- 2. 참가 정보 파싱 
+                local parts = {}
+                for part in string.gmatch(userQueueValue, '([^:]+)') do
+                    table.insert(parts, part)
+                end
+               \s
+                if #parts ~= 3 then
+                    return {0, 'INVALID_DATA'}
+                end
+               \s
+                local categoryId = parts[1]
+                local queueId = parts[2]
+                local timestamp = tonumber(parts[3])
+               \s
+                -- 3. 대기열에서 위치 확인
+                local queueKey = 'queue:' .. categoryId
+                local rank = redis.call('ZRANK', queueKey, userId)
+                local totalWaiting = redis.call('ZCARD', queueKey)
+               \s
+                local position = rank and (rank + 1) or nil
+               \s
+                return {1, 'SUCCESS', categoryId, queueId, timestamp, position, totalWaiting}
+               \s
+               """;
+
+        public static final String CLEANUP_EXPIRED = """
+                local queueKey = KEYS[1]
+                local expiredTimestamp = tonumber(ARGV[1])
+               \s
+                -- 1. 만료된 사용자들 조회
+                local expiredUsers = redis.call('ZRANGEBYSCORE', queueKey, '-inf', expiredTimestamp)
+               \s
+                if #expiredUsers == 0 then
+                    return {1, 'NO_EXPIRED_USERS', 0}
+                end
+               \s
+                -- 2. 만료된 사용자들 제거
+                local removedCount = 0
+                for i = 1, #expiredUsers do
+                    local userId = expiredUsers[i]
+                   \s
+                    -- ZSET에서 제거
+                    local removed = redis.call('ZREM', queueKey, userId)
+                    if removed == 1 then
+                        removedCount = removedCount + 1
+                    end
+                   \s
+                    -- 사용자 큐 정보 제거
+                    local userQueueKey = 'queue:user:' .. userId
                     redis.call('DEL', userQueueKey)
-                    cleanedCount = cleanedCount + 1
                 end
-                
-                -- 메타데이터 제거
-                if redis.call('EXISTS', queueMetaKey) == 1 then
-                    redis.call('DEL', queueMetaKey)
+               \s
+                return {1, 'SUCCESS', removedCount}
+               """;
+
+        public static final String CLEANUP_MATCHED_USERS = """
+                local queueKey = KEYS[1]
+                local userCount = tonumber(ARGV[1])
+               \s
+                local cleanedCount = 0
+               \s
+                for i = 1, userCount do
+                    local userId = ARGV[i + 1]
+                    local userQueueKey = KEYS[i + 1]
+                   \s
+                    -- 사용자 큐 정보 제거
+                    local deleted = redis.call('DEL', userQueueKey)
+                    if deleted == 1 then
+                        cleanedCount = cleanedCount + 1
+                    end
                 end
-                
-                -- ZSET에서도 제거 (혹시 남아있을 경우)
-                redis.call('ZREM', waitQueueKey, userId)
-            end
-            
-            return cleanedCount
-            """;
+               \s
+                return cleanedCount
+               """;
     }
 
     // Redis 응답 메시지
@@ -145,6 +297,4 @@ public class RedisMatchingConstants {
         public static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
         public static final String QUEUE_NOT_FOUND = "QUEUE_NOT_FOUND";
     }
-
-    public record
 }
