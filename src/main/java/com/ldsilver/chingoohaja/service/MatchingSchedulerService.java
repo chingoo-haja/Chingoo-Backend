@@ -80,6 +80,10 @@ public class MatchingSchedulerService {
             List<Long> userIds = candidateResult.userIds();
             Long user1Id = userIds.get(0);
             Long user2Id = userIds.get(1);
+            if (user1Id.equals(user2Id)) {
+                log.warn("동일 사용자 매칭 감지 - categoryId: {}, userId: {}", category.getId(), user1Id);
+                return;
+            }
 
             Optional<User> user1Opt = userRepository.findById(user1Id);
             Optional<User> user2Opt = userRepository.findById(user2Id);
