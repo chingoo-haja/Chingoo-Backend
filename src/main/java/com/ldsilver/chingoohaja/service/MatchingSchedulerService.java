@@ -102,27 +102,31 @@ public class MatchingSchedulerService {
                 return;
             }
 
-            // 5. DB 성공했을 때만 Redis에서 사용자 제거
-            RedisMatchingQueueService.RemoveUserResult removeResult =
-                    redisMatchingQueueService.removeMatchedUsers(category.getId(), userIds);
-
-            if (!removeResult.success()) {
-                log.warn("Redis 사용자 제거 실패 - categoryId: {}, userIds: {}, reason: {}",
-                        category.getId(), userIds, removeResult.message());
-                // DB는 성공했으므로 매칭은 진행하되, Redis 정리만 실패한 상황
-            }
-
-            // 6. DB 매칭 큐 상태 업데이트 (WAITING -> MATCHING)
+            // 5. DB 매칭 큐 상태 업데이트 (WAITING -> MATCHING)
             updateMatchingQueueStatus(userIds, QueueStatus.MATCHING);
 
-            // 7. 통화방 입장용 세션 토큰 생성
+            // 6. 통화방 입장용 세션 토큰 생성
             String sessionToken = generateSessionToken();
 
-            // 8. WebSocket 매칭 성공 알림 전송
+            // 7. 커밋 이후 처리: Redis 제거 → WebSocket 매칭 성공 알림 전송
             TransactionSynchronizationManager.registerSynchronization(
                     new TransactionSynchronization() {
                         @Override
                         public void afterCommit() {
+                            try {
+                                RedisMatchingQueueService.RemoveUserResult removeResult =
+                                        redisMatchingQueueService.removeMatchedUsers(category.getId(), userIds);
+
+                                if (!removeResult.success()) {
+                                    log.warn("Redis 사용자 제거 실패 - categoryId: {}, userIds: {}, reason: {}",
+                                            category.getId(), userIds, removeResult.message());
+                                    // DB는 성공했으므로 매칭은 진행하되, Redis 정리만 실패한 상황
+                                }
+                            } catch (Exception ex) {
+                                log.warn("Redis 사용자 제거 중 예외 발생(커밋 후) - categoryId: {}, userIds: {}",
+                                        category.getId(), userIds, ex);
+                            }
+
                             sendMatchingSuccessNotification(user1, user2, savedCall);
                         }
                     }
