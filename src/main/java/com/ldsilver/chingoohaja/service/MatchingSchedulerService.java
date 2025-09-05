@@ -38,7 +38,6 @@ public class MatchingSchedulerService {
     private final WebSocketEventService webSocketEventService;
 
     @Scheduled(fixedDelay = MatchingValidationConstants.Scheduler.DEFAULT_MATCHING_DELAY)
-    @Transactional
     public void processMatching() {
         log.debug("하이브리드 매칭 스케줄러 실행");
 
@@ -55,7 +54,8 @@ public class MatchingSchedulerService {
         log.debug("하이브리드 매칭 스케줄러 완료");
     }
 
-    private void processMatchingForCategory(Category category) {
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    protected void processMatchingForCategory(Category category) {
         try {
             // 1. 대기 인원 확인
             long waitingCount = redisMatchingQueueService.getWaitingCount(category.getId());
