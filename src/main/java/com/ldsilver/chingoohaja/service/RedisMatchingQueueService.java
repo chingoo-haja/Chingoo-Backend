@@ -74,8 +74,9 @@ public class RedisMatchingQueueService {
 
     /**
      * 하이브리드 매칭 실행 (랜덤 80% (빠른 매칭) + 대기순 20%(공정성))
+     * DB 트랜잭션 전에 매칭 후보만 찾기
      */
-    public MatchResult findMatchesHybrid(Long categoryId, int matchCount) {
+    public MatchCandicateResult findMatchCandidates(Long categoryId, int matchCount) {
         log.debug("하이브리드 매칭 실행 - categoryId: {}, matchCount: {}", categoryId, matchCount);
         try {
             boolean userWaitOrder = Math.random() < (1 - MatchingValidationConstants.Queue.RANDOM_MATCH_RATIO);
@@ -90,7 +91,7 @@ public class RedisMatchingQueueService {
             );
 
             RedisScript<List> script = RedisScript.of(
-                    RedisMatchingConstants.LuaScripts.FIND_MATCHES, List.class);
+                    RedisMatchingConstants.LuaScripts.FIND_MATCH_CANDIDATES, List.class);
 
             List<Object> result = redisTemplate.execute(script, keys, args.toArray());
 
@@ -103,28 +104,28 @@ public class RedisMatchingQueueService {
                             .map(obj -> Long.valueOf(obj.toString()))
                             .toList();
 
-                    cleanupMatchedUsers(categoryId, userIds);
-
                     String strategy = userWaitOrder ? "대기순" : "랜덤";
-                    log.debug("{} 매칭 성공 - categoryId: {}, users: {}", strategy, categoryId, userIds);
-                    return new MatchResult(true, message, userIds);
+                    log.debug("{} 매칭 후보 조회 성공 - categoryId: {}, users: {}",
+                            strategy, categoryId, userIds);
+
+                    return new MatchCandicateResult(true, message, userIds);
                 } else {
-                    log.debug("매칭 실패 - categoryId: {}, reason: {}", categoryId, message);
-                    return new MatchResult(false, message, Collections.emptyList());
+                    log.debug("매칭 후보 조회 실패 - categoryId: {}, reason: {}", categoryId, message);
+                    return new MatchCandicateResult(false, message, Collections.emptyList());
                 }
             }
-            return new MatchResult(false, RedisMatchingConstants.ResponseMessage.UNKNOWN_ERROR, Collections.emptyList());
+            return new MatchCandicateResult(false, RedisMatchingConstants.ResponseMessage.UNKNOWN_ERROR, Collections.emptyList());
         } catch (Exception e) {
-            log.error("하이브리드 매칭 실패 - categoryId: {}", categoryId, e);
-            return new MatchResult(false, RedisMatchingConstants.ResponseMessage.REDIS_ERROR, Collections.emptyList());
+            log.error("하이브리드 매칭 후보 조회 실패 - categoryId: {}", categoryId, e);
+            return new MatchCandicateResult(false, RedisMatchingConstants.ResponseMessage.REDIS_ERROR, Collections.emptyList());
         }
     }
 
     /**
      * 매칭된 사용자들의 메타 데이터 정리 (Lua 스크립트)
      */
-    private void cleanupMatchedUsers(Long categoryId, List<Long> userIds) {
-        if (userIds.isEmpty()) return;
+    public RemoveUserResult removeMatchedUsers(Long categoryId, List<Long> userIds) {
+        log.debug("매칭된 사용자 제거 - categoryId: {}, users: {}", categoryId, userIds);
 
         try {
             List<String> keys = new ArrayList<>();
@@ -139,14 +140,21 @@ public class RedisMatchingQueueService {
             userIds.forEach(id -> args.add(id.toString()));
 
             RedisScript<Long> script = RedisScript.of(
-                    RedisMatchingConstants.LuaScripts.CLEANUP_MATCHED_USERS, Long.class
+                    RedisMatchingConstants.LuaScripts.REMOVE_MATCHED_USERS, Long.class
             );
 
-            Long cleanedCount = redisTemplate.execute(script, keys, args.toArray());
+            Long removedCount = redisTemplate.execute(script, keys, args.toArray());
 
-            log.debug("매칭된 사용자 정리 완료 - categoryId: {}, cleaned: {}",categoryId, cleanedCount);
+            boolean success = removedCount != null && removedCount > 0;
+            log.debug("매칭된 사용자 정리 완료 - categoryId: {}, removed: {}",categoryId, removedCount);
+
+            return new RemoveUserResult(success,
+                    success ? RedisMatchingConstants.ResponseMessage.SUCCESS : "REMOVED_FAILED",
+                    removedCount != null ? removedCount.intValue() : 0);
+
         } catch (Exception e) {
-            log.error("매칭된 사용자 정리 실패 - categoryId: {}, userIds: {}", categoryId, userIds, e);
+            log.error("매칭된 사용자 제거 실패 - categoryId: {}, userIds: {}", categoryId, userIds, e);
+            return new RemoveUserResult(false, RedisMatchingConstants.ResponseMessage.REDIS_ERROR, 0);
         }
     }
 
@@ -306,5 +314,7 @@ public class RedisMatchingQueueService {
     public record DequeueResult(boolean success, String message) {}
     public record MatchResult(boolean success, String message, List<Long> userIds) {}
     public record QueueStatusInfo(String queueId, Long categoryId, Integer position, Integer totalWaiting) {}
+    public record MatchCandicateResult(boolean success, String message, List<Long> userIds) {}
+    public record RemoveUserResult(boolean success, String message, int removedCount) {}
 }
 

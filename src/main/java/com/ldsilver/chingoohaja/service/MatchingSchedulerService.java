@@ -38,7 +38,6 @@ public class MatchingSchedulerService {
     private final WebSocketEventService webSocketEventService;
 
     @Scheduled(fixedDelay = MatchingValidationConstants.Scheduler.DEFAULT_MATCHING_DELAY)
-    @Transactional
     public void processMatching() {
         log.debug("하이브리드 매칭 스케줄러 실행");
 
@@ -55,7 +54,8 @@ public class MatchingSchedulerService {
         log.debug("하이브리드 매칭 스케줄러 완료");
     }
 
-    private void processMatchingForCategory(Category category) {
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    protected void processMatchingForCategory(Category category) {
         try {
             // 1. 대기 인원 확인
             long waitingCount = redisMatchingQueueService.getWaitingCount(category.getId());
@@ -67,25 +67,30 @@ public class MatchingSchedulerService {
             }
 
             // 2. 하이브리드 매칭 실행
-            RedisMatchingQueueService.MatchResult matchResult =
-                    redisMatchingQueueService.findMatchesHybrid(category.getId(), 2);
+            RedisMatchingQueueService.MatchCandicateResult candidateResult =
+                    redisMatchingQueueService.findMatchCandidates(category.getId(), 2);
 
-            if (!matchResult.success() || matchResult.userIds().size() < 2) {
+            if (!candidateResult.success() || candidateResult.userIds().size() < 2) {
                 log.debug("하이브리드 매칭 실패 - categoryId: {}, reason: {}",
-                        category.getId(), matchResult.message());
+                        category.getId(), candidateResult.message());
                 return;
             }
 
             // 3. 매칭된 사용자들 검증
-            List<Long> userIds = matchResult.userIds();
+            List<Long> userIds = candidateResult.userIds();
             Long user1Id = userIds.get(0);
             Long user2Id = userIds.get(1);
+            if (user1Id.equals(user2Id)) {
+                log.warn("동일 사용자 매칭 감지 - categoryId: {}, userId: {}", category.getId(), user1Id);
+                return;
+            }
 
             Optional<User> user1Opt = userRepository.findById(user1Id);
             Optional<User> user2Opt = userRepository.findById(user2Id);
 
             if (user1Opt.isEmpty() || user2Opt.isEmpty()) {
-                log.error("매칭된 사용자 조회 실패 - userId: {}, user2Id: {}", user1Id, user2Id);
+                log.error("매칭된 사용자 조회 실패 - user1Id: {}, user2Id: {}, user1Exists: {}, user2Exists: {}",
+                        user1Id, user2Id, user1Opt.isPresent(), user2Opt.isPresent());
                 return;
             }
 
@@ -97,6 +102,7 @@ public class MatchingSchedulerService {
 
             if (savedCall == null) {
                 log.error("Call 생성 실패 - categoryId: {}, userIds: {}", category.getId(), userIds);
+                // Call 생성 실패 시 Redis 큐에서 사용자를 제거할지 아니면 다시 시도할지 결정 필요
                 return;
             }
 
@@ -106,11 +112,25 @@ public class MatchingSchedulerService {
             // 6. 통화방 입장용 세션 토큰 생성
             String sessionToken = generateSessionToken();
 
-            // 7. WebSocket 매칭 성공 알림 전송
+            // 7. 커밋 이후 처리: Redis 제거 → WebSocket 매칭 성공 알림 전송
             TransactionSynchronizationManager.registerSynchronization(
                     new TransactionSynchronization() {
                         @Override
                         public void afterCommit() {
+                            try {
+                                RedisMatchingQueueService.RemoveUserResult removeResult =
+                                        redisMatchingQueueService.removeMatchedUsers(category.getId(), userIds);
+
+                                if (!removeResult.success()) {
+                                    log.warn("Redis 사용자 제거 실패 - categoryId: {}, userIds: {}, reason: {}",
+                                            category.getId(), userIds, removeResult.message());
+                                    // DB는 성공했으므로 매칭은 진행하되, Redis 정리만 실패한 상황
+                                }
+                            } catch (Exception ex) {
+                                log.warn("Redis 사용자 제거 중 예외 발생(커밋 후) - categoryId: {}, userIds: {}",
+                                        category.getId(), userIds, ex);
+                            }
+
                             sendMatchingSuccessNotification(user1, user2, savedCall);
                         }
                     }
