@@ -3,6 +3,7 @@ package com.ldsilver.chingoohaja.service;
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.dto.matching.MatchingCategoryStats;
+import com.ldsilver.chingoohaja.dto.matching.request.MatchingStatsRequest;
 import com.ldsilver.chingoohaja.dto.matching.response.RealtimeMatchingStatsResponse;
 import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.repository.CategoryRepository;
@@ -74,6 +75,10 @@ public class MatchingStatsService {
             log.error("실시간 매칭 통계 조회 실패", e);
             throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR, "통계 조회 중 오류가 발생했습니다.");
         }
+    }
+
+    public MatchingStatsResponse getCategoryMatchingStats(Long categoryId, MatchingStatsRequest request, Long userId) {
+
     }
 
 
