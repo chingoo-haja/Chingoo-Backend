@@ -59,4 +59,23 @@ public interface CallRepository extends JpaRepository<Call, Long> {
     List<Object[]> getDailyCallStats(@Param("startDate") LocalDateTime startDate,
                                      @Param("endDate") LocalDateTime endDate);
 
+
+    // CallRepository에 추가 필요한 메서드들
+    @Query("SELECT c.category.id, c.category.name, COUNT(c) FROM Call c " +
+            "WHERE (c.user1.id = :userId OR c.user2.id = :userId) " +
+            "GROUP BY c.category.id, c.category.name")
+    List<Object[]> getUserCallStatsByCategory(@Param("userId") Long userId);
+
+    @Query("SELECT COUNT(c) FROM Call c WHERE c.category.id = :categoryId " +
+            "AND c.createdAt BETWEEN :start AND :end")
+    long countCallsByCategoryBetween(@Param("categoryId") Long categoryId,
+                                     @Param("start") LocalDateTime start,
+                                     @Param("end") LocalDateTime end);
+
+    @Query("SELECT AVG(c.durationSeconds) FROM Call c WHERE c.category.id = :categoryId " +
+            "AND c.createdAt BETWEEN :start AND :end AND c.callStatus = 'COMPLETED'")
+    Double getAverageCallDurationByCategory(@Param("categoryId") Long categoryId,
+                                            @Param("start") LocalDateTime start,
+                                            @Param("end") LocalDateTime end);
+
 }
