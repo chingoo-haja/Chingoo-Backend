@@ -279,7 +279,8 @@ public class MatchingStatsService {
                         category.getName(),
                         categoryCallCount,
                         85.0, // success_rate (실제 계산 가능)
-                        110.0, // average_wait_time (추정)
+                        110.0, // average_wait_time (추정),
+                        avgDuration,
                         7.5, // popularity_score (전체 대비 비율로 계산 가능)
                         List.of(19, 20, 21), // peak_hours (TODO)
                         4.2, // user_satisfaction (TODO)

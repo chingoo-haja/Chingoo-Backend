@@ -58,6 +58,7 @@ public record MatchingStatsResponse(
             @JsonProperty("total_matches") long totalMatches,
             @JsonProperty("success_rate") double successRate,
             @JsonProperty("average_wait_time") double averageWaitTime,
+            @JsonProperty("average_call_time") double averageCallTime,
             @JsonProperty("popularity_score") double popularityScore,
             @JsonProperty("peak_hours") List<Integer> peakHours,
             @JsonProperty("user_satisfaction") double userSatisfaction,
