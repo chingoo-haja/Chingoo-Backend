@@ -291,7 +291,7 @@ public class MatchingStatsService {
 
     private double calculateGrowthRate(Long categoryId, LocalDateTime start, LocalDateTime end) {
         // 이전 기간과 비교하여 성장률 계산 가능
-        long periodDays = ChronoUnit.DAYS.between(start.toLocalDate(), end.toLocalDate());
+        long periodDays = Math.max(1, ChronoUnit.DAYS.between(start.toLocalDate(), end.toLocalDate()));
         LocalDateTime previousStart = start.minusDays(periodDays);
 
         long currentPeriodCalls = callRepository.countCallsByCategoryBetween(categoryId, start, end);
