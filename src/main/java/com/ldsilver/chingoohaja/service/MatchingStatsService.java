@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -164,6 +165,10 @@ public class MatchingStatsService {
     }
 
     private Map<Long, Double> getCategorySuccessRatesMap(List<Long> categoryIds, LocalDateTime todayStart, LocalDateTime now) {
+        if (categoryIds == null || categoryIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
         List<Object[]> results = matchingQueueRepository.getBatchCategorySuccessRates(categoryIds, todayStart, now);
 
         return results.stream().collect(Collectors.toMap(
