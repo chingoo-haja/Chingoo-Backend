@@ -222,13 +222,20 @@ public class MatchingStatsService {
     private List<MatchingStatsResponse.TimeSeriesData> buildTimeSeries(List<Object[]> dailyStats) {
         return dailyStats.stream()
                 .map(data -> new MatchingStatsResponse.TimeSeriesData(
-                        (LocalDateTime) data[0], // 날짜
+                        toLocalDateTime(data[0]), // 날짜
                         ((Number) data[1]).intValue(), // 매칭 수
                         ((Number) data[1]).intValue() / 2, // 대기 사용자 (추정)
                         85.0, // TODO: 실제 성공률 계산
                         ((Number) data[2]).doubleValue() // 평균 대기시간
                 ))
                 .toList();
+    }
+
+    private static LocalDateTime toLocalDateTime(Object value) {
+        if (value instanceof LocalDateTime ldt) return ldt;
+        if (value instanceof java.time.LocalDate ld) return ld.atStartOfDay();
+        if (value instanceof java.sql.Timestamp ts) return ts.toLocalDateTime();
+        throw new IllegalArgumentException("Unsupported timestamp type: " + value.getClass());
     }
 
     private MatchingStatsResponse.UserAnalytics buildUserAnalytics(LocalDateTime start, LocalDateTime end) {
