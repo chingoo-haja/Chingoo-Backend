@@ -64,8 +64,8 @@ public record RealtimeMatchingStatsResponse(
         }
 
         private static int calculateEstimatedWaitTime(long waitingCount) {
-            if (waitingCount <= 1) return 0;
-            return (int) Math.min(waitingCount * 30, 600); // 최대 10분
+            long safe = Math.max(0, waitingCount);
+            return (int) Math.min(safe * 30, 600); // 최대 10분
         }
     }
 
