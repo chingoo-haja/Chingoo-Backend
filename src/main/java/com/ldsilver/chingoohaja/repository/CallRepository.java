@@ -67,6 +67,7 @@ public interface CallRepository extends JpaRepository<Call, Long> {
     List<Object[]> getUserCallStatsByCategory(@Param("userId") Long userId);
 
     @Query("SELECT COUNT(c) FROM Call c WHERE c.category.id = :categoryId " +
+            "AND c.callStatus = 'COMPLETE' " +
             "AND c.createdAt BETWEEN :start AND :end")
     long countCallsByCategoryBetween(@Param("categoryId") Long categoryId,
                                      @Param("start") LocalDateTime start,
