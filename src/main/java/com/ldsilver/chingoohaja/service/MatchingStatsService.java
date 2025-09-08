@@ -145,10 +145,18 @@ public class MatchingStatsService {
                 .toList();
     }
 
-    private double getCategorySuccessRate(Long categoryId, LocalDateTime start, LocalDateTime end) {
-        // TODO: 카테고리별 성공률 계산 로직 구현
-        // 임시로 전체 성공률 사용
-        return getTodaySuccessRate(start, end);
+    private double getCategorySuccessRate(Long categoryId, LocalDateTime todayStart, LocalDateTime now) {
+        List<Object[]> successRateData = matchingQueueRepository.getCategoryMatchingSuccessRate(categoryId, todayStart, now);
+
+        if (successRateData.isEmpty()) {
+            return 0.0;
+        }
+
+        Object[] data = successRateData.get(0);
+        long matched = ((Number) data[0]).longValue();
+        long total = ((Number) data[1]).longValue();
+
+        return total > 0 ? (double) matched / total * 100 : 0.0;
     }
 
     private List<RealtimeMatchingStatsResponse.PeakHour> getPeakHours() {

@@ -90,4 +90,15 @@ public interface MatchingQueueRepository extends JpaRepository<MatchingQueue, Lo
      * queueId로 매칭 큐 조회
      */
     Optional<MatchingQueue> findByQueueId(String queueId);
+
+    // 카테고리별 매칭 성공률 통계
+    @Query("SELECT " +
+            "COUNT(CASE WHEN mq.queueStatus = 'MATCHING' THEN 1 END) as matched, " +
+            "COUNT(mq) as total " +
+            "FROM MatchingQueue mq " +
+            "WHERE mq.category.id = :categoryId " +
+            "AND mq.createdAt BETWEEN :startDate AND :endDate")
+    List<Object[]> getCategoryMatchingSuccessRate(@Param("categoryId") Long categoryId,
+                                                  @Param("startDate") LocalDateTime startDate,
+                                                  @Param("endDate") LocalDateTime endDate);
 }
