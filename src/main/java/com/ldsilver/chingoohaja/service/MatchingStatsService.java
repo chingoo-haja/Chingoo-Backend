@@ -244,7 +244,7 @@ public class MatchingStatsService {
 
         // 활성 사용자 수 (최근 30일 로그인)
         LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
-        long activeUsers = userRepository.countActiveUsers(thirtyDaysAgo);
+        long activeUsersLast30Days = userRepository.countActiveUsers(thirtyDaysAgo);
 
         // 사용자 세그먼트 (Provider별 통계)
         List<Object[]> providerStats = userRepository.getProviderStatistics();
@@ -259,8 +259,8 @@ public class MatchingStatsService {
 
         return new MatchingStatsResponse.UserAnalytics(
                 newUsers.size(),
-                (int) activeUsers,
-                activeUsers > 0 ? (double) newUsers.size() / activeUsers * 100 : 0.0,
+                (int) activeUsersLast30Days,
+                activeUsersLast30Days > 0 ? (double) newUsers.size() / activeUsersLast30Days * 100 : 0.0,
                 2.5, // average_sessions_per_user (추정)
                 segments
         );
