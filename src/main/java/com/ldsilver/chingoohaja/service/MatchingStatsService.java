@@ -126,9 +126,13 @@ public class MatchingStatsService {
     private List<RealtimeMatchingStatsResponse.CategoryRealTimeStats> buildCategoryRealtimeStats(
             Map<Long, MatchingCategoryStats> categoryStatsMap, LocalDateTime todayStart, LocalDateTime now) {
 
+        // 모든 카테고리의 성공률을 한 번에 조회 (성능 최적화)
+        List<Long> categoryIds = categoryStatsMap.keySet().stream().toList();
+        Map<Long, Double> successRateMap = getCategorySuccessRatesMap(categoryIds, todayStart, now);
+
         return categoryStatsMap.values().stream()
                 .map(stats -> {
-                    double todaySuccessRate = getCategorySuccessRate(stats.categoryId(), todayStart, now);
+                    double todaySuccessRate = successRateMap.getOrDefault(stats.categoryId(), 0.0);
                     int estimatedWaitTime = (int) Math.min(stats.waitingCount() * 30, 600);
 
                     return new RealtimeMatchingStatsResponse.CategoryRealTimeStats(
@@ -157,6 +161,19 @@ public class MatchingStatsService {
         long total = ((Number) data[1]).longValue();
 
         return total > 0 ? (double) matched / total * 100 : 0.0;
+    }
+
+    private Map<Long, Double> getCategorySuccessRatesMap(List<Long> categoryIds, LocalDateTime todayStart, LocalDateTime now) {
+        List<Object[]> results = matchingQueueRepository.getBatchCategorySuccessRates(categoryIds, todayStart, now);
+
+        return results.stream().collect(Collectors.toMap(
+                data -> ((Number) data[0]).longValue(), // categoryId
+                data -> {
+                    long matched = ((Number) data[1]).longValue();
+                    long total = ((Number) data[2]).longValue();
+                    return total > 0 ? (double) matched / total * 100 : 0.0;
+                }
+        ));
     }
 
     private List<RealtimeMatchingStatsResponse.PeakHour> getPeakHours() {

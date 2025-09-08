@@ -101,4 +101,16 @@ public interface MatchingQueueRepository extends JpaRepository<MatchingQueue, Lo
     List<Object[]> getCategoryMatchingSuccessRate(@Param("categoryId") Long categoryId,
                                                   @Param("startDate") LocalDateTime startDate,
                                                   @Param("endDate") LocalDateTime endDate);
+
+    // 여러 카테고리의 성공률을 한 번에 조회
+    @Query("SELECT mq.category.id, " +
+            "COUNT(CASE WHEN mq.queueStatus = 'MATCHING' THEN 1 END) as matched, " +
+            "COUNT(mq) as total " +
+            "FROM MatchingQueue mq " +
+            "WHERE mq.category.id IN :categoryIds " +
+            "AND mq.createdAt BETWEEN :startDate AND :endDate " +
+            "GROUP BY mq.category.id")
+    List<Object[]> getBatchCategorySuccessRates(@Param("categoryIds") List<Long> categoryIds,
+                                                @Param("startDate") LocalDateTime startDate,
+                                                @Param("endDate") LocalDateTime endDate);
 }
