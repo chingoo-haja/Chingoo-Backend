@@ -52,11 +52,12 @@ public record RealtimeMatchingStatsResponse(
             @JsonProperty("trend") String trend // UP, DOWN, STABLE
     ) {
         public static CategoryRealTimeStats from(MatchingCategoryStats stats) {
+            long waiting = (stats.waitingCount() == null) ? 0L : stats.waitingCount();
             return new CategoryRealTimeStats(
                     stats.categoryId(),
                     stats.categoryName(),
-                    stats.waitingCount(),
-                    calculateEstimatedWaitTime(stats.waitingCount()),
+                    waiting,
+                    calculateEstimatedWaitTime(waiting),
                     85.0, // TODO: 실제 성공률 계산
                     1,    // TODO: 실제 인기도 순위 계산
                     "STABLE" // TODO: 실제 트렌드 계산
