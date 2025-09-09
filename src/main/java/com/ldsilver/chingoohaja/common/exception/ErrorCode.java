@@ -22,6 +22,8 @@ public enum ErrorCode {
     IS_NOT_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "A006", "리프레시 토큰이 아닙니다."),
     REFRESH_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "A007", "데이터베이스에서 리프레시 토큰을 찾을 수 없습니다."),
     INVALID_ACCESS_TOKEN(HttpStatus.UNAUTHORIZED, "A008", "유효하지 않은 액세스 토큰입니다."),
+    REFRESH_TOKEN_NOT_FOUND_IN_COOKIE(HttpStatus.UNAUTHORIZED, "A009", "쿠키에서 리프레시 토큰을 찾을 수 없습니다."),
+    COOKIE_NOT_SUPPORTED(HttpStatus.BAD_REQUEST, "A010", "쿠키를 지원하지 않는 환경입니다."),
 
     // JWT 관련 에러
     JWT_INVALID(HttpStatus.UNAUTHORIZED, "J001", "유효하지 않은 JWT 토큰입니다."),
