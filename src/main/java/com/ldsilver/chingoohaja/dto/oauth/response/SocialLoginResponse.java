@@ -33,6 +33,17 @@ public record SocialLoginResponse(
         );
     }
 
+    public SocialLoginResponse withoutRefreshToken() {
+        return new SocialLoginResponse(
+                this.accessToken,
+                null, // refresh_token을 null로 설정
+                this.tokenType,
+                this.expiresIn,
+                this.issuedAt,
+                this.userInfo
+        );
+    }
+
     public record UserInfo(
             @JsonProperty("id") Long id,
             @JsonProperty("email") String email,

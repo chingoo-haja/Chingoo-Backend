@@ -28,6 +28,16 @@ public record TokenResponse (
         return new TokenResponse(newAccessToken, existingRefreshToken, "Bearer", expiresIn, LocalDateTime.now());
     }
 
+    public TokenResponse withoutRefreshToken() {
+        return new TokenResponse(
+                this.accessToken,
+                null, // refresh_token을 null로 설정
+                this.tokenType,
+                this.expiresIn,
+                this.issuedAt
+        );
+    }
+
     public String maskedAccessToken() {
         return maskToken(accessToken);
     }
