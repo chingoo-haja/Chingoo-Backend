@@ -2,6 +2,7 @@ package com.ldsilver.chingoohaja.controller;
 
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
+import com.ldsilver.chingoohaja.config.CookieProperties;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.dto.oauth.request.LogoutRequest;
 import com.ldsilver.chingoohaja.dto.oauth.request.RefreshTokenRequest;
@@ -19,7 +20,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,15 +35,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final OAuthConfigService oAuthConfigService;
-
-    @Value("${app.cookie.secure:true}")
-    private boolean cookieSecure;
-
-    @Value("${app.cookie.same-site:Lax}")
-    private String cookieSameSite;
-
-    @Value("${app.cookie.max-age:2592000}")
-    private int cookieMaxAge;
+    private final CookieProperties cookieProperties;
 
     @Operation(
             summary = "OAuth 설정 정보 조회",
@@ -198,10 +190,10 @@ public class AuthController {
 
         ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
                 .httpOnly(true)
-                .secure(cookieSecure)
-                .sameSite(cookieSameSite)
+                .secure(cookieProperties.isSecure())
+                .sameSite(cookieProperties.getSameSite())
                 .path("/")
-                .maxAge(Duration.ofSeconds(cookieMaxAge))
+                .maxAge(Duration.ofSeconds(cookieProperties.getMaxAge()))
                 .build();
 
         response.addHeader("Set-Cookie", cookie.toString());
@@ -228,8 +220,8 @@ public class AuthController {
     private void clearRefreshTokenCookie(HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
                 .httpOnly(true)
-                .secure(cookieSecure)
-                .sameSite(cookieSameSite)
+                .secure(cookieProperties.isSecure())
+                .sameSite(cookieProperties.getSameSite())
                 .path("/")
                 .maxAge(0) // 즉시 만료
                 .build();
