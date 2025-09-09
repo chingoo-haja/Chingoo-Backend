@@ -44,11 +44,11 @@ public class CorsConfig {
         ));
 
         configuration.setExposedHeaders(Arrays.asList(
-                "Authorization"
+                "Authorization",
+                "Set-Cookie"
         ));
 
         configuration.setAllowCredentials(true);
-
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -77,6 +77,11 @@ public class CorsConfig {
         configuration.setAllowedHeaders(Arrays.asList(
                 "Authorization",
                 "Content-Type"
+        ));
+
+        configuration.setExposedHeaders(Arrays.asList(
+                "Authorization",
+                "Set-Cookie" // 쿠키 헤더 노출 추가
         ));
 
         configuration.setAllowCredentials(true);
