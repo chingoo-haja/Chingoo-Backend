@@ -128,9 +128,8 @@ public class AuthController {
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
 
-        // request가 null인 경우 기본값 설정
         if (request == null) {
-            request = new LogoutRequest(null, false);
+            request = new LogoutRequest(false);
         }
 
         log.debug("로그아웃 요청 - logoutAll: {}", request.isLogoutAll());
@@ -139,8 +138,8 @@ public class AuthController {
         String refreshToken = extractRefreshTokenFromCookie(httpRequest);
 
         // 쿠키에서 가져온 refresh token으로 LogoutRequest 생성
-        LogoutRequest logoutRequest = new LogoutRequest(refreshToken, request.isLogoutAll());
-        authService.logout(accessToken, logoutRequest);
+        LogoutRequest logoutRequest = new LogoutRequest(request.isLogoutAll());
+        authService.logout(accessToken, refreshToken, logoutRequest);
 
         // Refresh Token 쿠키 삭제
         clearRefreshTokenCookie(httpResponse);
