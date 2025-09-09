@@ -1,5 +1,7 @@
 package com.ldsilver.chingoohaja.controller;
 
+import com.ldsilver.chingoohaja.common.exception.CustomException;
+import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.dto.oauth.request.LogoutRequest;
 import com.ldsilver.chingoohaja.dto.oauth.request.RefreshTokenRequest;
@@ -102,7 +104,7 @@ public class AuthController {
         // 쿠키에서 refresh token 추출
         String refreshToken = extractRefreshTokenFromCookie(request);
         if (refreshToken == null || refreshToken.trim().isEmpty()) {
-            throw new RuntimeException("Refresh token not found in cookie");
+            throw new CustomException(ErrorCode.REFRESH_TOKEN_NOT_FOUND_IN_COOKIE);
         }
 
         RefreshTokenRequest refreshRequest = new RefreshTokenRequest(refreshToken);
@@ -128,7 +130,7 @@ public class AuthController {
     )
     @PostMapping("/logout")
     public ApiResponse<Void> logout(
-            @Valid @RequestBody LogoutRequest request,
+            @Valid @RequestBody (required = false) LogoutRequest request,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
 
