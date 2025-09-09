@@ -85,7 +85,7 @@ public class AuthController {
         // 응답에서 refresh_token 제거
         SocialLoginResponse responseWithoutRefresToken = response.withoutRefreshToken();
 
-        return ApiResponse.ok("로그인 성공", response);
+        return ApiResponse.ok("로그인 성공", responseWithoutRefresToken);
     }
 
 
