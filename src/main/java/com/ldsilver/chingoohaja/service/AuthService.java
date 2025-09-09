@@ -124,7 +124,7 @@ public class AuthService {
 
 
     @Transactional
-    public void logout(String accessToken, LogoutRequest request) {
+    public void logout(String accessToken, String refreshToken,LogoutRequest request) {
         log.debug("로그아웃 처리 시작 - logoutAll: {}", request.isLogoutAll());
 
         try {
@@ -138,9 +138,9 @@ public class AuthService {
             if (request.isLogoutAll()) {
                 logoutAllDevices(user);
             } else {
-                if (!request.hasRefreshToken())
+                if (refreshToken == null || refreshToken.trim().isEmpty())
                     throw new CustomException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
-                logoutCurrentDevice(userId, request.refreshToken());
+                logoutCurrentDevice(userId, refreshToken);
             }
 
             long remainingTime = jwtTokenProvider.getTimeUntilExpiration(accessToken);

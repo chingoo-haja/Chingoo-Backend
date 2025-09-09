@@ -1,9 +1,11 @@
 package com.ldsilver.chingoohaja.dto.oauth.response;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.LocalDateTime;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public record TokenResponse (
         @JsonProperty("access_token") String accessToken,
         @JsonProperty("refresh_token") String refreshToken,
@@ -26,6 +28,16 @@ public record TokenResponse (
 
     public static TokenResponse forRefresh(String newAccessToken, String existingRefreshToken, Long expiresIn) {
         return new TokenResponse(newAccessToken, existingRefreshToken, "Bearer", expiresIn, LocalDateTime.now());
+    }
+
+    public TokenResponse withoutRefreshToken() {
+        return new TokenResponse(
+                this.accessToken,
+                null, // refresh_token을 null로 설정
+                this.tokenType,
+                this.expiresIn,
+                this.issuedAt
+        );
     }
 
     public String maskedAccessToken() {

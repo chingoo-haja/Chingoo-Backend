@@ -2,11 +2,9 @@ package com.ldsilver.chingoohaja.dto.oauth.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ldsilver.chingoohaja.validation.AuthValidationConstants;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record RefreshTokenRequest(
-        @NotBlank(message = AuthValidationConstants.Token.REFRESH_TOKEN_REQUIRED)
         @Size(
                 min = AuthValidationConstants.Token.MIN_TOKEN_LENGTH,
                 max = AuthValidationConstants.Token.MAX_TOKEN_LENGTH,
