@@ -37,6 +37,8 @@ public class AuthController {
     private final OAuthConfigService oAuthConfigService;
     private final CookieProperties cookieProperties;
 
+    private static final String REFRESH_TOKEN_COOKIE = "refreshToken";
+
     @Operation(
             summary = "OAuth 설정 정보 조회",
             description = "프론트엔드에서 소셜 로그인을 위한 OAuth 설정 정보를 제공합니다. " +
@@ -77,9 +79,9 @@ public class AuthController {
         setRefreshTokenCookie(httpResponse, response.refreshToken());
 
         // 응답에서 refresh_token 제거
-        SocialLoginResponse responseWithoutRefresToken = response.withoutRefreshToken();
+        SocialLoginResponse responseWithoutRefreshToken = response.withoutRefreshToken();
 
-        return ApiResponse.ok("로그인 성공", responseWithoutRefresToken);
+        return ApiResponse.ok("로그인 성공", responseWithoutRefreshToken);
     }
 
 
@@ -188,7 +190,7 @@ public class AuthController {
             return;
         }
 
-        ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
+        ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE, refreshToken)
                 .httpOnly(true)
                 .secure(cookieProperties.isSecure())
                 .sameSite(cookieProperties.getSameSite())
@@ -206,7 +208,7 @@ public class AuthController {
     private String extractRefreshTokenFromCookie(HttpServletRequest request) {
         if (request.getCookies() != null) {
             for (Cookie cookie : request.getCookies()) {
-                if ("refreshToken".equals(cookie.getName())) {
+                if (REFRESH_TOKEN_COOKIE.equals(cookie.getName())) {
                     return cookie.getValue();
                 }
             }
@@ -218,7 +220,7 @@ public class AuthController {
      * Refresh Token 쿠키 삭제
      */
     private void clearRefreshTokenCookie(HttpServletResponse response) {
-        ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
+        ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE, "")
                 .httpOnly(true)
                 .secure(cookieProperties.isSecure())
                 .sameSite(cookieProperties.getSameSite())
