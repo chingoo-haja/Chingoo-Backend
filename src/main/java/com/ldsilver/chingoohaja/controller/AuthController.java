@@ -1,21 +1,28 @@
 package com.ldsilver.chingoohaja.controller;
 
+import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.dto.oauth.request.LogoutRequest;
 import com.ldsilver.chingoohaja.dto.oauth.request.RefreshTokenRequest;
 import com.ldsilver.chingoohaja.dto.oauth.request.SocialLoginRequest;
 import com.ldsilver.chingoohaja.dto.oauth.response.*;
-import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.service.AuthService;
 import com.ldsilver.chingoohaja.service.OAuthConfigService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseCookie;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.Duration;
+
 
 @Slf4j
 @RestController
@@ -26,6 +33,15 @@ public class AuthController {
 
     private final AuthService authService;
     private final OAuthConfigService oAuthConfigService;
+
+    @Value("${app.cookie.secure:true}")
+    private boolean cookieSecure;
+
+    @Value("${app.cookie.same-site:Lax}")
+    private String cookieSameSite;
+
+    @Value("${app.cookie.max-age:2592000}")
+    private int cookieMaxAge;
 
     @Operation(
             summary = "OAuth 설정 정보 조회",
@@ -53,7 +69,8 @@ public class AuthController {
             @Parameter(description = "OAuth 공급자", example = "kakao")
             @PathVariable String provider,
             @Valid @RequestBody SocialLoginRequest request,
-            HttpServletRequest httpRequest) {
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
 
         log.debug("소셜 로그인 요청 - provider: {}, state: {}", provider, request.getState());
 
@@ -61,6 +78,12 @@ public class AuthController {
         request.setClientIp(getClientIpAddress(httpRequest));
 
         SocialLoginResponse response = authService.socialLogin(provider, request);
+
+        // Refresh Token을 HttpOnly 쿠키로 설정
+        setRefreshTokenCookie(httpResponse, response.refreshToken());
+
+        // 응답에서 refresh_token 제거
+        SocialLoginResponse responseWithoutRefresToken = response.withoutRefreshToken();
 
         return ApiResponse.ok("로그인 성공", response);
     }
@@ -72,11 +95,28 @@ public class AuthController {
     )
     @PostMapping("/refresh")
     public ApiResponse<TokenResponse> refreshToken(
-            @Valid @RequestBody RefreshTokenRequest request) {
+            HttpServletRequest request,
+            HttpServletResponse response) {
         log.debug("토큰 갱신 요청");
 
-        TokenResponse response = authService.refreshToken(request);
-        return ApiResponse.ok("토큰 갱신 성공",response);
+        // 쿠키에서 refresh token 추출
+        String refreshToken = extractRefreshTokenFromCookie(request);
+        if (refreshToken == null || refreshToken.trim().isEmpty()) {
+            throw new RuntimeException("Refresh token not found in cookie");
+        }
+
+        RefreshTokenRequest refreshRequest = new RefreshTokenRequest(refreshToken);
+        TokenResponse tokenResponse = authService.refreshToken(refreshRequest);
+
+        // 새로운 Refresh Token을 쿠키로 설정 (갱신된 경우)
+        if (tokenResponse.refreshToken() != null) {
+            setRefreshTokenCookie(response, tokenResponse.refreshToken());
+        }
+
+        // 응답에서 refresh_token 제거
+        TokenResponse responseWithoutRefreshToken = tokenResponse.withoutRefreshToken();
+
+        return ApiResponse.ok("토큰 갱신 성공", responseWithoutRefreshToken);
     }
 
 
@@ -89,11 +129,25 @@ public class AuthController {
     @PostMapping("/logout")
     public ApiResponse<Void> logout(
             @Valid @RequestBody LogoutRequest request,
-            HttpServletRequest httpRequest ) {
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
+
+        // request가 null인 경우 기본값 설정
+        if (request == null) {
+            request = new LogoutRequest(null, false);
+        }
+
         log.debug("로그아웃 요청 - logoutAll: {}", request.isLogoutAll());
 
         String accessToken = extractAccessTokenFromRequest(httpRequest);
-        authService.logout(accessToken, request);
+        String refreshToken = extractRefreshTokenFromCookie(httpRequest);
+
+        // 쿠키에서 가져온 refresh token으로 LogoutRequest 생성
+        LogoutRequest logoutRequest = new LogoutRequest(refreshToken, request.isLogoutAll());
+        authService.logout(accessToken, logoutRequest);
+
+        // Refresh Token 쿠키 삭제
+        clearRefreshTokenCookie(httpResponse);
 
         return ApiResponse.ok("로그아웃 성공");
     }
@@ -128,6 +182,58 @@ public class AuthController {
         UserMeResponse response = authService.getMyInfo(accessToken);
 
         return ApiResponse.ok("사용자 정보 조회 성공", response);
+    }
+
+
+
+    /**
+     * Refresh Token을 HttpOnly 쿠키로 설정
+     */
+    private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
+        if (refreshToken == null || refreshToken.trim().isEmpty()) {
+            return;
+        }
+
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
+                .path("/")
+                .maxAge(Duration.ofSeconds(cookieMaxAge))
+                .build();
+
+        response.addHeader("Set-Cookie", cookie.toString());
+        log.debug("Refresh Token 쿠키 설정 완료");
+    }
+
+    /**
+     * 쿠키에서 Refresh Token 추출
+     */
+    private String extractRefreshTokenFromCookie(HttpServletRequest request) {
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("refreshToken".equals(cookie.getName())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Refresh Token 쿠키 삭제
+     */
+    private void clearRefreshTokenCookie(HttpServletResponse response) {
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
+                .path("/")
+                .maxAge(0) // 즉시 만료
+                .build();
+
+        response.addHeader("Set-Cookie", cookie.toString());
+        log.debug("Refresh Token 쿠키 삭제 완료");
     }
 
 
