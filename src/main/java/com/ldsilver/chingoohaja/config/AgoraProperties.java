@@ -1,0 +1,50 @@
+package com.ldsilver.chingoohaja.config;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.Getter;
+import lombok.Setter;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+import org.springframework.validation.annotation.Validated;
+
+@Getter
+@Setter
+@Component
+@Validated
+@ConfigurationProperties(prefix = "app.agora")
+public class AgoraProperties {
+
+    @NotBlank(message = "Agora App ID는 필수입니다.")
+    @Size(min = 32, max = 32, message = "Agora App ID는 32자여야 합니다.")
+    private String appId;
+
+    @NotBlank(message = "Agora App Certificate는 필수입니다.")
+    @Size(min = 32, max = 32, message = "Agora App Certificate는 32자여야 합니다.")
+    private String appCertificate;
+
+    @NotBlank(message = "Agora Customer ID는 필수입니다.")
+    private String customerId;
+
+    @NotBlank(message = "Agora Customer Secret은 필수입니다.")
+    private String customerSecret;
+
+    // Token 설정
+    private int tokenExpirationInSeconds = 3600; // 1시간
+
+    // REST API 설정
+    private String restApiBaseUrl = "https://api.agora.io";
+
+    // Cloud Recording 설정
+    private String recordingRegion = "AP"; // Asia Pacific
+    private String recordingStorageVendor = "1"; // AWS S3
+    private String recordingStorageBucket;
+    private String recordingStorageAccessKey;
+    private String recordingStorageSecretKey;
+
+    public boolean isCloudRecordingConfigured() {
+        return recordingStorageBucket != null && !recordingStorageBucket.trim().isEmpty() &&
+                recordingStorageAccessKey != null && !recordingStorageAccessKey.trim().isEmpty() &&
+                recordingStorageSecretKey != null && !recordingStorageSecretKey.trim().isEmpty();
+    }
+}
