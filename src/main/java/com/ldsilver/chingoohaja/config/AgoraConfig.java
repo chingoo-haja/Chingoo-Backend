@@ -1,7 +1,8 @@
 package com.ldsilver.chingoohaja.config;
 
-import io.netty.handler.timeout.ReadTimeoutHandler;
+import com.ldsilver.chingoohaja.infrastructure.agora.AgoraTokenGenerator;
 import io.netty.channel.ChannelOption;
+import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.timeout.WriteTimeoutHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
