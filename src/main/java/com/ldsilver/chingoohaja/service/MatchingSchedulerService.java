@@ -1,5 +1,6 @@
 package com.ldsilver.chingoohaja.service;
 
+import com.ldsilver.chingoohaja.config.MatchingSchedulerProperties;
 import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.enums.CallType;
 import com.ldsilver.chingoohaja.domain.category.Category;
@@ -10,9 +11,9 @@ import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.repository.CategoryRepository;
 import com.ldsilver.chingoohaja.repository.MatchingQueueRepository;
 import com.ldsilver.chingoohaja.repository.UserRepository;
-import com.ldsilver.chingoohaja.validation.MatchingValidationConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,12 @@ import java.util.UUID;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@ConditionalOnProperty(
+        prefix = "app.matching.scheduler",
+        name = "enabled",
+        havingValue = "true",
+        matchIfMissing = true
+)
 public class MatchingSchedulerService {
 
     private final RedisMatchingQueueService redisMatchingQueueService;
@@ -36,35 +43,50 @@ public class MatchingSchedulerService {
     private final CallRepository callRepository;
     private final MatchingQueueRepository matchingQueueRepository;
     private final WebSocketEventService webSocketEventService;
+    private final MatchingSchedulerProperties schedulerProperties;
 
-    @Scheduled(fixedDelay = MatchingValidationConstants.Scheduler.DEFAULT_MATCHING_DELAY)
+    @Scheduled(fixedDelayString = "#{@matchingSchedulerProperties.matchingDelay}")
     public void processMatching() {
-        log.debug("하이브리드 매칭 스케줄러 실행");
+        if (schedulerProperties.isDebugLogEnabled()) {
+            log.debug("하이브리드 매칭 스케줄러 실행");
+        }
 
         try {
             List<Category> activeCategories = categoryRepository.findByIsActiveTrueOrderByName();
+            int processedCount = 0;
 
             for (Category category : activeCategories) {
-                processMatchingForCategory(category);
+                boolean processed = processMatchingForCategory(category);
+                if (processed) processedCount++;
             }
+
+            // 처리된 매칭이 있을 때만 로그 출력 (로컬 환경 고려)
+            if (processedCount > 0 || schedulerProperties.isDebugLogEnabled()) {
+                log.info("매칭 스케줄러 완료 - 처리된 카테고리: {}/{}", processedCount, activeCategories.size());
+            }
+
         } catch (Exception e) {
             log.error("매칭 스케줄러 실행 중 오류 발생", e);
         }
-
-        log.debug("하이브리드 매칭 스케줄러 완료");
     }
 
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
-    protected void processMatchingForCategory(Category category) {
+    protected boolean processMatchingForCategory(Category category) {
         try {
             // 1. 대기 인원 확인
             long waitingCount = redisMatchingQueueService.getWaitingCount(category.getId());
 
             if (waitingCount < 2) {
-                log.debug("매칭 대기 인원 부족 - categoryId: {}, waiting: {}",
-                        category.getId(), waitingCount);
-                return;
+                if (schedulerProperties.isDebugLogEnabled()){
+                    log.debug("매칭 대기 인원 부족 - categoryId: {}, waiting: {}",
+                            category.getId(), waitingCount);
+                }
+                return false;
             }
+
+            log.info("매칭 처리 시작 - categoryId: {}, categoryName: {}, waiting: {}",
+                    category.getId(), category.getName(), waitingCount);
+
 
             // 2. 하이브리드 매칭 실행
             RedisMatchingQueueService.MatchCandicateResult candidateResult =
@@ -73,16 +95,17 @@ public class MatchingSchedulerService {
             if (!candidateResult.success() || candidateResult.userIds().size() < 2) {
                 log.debug("하이브리드 매칭 실패 - categoryId: {}, reason: {}",
                         category.getId(), candidateResult.message());
-                return;
+                return false;
             }
 
             // 3. 매칭된 사용자들 검증
             List<Long> userIds = candidateResult.userIds();
             Long user1Id = userIds.get(0);
             Long user2Id = userIds.get(1);
+
             if (user1Id.equals(user2Id)) {
                 log.warn("동일 사용자 매칭 감지 - categoryId: {}, userId: {}", category.getId(), user1Id);
-                return;
+                return false;
             }
 
             Optional<User> user1Opt = userRepository.findById(user1Id);
@@ -91,7 +114,7 @@ public class MatchingSchedulerService {
             if (user1Opt.isEmpty() || user2Opt.isEmpty()) {
                 log.error("매칭된 사용자 조회 실패 - user1Id: {}, user2Id: {}, user1Exists: {}, user2Exists: {}",
                         user1Id, user2Id, user1Opt.isPresent(), user2Opt.isPresent());
-                return;
+                return false;
             }
 
             User user1 = user1Opt.get();
@@ -103,7 +126,7 @@ public class MatchingSchedulerService {
             if (savedCall == null) {
                 log.error("Call 생성 실패 - categoryId: {}, userIds: {}", category.getId(), userIds);
                 // Call 생성 실패 시 Redis 큐에서 사용자를 제거할지 아니면 다시 시도할지 결정 필요
-                return;
+                return false;
             }
 
             // 5. DB 매칭 큐 상태 업데이트 (WAITING -> MATCHING)
@@ -139,8 +162,11 @@ public class MatchingSchedulerService {
             log.debug("매칭 성공 완료 - categoryId: {}, callId: {}, users: {}",
                     category.getId(), savedCall.getId(), userIds);
 
+            return true;
+
         } catch (Exception e) {
             log.error("카테고리 매칭 처리 실패 - categoryId: {}", category.getId(), e);
+            return false;
         }
     }
 
@@ -210,14 +236,15 @@ public class MatchingSchedulerService {
 
 
     /**
-     * 만료된 대기열 정리 - 1분마다 실행
+     * 만료된 대기열 정리
      * DB 이력을 위한 별도 실행
      */
-    @Scheduled(fixedDelay = MatchingValidationConstants.Scheduler.DEFAULT_CLEANUP_DELAY)
+    @Scheduled(fixedDelayString = "#{@matchingSchedulerProperties.cleanupDelay}")
     @Transactional
     public void cleanupExpiredQueues() {
         try {
-            LocalDateTime expiredTime = LocalDateTime.now().minusSeconds(MatchingValidationConstants.Scheduler.DEFAULT_EXPIRED_TIME); //10분 전
+            LocalDateTime expiredTime = LocalDateTime.now()
+                    .minusSeconds(schedulerProperties.getExpiredTime()); //10분 전
 
             List<MatchingQueue> expiredQueues = matchingQueueRepository.findExpiredQueues(expiredTime);
 
