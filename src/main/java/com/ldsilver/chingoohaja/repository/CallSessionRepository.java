@@ -60,7 +60,7 @@ public interface CallSessionRepository extends JpaRepository<CallSession, Long> 
      * 사용자별 세션 통계
      */
     @Query(value = "SELECT cs.user_id, COUNT(*), AVG(TIMESTAMPDIFF(SECOND, cs.joined_at, cs.left_at)) " +
-            "FROM call_session cs WHERE cs.joined_at IS NOT NULL AND cs.left_at IS NOT NULL " +
+            "FROM call_sessions cs WHERE cs.joined_at IS NOT NULL AND cs.left_at IS NOT NULL " +
             "GROUP BY cs.user_id",
             nativeQuery = true)
     List<Object[]> getUserSessionStats();
