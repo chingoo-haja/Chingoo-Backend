@@ -6,10 +6,7 @@ import com.ldsilver.chingoohaja.domain.call.enums.SessionStatus;
 import com.ldsilver.chingoohaja.domain.common.BaseEntity;
 import com.ldsilver.chingoohaja.domain.user.User;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -65,7 +62,8 @@ public class CallSession extends BaseEntity {
     private Integer audioBitrate;
 
     @Column(name = "packet_loss_rate")
-    @Min(0) @Max(100)
+    @DecimalMin(value = "0.0", inclusive = true)
+    @DecimalMax(value = "100.0", inclusive = true)
     private Double packetLossRate;
 
     public static CallSession of(
