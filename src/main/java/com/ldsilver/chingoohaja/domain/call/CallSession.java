@@ -89,7 +89,7 @@ public class CallSession extends BaseEntity {
 
     private static void validateParams(Call call, User user, Integer agoraUid, String rtcToken) {
         if (call == null) {
-            throw new CustomException(ErrorCode.USER_REQUIRED);
+            throw new CustomException(ErrorCode.CALL_REQUIRED);
         }
         if (user == null) {
             throw new CustomException(ErrorCode.USER_REQUIRED);
