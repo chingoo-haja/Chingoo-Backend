@@ -82,13 +82,13 @@ public interface CallSessionRepository extends JpaRepository<CallSession, Long> 
 
     // ========== 업데이트 쿼리 ==========
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Transactional
     @Query("UPDATE CallSession cs SET cs.sessionStatus = com.ldsilver.chingoohaja.domain.call.enums.SessionStatus.EXPIRED " +
             "WHERE cs.sessionStatus = com.ldsilver.chingoohaja.domain.call.enums.SessionStatus.READY AND cs.createdAt < :expiredTime")
     int markExpiredSessions(@Param("expiredTime") LocalDateTime expiredTime);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Transactional
     @Query("UPDATE CallSession cs SET cs.sessionStatus = com.ldsilver.chingoohaja.domain.call.enums.SessionStatus.LEFT, cs.leftAt = :leftAt " +
             "WHERE cs.call.id = :callId AND cs.sessionStatus = com.ldsilver.chingoohaja.domain.call.enums.SessionStatus.JOINED")
@@ -96,7 +96,7 @@ public interface CallSessionRepository extends JpaRepository<CallSession, Long> 
 
     // ========== 삭제 쿼리 ==========
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Transactional
     @Query("DELETE FROM CallSession cs WHERE cs.sessionStatus = :status AND cs.createdAt < :before")
     int deleteOldSessionsByStatus(@Param("status") SessionStatus status, @Param("before") LocalDateTime before);
