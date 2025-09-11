@@ -33,6 +33,7 @@ public class CallSession extends BaseEntity {
 
     @Column(nullable = false)
     @NotNull(message = "Agora UID는 필수입니다.")
+    @Min(0)
     private Integer agoraUid;
 
     @NotBlank(message = "RTC Token은 필수입니다.")
@@ -46,6 +47,7 @@ public class CallSession extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @NotNull
     private SessionStatus sessionStatus;
 
     private LocalDateTime joinedAt;
