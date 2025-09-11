@@ -100,7 +100,7 @@ public enum ErrorCode {
     RECORDING_NOT_STARTED(HttpStatus.BAD_REQUEST, "L014", "녹음이 시작되지 않았습니다."),
     RECORDING_ALREADY_STARTED(HttpStatus.CONFLICT, "L015", "이미 녹음이 시작되었습니다."),
     SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "L016", "세션을 찾을 수 없습니다."),
-    SESSION_ALREADY_JOINED(HttpStatus.CONFLICT, "L017", "이미 참가하였거나 참가할 수 없는 상태입니다."),
+    SESSION_ALREADY_JOINED(HttpStatus.CONFLICT, "L017", "이미 참가 중이거나 참가할 수 없는 상태입니다."),
     SESSION_NOT_JOINED(HttpStatus.BAD_REQUEST, "L018", "참가하지 않은 세션입니다."),
     TOKEN_REFRESH_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "L019", "토큰 갱신에 실패했습니다."),
     CALL_REQUIRED(HttpStatus.BAD_REQUEST, "L020", "Call은 필수입니다."),
