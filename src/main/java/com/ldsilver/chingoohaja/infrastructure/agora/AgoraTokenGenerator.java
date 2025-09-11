@@ -61,13 +61,4 @@ public class AgoraTokenGenerator {
         }
     }
 
-
-    private void validateUserId(String userId) {
-        if (userId == null || userId.trim().isEmpty()) {
-            throw new IllegalArgumentException("사용자 ID는 필수입니다.");
-        }
-        if (userId.length() > 64) {
-            throw new IllegalArgumentException("사용자 ID는 64자를 초과할 수 없습니다.");
-        }
-    }
 }
