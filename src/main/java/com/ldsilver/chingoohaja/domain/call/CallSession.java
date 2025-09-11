@@ -79,7 +79,7 @@ public class CallSession extends BaseEntity {
         session.agoraUid = agoraUid;
         session.rtcToken = rtcToken;
         session.rtmToken = rtmToken;
-        session.sessionStatus = sessionStatus;
+        session.sessionStatus = (sessionStatus != null) ? sessionStatus : SessionStatus.READY;
         return session;
     }
 
