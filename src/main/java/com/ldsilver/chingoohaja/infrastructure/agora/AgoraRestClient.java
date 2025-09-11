@@ -53,9 +53,11 @@ public class AgoraRestClient {
                     .onErrorResume(error -> {
                         if (error instanceof WebClientResponseException) {
                             WebClientResponseException webClientError = (WebClientResponseException) error;
+                            String body = webClientError.getResponseBodyAsString();
+                            body = (body != null && body.length() > 512) ? body.substring(0, 512) + "...(truncated)" : body;
                             log.warn("Agora API 연결 테스트 실패 - 상태코드: {}, 응답: {}",
                                     webClientError.getStatusCode(),
-                                    webClientError.getResponseBodyAsString());
+                                    body);
                         } else {
                             log.error("Agora API 연결 테스트 실패", error);
                         }
