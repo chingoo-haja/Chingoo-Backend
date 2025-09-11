@@ -31,37 +31,33 @@ public class CallSession extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "agora_uid", nullable = false)
+    @Column(nullable = false)
+    @NotNull(message = "Agora UID는 필수입니다.")
     private Integer agoraUid;
 
     @NotBlank(message = "RTC Token은 필수입니다.")
-    @Column(name = "rtc_token", nullable = false, length = 2048)
+    @Column(nullable = false, length = 2048)
     @Size(max = 2048, message = "RTC Token은 2048자를 초과할 수 없습니다.")
     private String rtcToken;
 
-    @Column(name = "rtm_token", length = 2048)
+    @Column(length = 2048)
     @Size(max = 2048, message = "RTM Token은 2048자를 초과할 수 없습니다.")
     private String rtmToken;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "session_status", nullable = false)
+    @Column(nullable = false)
     private SessionStatus sessionStatus;
 
-    @Column(name = "joined_at")
     private LocalDateTime joinedAt;
 
-    @Column(name = "left_at")
     private LocalDateTime leftAt;
 
-    @Column(name = "connection_quality")
     @Min(1) @Max(6)
     private Integer connectionQuality; // 1-6 (1: Excellent, 6: Down)
 
-    @Column(name = "audio_bitrate")
     @Min(0)
     private Integer audioBitrate;
 
-    @Column(name = "packet_loss_rate")
     @DecimalMin(value = "0.0", inclusive = true)
     @DecimalMax(value = "100.0", inclusive = true)
     private Double packetLossRate;
