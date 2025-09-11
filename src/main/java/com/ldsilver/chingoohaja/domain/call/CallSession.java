@@ -94,8 +94,8 @@ public class CallSession extends BaseEntity {
         if (user == null) {
             throw new CustomException(ErrorCode.USER_REQUIRED);
         }
-        if (agoraUid == null) {
-            throw new CustomException(ErrorCode.AGORA_UID_REQUIRED);
+        if (agoraUid == null || agoraUid <= 0) {
+            throw new CustomException(ErrorCode.AGORA_UID_INVALID);
         }
         if (rtcToken == null || rtcToken.trim().isEmpty()) {
             throw new CustomException(ErrorCode.RTC_TOKEN_REQUIRED);

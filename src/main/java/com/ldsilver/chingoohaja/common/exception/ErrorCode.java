@@ -105,7 +105,7 @@ public enum ErrorCode {
     TOKEN_REFRESH_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "L019", "토큰 갱신에 실패했습니다."),
     CALL_REQUIRED(HttpStatus.BAD_REQUEST, "L020", "Call은 필수입니다."),
     USER_REQUIRED(HttpStatus.BAD_REQUEST, "L021", "User는 필수입니다."),
-    AGORA_UID_REQUIRED(HttpStatus.BAD_REQUEST, "L022", "Agora UID는 필수입니다."),
+    AGORA_UID_INVALID(HttpStatus.BAD_REQUEST, "L022", "Agora UID가 없거나 양수가 아닙니다."),
     RTC_TOKEN_REQUIRED(HttpStatus.BAD_REQUEST, "L023", "RTC Token은 필수입니다."),
     INVALID_PARTICIPANT(HttpStatus.BAD_REQUEST, "L024", "사용자는 해당 통화의 참가자가 아닙니다."),
     QUALITY_RANGE_INVALID(HttpStatus.BAD_REQUEST, "L025", "연결 품질은 1-6 범위여야 합니다."),
