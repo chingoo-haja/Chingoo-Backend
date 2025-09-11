@@ -1,5 +1,7 @@
 package com.ldsilver.chingoohaja.domain.call;
 
+import com.ldsilver.chingoohaja.common.exception.CustomException;
+import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.call.enums.SessionStatus;
 import com.ldsilver.chingoohaja.domain.common.BaseEntity;
 import com.ldsilver.chingoohaja.domain.user.User;
@@ -87,19 +89,19 @@ public class CallSession extends BaseEntity {
 
     private static void validateParams(Call call, User user, Integer agoraUid, String rtcToken) {
         if (call == null) {
-            throw new IllegalArgumentException("Call은 필수입니다.");
+            throw new CustomException(ErrorCode.USER_REQUIRED);
         }
         if (user == null) {
-            throw new IllegalArgumentException("User는 필수입니다.");
+            throw new CustomException(ErrorCode.USER_REQUIRED);
         }
         if (agoraUid == null) {
-            throw new IllegalArgumentException("Agora UID는 필수입니다.");
+            throw new CustomException(ErrorCode.AGORA_UID_REQUIRED);
         }
         if (rtcToken == null || rtcToken.trim().isEmpty()) {
-            throw new IllegalArgumentException("RTC Token은 필수입니다.");
+            throw new CustomException(ErrorCode.RTC_TOKEN_REQUIRED);
         }
         if (!call.isParticipant(user.getId())) {
-            throw new IllegalArgumentException("사용자는 해당 통화의 참가자가 아닙니다.");
+            throw new CustomException(ErrorCode.INVALID_PARTICIPANT);
         }
     }
 
@@ -111,7 +113,7 @@ public class CallSession extends BaseEntity {
             this.sessionStatus = SessionStatus.JOINED;
             this.joinedAt = LocalDateTime.now();
         } else {
-            throw new IllegalStateException("이미 참가하였거나 참가할 수 없는 상태입니다.");
+            throw new CustomException(ErrorCode.SESSION_ALREADY_JOINED);
         }
     }
 
@@ -123,7 +125,7 @@ public class CallSession extends BaseEntity {
             this.sessionStatus = SessionStatus.LEFT;
             this.leftAt = LocalDateTime.now();
         } else {
-            throw new IllegalStateException("참가하지 않은 세션에서 나갈 수 없습니다.");
+            throw new CustomException(ErrorCode.SESSION_NOT_JOINED);
         }
     }
 
@@ -143,7 +145,7 @@ public class CallSession extends BaseEntity {
      */
     public void refreshTokens(String newRtcToken, String newRtmToken) {
         if (newRtcToken == null || newRtcToken.trim().isEmpty()) {
-            throw new IllegalArgumentException("RTC Token은 필수입니다.");
+            throw new CustomException(ErrorCode.RTC_TOKEN_REQUIRED);
         }
 
         this.rtcToken = newRtcToken;
@@ -154,13 +156,13 @@ public class CallSession extends BaseEntity {
 
     private void validateQualityParams(int quality, int bitrate, double packetLoss) {
         if (quality < 1 || quality > 6) {
-            throw new IllegalArgumentException("연결 품질은 1-6 범위여야 합니다.");
+            throw new CustomException(ErrorCode.QUALITY_RANGE_INVALID);
         }
         if (bitrate < 0) {
-            throw new IllegalArgumentException("비트레이트는 0 이상이어야 합니다.");
+            throw new CustomException(ErrorCode.BIT_RATE_TOO_SMALL);
         }
         if (packetLoss < 0.0 || packetLoss > 100.0) {
-            throw new IllegalArgumentException("패킷 손실률은 0-100% 범위여야 합니다.");
+            throw new CustomException(ErrorCode.PACKET_LOSS_RANGE_INVALID);
         }
     }
 
