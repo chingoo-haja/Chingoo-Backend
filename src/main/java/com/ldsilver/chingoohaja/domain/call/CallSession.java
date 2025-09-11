@@ -34,7 +34,7 @@ public class CallSession extends BaseEntity {
     @Column(nullable = false)
     @NotNull(message = "Agora UID는 필수입니다.")
     @Min(0)
-    private Integer agoraUid;
+    private Long agoraUid;
 
     @NotBlank(message = "RTC Token은 필수입니다.")
     @Column(nullable = false, length = 2048)
@@ -67,7 +67,7 @@ public class CallSession extends BaseEntity {
     public static CallSession of(
             Call call,
             User user,
-            Integer agoraUid,
+            Long agoraUid,
             String rtcToken,
             String rtmToken,
             SessionStatus sessionStatus
@@ -84,11 +84,11 @@ public class CallSession extends BaseEntity {
         return session;
     }
 
-    public static CallSession from(Call call, User user, Integer agoraUid, String rtcToken) {
+    public static CallSession from(Call call, User user, Long agoraUid, String rtcToken) {
         return of(call, user, agoraUid, rtcToken, null, SessionStatus.READY);
     }
 
-    private static void validateParams(Call call, User user, Integer agoraUid, String rtcToken) {
+    private static void validateParams(Call call, User user, Long agoraUid, String rtcToken) {
         if (call == null) {
             throw new CustomException(ErrorCode.CALL_REQUIRED);
         }
