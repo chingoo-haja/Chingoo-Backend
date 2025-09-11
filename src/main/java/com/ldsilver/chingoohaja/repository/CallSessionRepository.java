@@ -67,9 +67,9 @@ public interface CallSessionRepository extends JpaRepository<CallSession, Long> 
     /**
      * 일별 세션 통계
      */
-    @Query("SELECT DATE(cs.joinedAt), COUNT(cs), AVG(cs.connectionQuality) " +
+    @Query("SELECT function('date', cs.joinedAt), COUNT(cs), AVG(cs.connectionQuality) " +
             "FROM CallSession cs WHERE cs.joinedAt BETWEEN :startDate AND :endDate " +
-            "GROUP BY DATE(cs.joinedAt) ORDER BY DATE(cs.joinedAt)")
+            "GROUP BY function('date', cs.joinedAt) ORDER BY function('date', cs.joinedAt)")
     List<Object[]> getDailySessionStats(@Param("startDate") LocalDateTime startDate,
                                         @Param("endDate") LocalDateTime endDate);
 
