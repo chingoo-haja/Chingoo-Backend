@@ -1,7 +1,7 @@
 package com.ldsilver.chingoohaja.infrastructure.agora;
 
 import com.ldsilver.chingoohaja.config.AgoraProperties;
-import io.agora.media.RtcTokenBuilder;
+import io.agora.media.RtcTokenBuilder2;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -14,21 +14,19 @@ public class AgoraTokenGenerator {
     /**
      * RTC Token 생성 (음성 통화용)
      */
-    public String generateRtcToken(String channelName, int uid, RtcTokenBuilder.Role role, int expirationTimeInSeconds) {
+    public String generateRtcToken(String channelName, int uid, RtcTokenBuilder2.Role role, int expirationTimeInSeconds) {
         validateChannelName(channelName);
 
-        int currentTimestamp = (int) (System.currentTimeMillis() / 1000);
-        int privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
-
         try {
-            RtcTokenBuilder tokenBuilder = new RtcTokenBuilder();
+            RtcTokenBuilder2 tokenBuilder = new RtcTokenBuilder2();
             String token = tokenBuilder.buildTokenWithUid(
                     agoraProperties.getAppId(),
                     agoraProperties.getAppCertificate(),
                     channelName,
                     uid,
                     role,
-                    privilegeExpiredTs
+                    expirationTimeInSeconds,
+                    expirationTimeInSeconds
             );
 
             log.debug("RTC Token 생성 완료 - channel: {}, uid: {}, role: {}",
@@ -46,7 +44,7 @@ public class AgoraTokenGenerator {
      */
     public String generateRtcToken(String channelName, int uid) {
         return generateRtcToken(channelName, uid,
-                RtcTokenBuilder.Role.Role_Publisher,
+                RtcTokenBuilder2.Role.ROLE_PUBLISHER,
                 agoraProperties.getTokenExpirationInSeconds());
     }
 
