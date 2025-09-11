@@ -155,6 +155,9 @@ public class CallSession extends BaseEntity {
         if (newRtmToken != null && !newRtmToken.trim().isEmpty()) {
             this.rtmToken = newRtmToken;
         }
+        if (this.sessionStatus == SessionStatus.EXPIRED) {
+            this.sessionStatus = SessionStatus.READY;
+        }
     }
 
     private void validateQualityParams(int quality, int bitrate, double packetLoss) {
