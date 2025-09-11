@@ -8,6 +8,7 @@ import com.ldsilver.chingoohaja.domain.category.Category;
 import com.ldsilver.chingoohaja.domain.common.BaseEntity;
 import com.ldsilver.chingoohaja.domain.user.User;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -40,12 +41,37 @@ public class Call extends BaseEntity {
     private CallType callType;
 
     private LocalDateTime startAt;
+
     private LocalDateTime endAt;
+
     private Integer durationSeconds;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private CallStatus callStatus;
+
+    // ========== Agora 관련 필드 추가 ==========
+    @Column(length = 64)
+    @Size(max = 64, message = "Agora 채널명은 64자를 초과할 수 없습니다.")
+    private String agoraChannelName;
+
+    @Column(length = 100)
+    @Size(max = 100, message = "Agora Resource ID는 100자를 초과할 수 없습니다.")
+    private String agoraResourceId;
+
+    @Column(length = 100)
+    @Size(max = 100, message = "Agora SID는 100자를 초과할 수 없습니다.")
+    private String agoraSid;
+
+    @Column(length = 2048)
+    @Size(max = 2048, message = "녹음 파일 URL은 2048자를 초과할 수 없습니다.")
+    private String recordingFileUrl;
+
+    private LocalDateTime recordingStartedAt;
+
+    private LocalDateTime recordingEndedAt;
+
+    private Integer recordingDurationSeconds;
 
     public static Call of(
             User user1,
