@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface CallRepository extends JpaRepository<Call, Long> {
@@ -78,5 +79,76 @@ public interface CallRepository extends JpaRepository<Call, Long> {
     Double getAverageCallDurationByCategory(@Param("categoryId") Long categoryId,
                                             @Param("start") LocalDateTime start,
                                             @Param("end") LocalDateTime end);
+
+    // ========== Agora 관련 메서드들 ==========
+    Optional<Call> findByAgoraChannelName(String agoraChannelName);
+
+    Optional<Call> findByAgoraResourceId(String agoraResourceId);
+
+    Optional<Call> findByAgoraSid(String agoraSid);
+
+    @Query("SELECT c FROM Call c WHERE c.callStatus = 'IN_PROGRESS' ORDER BY c.startAt ASC")
+    List<Call> findInProgressCalls();
+
+    @Query("SELECT c FROM Call c WHERE c.recordingStartedAt IS NOT NULL AND c.recordingEndedAt IS NULL")
+    List<Call> findRecordingCalls();
+
+    @Query("SELECT c FROM Call c WHERE c.recordingFileUrl IS NOT NULL AND c.recordingFileUrl != ''")
+    List<Call> findCallsWithRecording();
+
+    @Query("SELECT c FROM Call c WHERE (c.user1.id = :userId OR c.user2.id = :userId) " +
+            "AND c.callStatus IN ('READY', 'IN_PROGRESS') ORDER BY c.createdAt DESC")
+    List<Call> findActiveCallsByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT c FROM Call c WHERE c.callStatus = 'IN_PROGRESS' " +
+            "AND c.startAt < :timeoutThreshold ORDER BY c.startAt ASC")
+    List<Call> findLongRunningCalls(@Param("timeoutThreshold") LocalDateTime timeoutThreshold);
+
+    /**
+     * 준비 상태에서 오래 머물러 있는 통화들 조회 (정리용)
+     */
+    @Query("SELECT c FROM Call c WHERE c.callStatus = 'READY' " +
+            "AND c.createdAt < :staleThreshold ORDER BY c.createdAt ASC")
+    List<Call> findStaleCalls(@Param("staleThreshold") LocalDateTime staleThreshold);
+
+    // ========== 통계 쿼리 확장 ==========
+
+    /**
+     * 녹음 통계 조회
+     */
+    @Query("SELECT " +
+            "COUNT(CASE WHEN c.recordingFileUrl IS NOT NULL THEN 1 END) as recordedCalls, " +
+            "COUNT(c) as totalCalls, " +
+            "AVG(c.recordingDurationSeconds) as avgRecordingDuration " +
+            "FROM Call c WHERE c.callStatus = 'COMPLETED' " +
+            "AND c.createdAt BETWEEN :startDate AND :endDate")
+    List<Object[]> getRecordingStats(@Param("startDate") LocalDateTime startDate,
+                                     @Param("endDate") LocalDateTime endDate);
+
+    /**
+     * 시간대별 통화 품질 통계 (녹음 지속시간 vs 실제 통화 시간)
+     */
+    @Query("SELECT " +
+            "HOUR(c.startAt) as hour, " +
+            "COUNT(c) as callCount, " +
+            "AVG(c.durationSeconds) as avgCallDuration, " +
+            "AVG(c.recordingDurationSeconds) as avgRecordingDuration " +
+            "FROM Call c WHERE c.callStatus = 'COMPLETED' " +
+            "AND c.startAt BETWEEN :startDate AND :endDate " +
+            "GROUP BY HOUR(c.startAt) ORDER BY hour")
+    List<Object[]> getHourlyQualityStats(@Param("startDate") LocalDateTime startDate,
+                                         @Param("endDate") LocalDateTime endDate);
+
+    /**
+     * Agora 채널 사용률 통계
+     */
+    @Query("SELECT " +
+            "COUNT(DISTINCT c.agoraChannelName) as uniqueChannels, " +
+            "COUNT(c) as totalCalls, " +
+            "AVG(c.durationSeconds) as avgDuration " +
+            "FROM Call c WHERE c.agoraChannelName IS NOT NULL " +
+            "AND c.createdAt BETWEEN :startDate AND :endDate")
+    List<Object[]> getChannelUsageStats(@Param("startDate") LocalDateTime startDate,
+                                        @Param("endDate") LocalDateTime endDate);
 
 }
