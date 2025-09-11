@@ -93,6 +93,9 @@ public enum ErrorCode {
     UID_NOT_MINUS(HttpStatus.BAD_REQUEST, "L007", "uid는 음수일 수 없습니다."),
     ROLE_REQUIRED(HttpStatus.BAD_REQUEST, "L008", "role은 필수입니다."),
     INVALID_EXPIRED_TIME(HttpStatus.BAD_REQUEST, "L009", "만료시간(초)는 0보다 커야 합니다."),
+    CHANNEL_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "L010", "채널명은 필수입니다."),
+    CHANNEL_NAME_TOO_LONG(HttpStatus.BAD_REQUEST, "L011", "채널명은 UTF‑8 기준 64바이트를 초과할 수 없습니다."),
+    CHANNEL_NAME_INVALID(HttpStatus.BAD_REQUEST, "L012", "채널명 형식이 유효하지 않습니다."),
 
     // 카테고리 관련 에러
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "T001", "카테고리를 찾을 수 없습니다."),

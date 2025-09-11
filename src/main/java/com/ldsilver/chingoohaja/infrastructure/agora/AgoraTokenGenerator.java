@@ -67,13 +67,13 @@ public class AgoraTokenGenerator {
 
     private void validateChannelName(String channelName) {
         if (channelName == null || channelName.trim().isEmpty()) {
-            throw new IllegalArgumentException("채널명은 필수입니다.");
+            throw new CustomException(ErrorCode.CHANNEL_NAME_REQUIRED);
         }
         if (channelName.getBytes(StandardCharsets.UTF_8).length > CallValidationConstants.CHANNEL_NAME_MAX_BYTES) {
-            throw new IllegalArgumentException("채널명은 UTF‑8 기준 64바이트를 초과할 수 없습니다.");
+            throw new CustomException(ErrorCode.CHANNEL_NAME_TOO_LONG);
         }
         if (!CHANNEL_NAME_PATTERN.matcher(channelName).matches()) {
-            throw new IllegalArgumentException("채널명 형식이 유효하지 않습니다.");
+            throw new CustomException(ErrorCode.CHANNEL_NAME_INVALID);
         }
     }
 
