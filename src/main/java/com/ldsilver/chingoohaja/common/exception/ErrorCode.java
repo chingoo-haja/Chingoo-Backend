@@ -96,6 +96,13 @@ public enum ErrorCode {
     CHANNEL_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "L010", "채널명은 필수입니다."),
     CHANNEL_NAME_TOO_LONG(HttpStatus.BAD_REQUEST, "L011", "채널명은 UTF‑8 기준 64바이트를 초과할 수 없습니다."),
     CHANNEL_NAME_INVALID(HttpStatus.BAD_REQUEST, "L012", "채널명 형식이 유효하지 않습니다."),
+    CALL_NOT_IN_PROGRESS(HttpStatus.BAD_REQUEST, "L013", "진행 중인 통화가 아닙니다."),
+    RECORDING_NOT_STARTED(HttpStatus.BAD_REQUEST, "L014", "녹음이 시작되지 않았습니다."),
+    RECORDING_ALREADY_STARTED(HttpStatus.CONFLICT, "L015", "이미 녹음이 시작되었습니다."),
+    SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "L016", "세션을 찾을 수 없습니다."),
+    SESSION_ALREADY_JOINED(HttpStatus.CONFLICT, "L017", "이미 참가한 세션입니다."),
+    SESSION_NOT_JOINED(HttpStatus.BAD_REQUEST, "L018", "참가하지 않은 세션입니다."),
+    TOKEN_REFRESH_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "L019", "토큰 갱신에 실패했습니다."),
 
     // 카테고리 관련 에러
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "T001", "카테고리를 찾을 수 없습니다."),
