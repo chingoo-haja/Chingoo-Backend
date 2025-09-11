@@ -128,14 +128,15 @@ public interface CallRepository extends JpaRepository<Call, Long> {
     /**
      * 시간대별 통화 품질 통계 (녹음 지속시간 vs 실제 통화 시간)
      */
-    @Query("SELECT " +
-            "HOUR(c.startAt) as hour, " +
-            "COUNT(c) as callCount, " +
-            "AVG(c.durationSeconds) as avgCallDuration, " +
-            "AVG(c.recordingDurationSeconds) as avgRecordingDuration " +
-            "FROM Call c WHERE c.callStatus = com.ldsilver.chingoohaja.domain.call.enums.CallStatus.COMPLETED " +
-            "AND c.startAt BETWEEN :startDate AND :endDate " +
-            "GROUP BY HOUR(c.startAt) ORDER BY hour")
+    @Query(value = "SELECT " +
+            "HOUR(c.start_at) as hour, " +
+            "COUNT(c.id) as callCount, " +
+            "AVG(c.duration_seconds) as avgCallDuration, " +
+            "AVG(c.recording_duration_seconds) as avgRecordingDuration " +
+            "FROM call c WHERE c.call_status = com.ldsilver.chingoohaja.domain.call.enums.CallStatus.COMPLETED " +
+            "AND c.start_at BETWEEN :startDate AND :endDate " +
+            "GROUP BY HOUR(c.start_at) ORDER BY hour",
+            nativeQuery = true)
     List<Object[]> getHourlyQualityStats(@Param("startDate") LocalDateTime startDate,
                                          @Param("endDate") LocalDateTime endDate);
 
