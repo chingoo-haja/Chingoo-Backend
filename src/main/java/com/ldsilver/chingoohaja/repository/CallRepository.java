@@ -93,7 +93,7 @@ public interface CallRepository extends JpaRepository<Call, Long> {
     @Query("SELECT c FROM Call c WHERE c.recordingStartedAt IS NOT NULL AND c.recordingEndedAt IS NULL")
     List<Call> findRecordingCalls();
 
-    @Query("SELECT c FROM Call c WHERE c.recordingFileUrl IS NOT NULL AND c.recordingFileUrl != ''")
+    @Query("SELECT c FROM Call c WHERE c.recordingFileUrl IS NOT NULL AND LENGTH(c.recordingFileUrl) > 0")
     List<Call> findCallsWithRecording();
 
     @Query("SELECT c FROM Call c WHERE (c.user1.id = :userId OR c.user2.id = :userId) " +
