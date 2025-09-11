@@ -100,7 +100,7 @@ public class CallSession extends BaseEntity {
             throw new CustomException(ErrorCode.RTC_TOKEN_REQUIRED);
         }
         if (!call.isParticipant(user.getId())) {
-            throw new CustomException(ErrorCode.INVALID_PARTICIPANT);
+            throw new CustomException(ErrorCode.CALL_NOT_PARTICIPANT);
         }
     }
 

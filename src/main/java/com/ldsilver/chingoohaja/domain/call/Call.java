@@ -221,7 +221,7 @@ public class Call extends BaseEntity {
         } else if (user2.getId().equals(userId)) {
             return user1;
         } else {
-            throw new CustomException(ErrorCode.INVALID_PARTICIPANT);
+            throw new CustomException(ErrorCode.CALL_NOT_PARTICIPANT);
         }
     }
 
