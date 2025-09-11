@@ -83,7 +83,6 @@ public enum ErrorCode {
     START_MATCHING_FAILED(HttpStatus.BAD_REQUEST, "M008", "대기 중인 상태에서만 매칭을 시작할 수 있습니다. 현재 상태: %s"),
     MATCHING_EXPIRED_FAILED(HttpStatus.BAD_REQUEST, "M009", "대기 중인 상태에서만 만료할 수 있습니다. 현재 상태: %s"),
 
-
     // 통화 관련 에러
     CALL_NOT_FOUND(HttpStatus.NOT_FOUND, "L001", "통화 정보를 찾을 수 없습니다."),
     CALL_ALREADY_STARTED(HttpStatus.CONFLICT, "L002", "이미 시작된 통화입니다."),
