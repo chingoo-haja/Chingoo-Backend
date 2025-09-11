@@ -3,6 +3,7 @@ package com.ldsilver.chingoohaja.infrastructure.agora;
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.config.AgoraProperties;
+import com.ldsilver.chingoohaja.validation.CallValidationConstants;
 import io.agora.media.RtcTokenBuilder2;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,7 +51,7 @@ public class AgoraTokenGenerator {
             return token;
         } catch (Exception e) {
             log.error("RTC Token 생성 실패 - channel: {}, uid: {}", channelName, uid, e);
-            throw new RuntimeException("RTC Token 생성에 실패했습니다.", e);
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR, "RTC Token 생성에 실패했습니다.", e);
         }
     }
 
@@ -68,7 +69,7 @@ public class AgoraTokenGenerator {
         if (channelName == null || channelName.trim().isEmpty()) {
             throw new IllegalArgumentException("채널명은 필수입니다.");
         }
-        if (channelName.getBytes(StandardCharsets.UTF_8).length > 64) {
+        if (channelName.getBytes(StandardCharsets.UTF_8).length > CallValidationConstants.CHANNEL_NAME_MAX_BYTES) {
             throw new IllegalArgumentException("채널명은 UTF‑8 기준 64바이트를 초과할 수 없습니다.");
         }
         if (!CHANNEL_NAME_PATTERN.matcher(channelName).matches()) {
