@@ -83,7 +83,6 @@ public enum ErrorCode {
     START_MATCHING_FAILED(HttpStatus.BAD_REQUEST, "M008", "대기 중인 상태에서만 매칭을 시작할 수 있습니다. 현재 상태: %s"),
     MATCHING_EXPIRED_FAILED(HttpStatus.BAD_REQUEST, "M009", "대기 중인 상태에서만 만료할 수 있습니다. 현재 상태: %s"),
 
-
     // 통화 관련 에러
     CALL_NOT_FOUND(HttpStatus.NOT_FOUND, "L001", "통화 정보를 찾을 수 없습니다."),
     CALL_ALREADY_STARTED(HttpStatus.CONFLICT, "L002", "이미 시작된 통화입니다."),
@@ -91,6 +90,12 @@ public enum ErrorCode {
     CALL_NOT_PARTICIPANT(HttpStatus.FORBIDDEN, "L004", "통화 참가자가 아닙니다."),
     CALL_SESSION_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "L005", "통화 세션 생성에 실패했습니다."),
     CALL_START_FAILED(HttpStatus.BAD_REQUEST, "L006", "통화를 시작할 수 없는 상태입니다."),
+    UID_NOT_MINUS(HttpStatus.BAD_REQUEST, "L007", "uid는 음수일 수 없습니다."),
+    ROLE_REQUIRED(HttpStatus.BAD_REQUEST, "L008", "role은 필수입니다."),
+    INVALID_EXPIRED_TIME(HttpStatus.BAD_REQUEST, "L009", "만료시간(초)는 0보다 커야 합니다."),
+    CHANNEL_NAME_REQUIRED(HttpStatus.BAD_REQUEST, "L010", "채널명은 필수입니다."),
+    CHANNEL_NAME_TOO_LONG(HttpStatus.BAD_REQUEST, "L011", "채널명은 UTF‑8 기준 64바이트를 초과할 수 없습니다."),
+    CHANNEL_NAME_INVALID(HttpStatus.BAD_REQUEST, "L012", "채널명 형식이 유효하지 않습니다."),
 
     // 카테고리 관련 에러
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "T001", "카테고리를 찾을 수 없습니다."),
