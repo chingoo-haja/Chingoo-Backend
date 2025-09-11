@@ -151,12 +151,15 @@ public class CallSession extends BaseEntity {
             throw new CustomException(ErrorCode.RTC_TOKEN_REQUIRED);
         }
 
-        this.rtcToken = newRtcToken;
+        String rtc = newRtcToken.trim();
+        this.rtcToken = rtc;
         if (newRtmToken != null && !newRtmToken.trim().isEmpty()) {
-            this.rtmToken = newRtmToken;
+            this.rtmToken = newRtmToken.trim();
         }
         if (this.sessionStatus == SessionStatus.EXPIRED) {
             this.sessionStatus = SessionStatus.READY;
+            this.joinedAt = null;
+            this.leftAt = null;
         }
     }
 
