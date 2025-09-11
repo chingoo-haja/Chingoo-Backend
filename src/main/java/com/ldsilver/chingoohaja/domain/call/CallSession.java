@@ -133,6 +133,9 @@ public class CallSession extends BaseEntity {
      * 연결 품질 업데이트
      */
     public void updateConnectionQuality(int quality, int bitrate, double packetLoss) {
+        if (!isActive()) {
+            throw new CustomException(ErrorCode.SESSION_NOT_JOINED);
+        }
         validateQualityParams(quality, bitrate, packetLoss);
 
         this.connectionQuality = quality;
