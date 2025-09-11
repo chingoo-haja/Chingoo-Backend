@@ -3,7 +3,6 @@ package com.ldsilver.chingoohaja.infrastructure.agora;
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.config.AgoraProperties;
-import com.ldsilver.chingoohaja.validation.CallValidationConstants;
 import io.agora.media.RtcTokenBuilder2;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,13 +23,13 @@ public class AgoraTokenGenerator {
     public String generateRtcToken(String channelName, int uid, RtcTokenBuilder2.Role role, int expirationTimeInSeconds) {
         validateChannelName(channelName);
         if (uid < 0) {
-            throw new CustomException(ErrorCode.valueOf(CallValidationConstants.Token.UID_NOT_MINUS));
+            throw new CustomException(ErrorCode.UID_NOT_MINUS);
         }
         if (role == null) {
-            throw new CustomException(ErrorCode.valueOf(CallValidationConstants.Token.ROLE_REQUIRED));
+            throw new CustomException(ErrorCode.ROLE_REQUIRED);
         }
         if (expirationTimeInSeconds <= 0) {
-            throw new CustomException(ErrorCode.valueOf(CallValidationConstants.Token.INVALID_EXPIRED_TIME));
+            throw new CustomException(ErrorCode.INVALID_EXPIRED_TIME);
         }
 
         try {

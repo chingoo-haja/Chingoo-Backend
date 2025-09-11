@@ -90,6 +90,9 @@ public enum ErrorCode {
     CALL_NOT_PARTICIPANT(HttpStatus.FORBIDDEN, "L004", "통화 참가자가 아닙니다."),
     CALL_SESSION_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "L005", "통화 세션 생성에 실패했습니다."),
     CALL_START_FAILED(HttpStatus.BAD_REQUEST, "L006", "통화를 시작할 수 없는 상태입니다."),
+    UID_NOT_MINUS(HttpStatus.BAD_REQUEST, "L007", "uid는 음수일 수 없습니다."),
+    ROLE_REQUIRED(HttpStatus.BAD_REQUEST, "L008", "role은 필수입니다."),
+    INVALID_EXPIRED_TIME(HttpStatus.BAD_REQUEST, "L009", "만료시간(초)는 0보다 커야 합니다."),
 
     // 카테고리 관련 에러
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "T001", "카테고리를 찾을 수 없습니다."),
