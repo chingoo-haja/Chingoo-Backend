@@ -99,9 +99,14 @@ public class Call extends BaseEntity {
     }
 
     private static void validateUsers(User user1, User user2) {
-        if (user1.equals(user2)) {
-            throw new CustomException(ErrorCode.CALL_USER_NOT_EQUAL);
-        }
+        if (user1 == null || user2 == null) {
+                throw new CustomException(ErrorCode.USER_REQUIRED);
+            }
+        boolean samePersisted = user1.getId() != null && user1.getId().equals(user2.getId());
+        boolean sameReference = user1.getId() == null && user2.getId() == null && user1 == user2;
+        if (samePersisted || sameReference) {
+                throw new CustomException(ErrorCode.CALL_USER_NOT_EQUAL);
+            }
     }
 
     public void startCall() {
@@ -125,6 +130,9 @@ public class Call extends BaseEntity {
 
         if (this.callStatus != CallStatus.IN_PROGRESS) {
             throw new CustomException(ErrorCode.CALL_NOT_IN_PROGRESS);
+        }
+        if (this.recordingStartedAt != null && this.recordingEndedAt == null) {
+            throw new CustomException(ErrorCode.RECORDING_ALREADY_STARTED);
         }
 
         this.agoraResourceId = resourceId;
