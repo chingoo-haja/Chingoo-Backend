@@ -1,5 +1,7 @@
 package com.ldsilver.chingoohaja.config;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -30,6 +32,8 @@ public class AgoraProperties {
     private String customerSecret;
 
     // Token 설정
+    @Min(1)
+    @Max(86400) // 24h
     private int tokenExpirationInSeconds = 3600; // 1시간
 
     // REST API 설정
