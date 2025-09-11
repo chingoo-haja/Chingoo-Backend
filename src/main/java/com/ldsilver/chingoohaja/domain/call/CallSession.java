@@ -6,6 +6,8 @@ import com.ldsilver.chingoohaja.domain.call.enums.SessionStatus;
 import com.ldsilver.chingoohaja.domain.common.BaseEntity;
 import com.ldsilver.chingoohaja.domain.user.User;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
@@ -55,12 +57,15 @@ public class CallSession extends BaseEntity {
     private LocalDateTime leftAt;
 
     @Column(name = "connection_quality")
+    @Min(1) @Max(6)
     private Integer connectionQuality; // 1-6 (1: Excellent, 6: Down)
 
     @Column(name = "audio_bitrate")
+    @Min(0)
     private Integer audioBitrate;
 
     @Column(name = "packet_loss_rate")
+    @Min(0) @Max(100)
     private Double packetLossRate;
 
     public static CallSession of(
