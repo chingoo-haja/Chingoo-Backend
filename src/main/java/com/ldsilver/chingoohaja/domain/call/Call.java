@@ -7,6 +7,7 @@ import com.ldsilver.chingoohaja.domain.call.enums.CallType;
 import com.ldsilver.chingoohaja.domain.category.Category;
 import com.ldsilver.chingoohaja.domain.common.BaseEntity;
 import com.ldsilver.chingoohaja.domain.user.User;
+import com.ldsilver.chingoohaja.validation.CallValidationConstants;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
@@ -14,6 +15,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+
+import static com.ldsilver.chingoohaja.validation.CallValidationConstants.CHANNEL_NAME_PATTERN;
 
 @Entity
 @Table(name = "calls")
@@ -97,7 +100,7 @@ public class Call extends BaseEntity {
 
     private static void validateUsers(User user1, User user2) {
         if (user1.equals(user2)) {
-            throw new IllegalArgumentException("통화 참가자는 서로 다른 사용자여야 합니다.");
+            throw new CustomException(ErrorCode.CALL_USER_NOT_EQUAL);
         }
     }
 
@@ -179,22 +182,22 @@ public class Call extends BaseEntity {
 
     private void validateChannelName(String channelName) {
         if (channelName == null || channelName.trim().isEmpty()) {
-            throw new IllegalArgumentException("Agora 채널명은 필수입니다.");
+            throw new CustomException(ErrorCode.CHANNEL_NAME_REQUIRED);
         }
-        if (channelName.length() > 64) {
-            throw new IllegalArgumentException("Agora 채널명은 64자를 초과할 수 없습니다.");
+        if (channelName.length() > CallValidationConstants.CHANNEL_NAME_MAX_BYTES) {
+            throw new CustomException(ErrorCode.CHANNEL_NAME_TOO_LONG);
         }
-        if (!channelName.matches("^[a-zA-Z0-9_-]+$")) {
-            throw new IllegalArgumentException("Agora 채널명은 영문, 숫자, 언더스코어, 하이픈만 사용 가능합니다.");
+        if (!CHANNEL_NAME_PATTERN.matcher(channelName).matches()) {
+            throw new CustomException(ErrorCode.CHANNEL_NAME_INVALID);
         }
     }
 
     private void validateRecordingParams(String resourceId, String sid) {
         if (resourceId == null || resourceId.trim().isEmpty()) {
-            throw new IllegalArgumentException("Agora Resource ID는 필수입니다.");
+            throw new CustomException(ErrorCode.AGORA_RESOURCE_ID_REQUIRED);
         }
         if (sid == null || sid.trim().isEmpty()) {
-            throw new IllegalArgumentException("Agora SID는 필수입니다.");
+            throw new CustomException(ErrorCode.AGORA_SID_REQUIRED);
         }
     }
 
@@ -210,7 +213,7 @@ public class Call extends BaseEntity {
         } else if (user2.getId().equals(userId)) {
             return user1;
         } else {
-            throw new IllegalArgumentException("해당 사용자는 이 통화의 참가자가 아닙니다.");
+            throw new CustomException(ErrorCode.INVALID_PARTICIPANT);
         }
     }
 

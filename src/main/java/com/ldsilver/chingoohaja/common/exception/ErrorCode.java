@@ -111,6 +111,9 @@ public enum ErrorCode {
     QUALITY_RANGE_INVALID(HttpStatus.BAD_REQUEST, "L25", "연결 품질은 1-6 범위여야 합니다."),
     BIT_RATE_TOO_SMALL(HttpStatus.BAD_REQUEST, "L26", "비트레이트는 0 이상이어야 합니다."),
     PACKET_LOSS_RANGE_INVALID(HttpStatus.BAD_REQUEST, "L27", "패킷 손실률은 0-100% 범위여야 합니다."),
+    CALL_USER_NOT_EQUAL(HttpStatus.BAD_REQUEST, "L28", "통화 참가자는 서로 다른 사용자여야 합니다."),
+    AGORA_RESOURCE_ID_REQUIRED(HttpStatus.BAD_REQUEST, "L29", "Agora Resource ID는 필수입니다."),
+    AGORA_SID_REQUIRED(HttpStatus.BAD_REQUEST, "L30", "Agora SID는 필수입니다."),
 
     // 카테고리 관련 에러
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "T001", "카테고리를 찾을 수 없습니다."),
