@@ -40,7 +40,7 @@ public interface CallSessionRepository extends JpaRepository<CallSession, Long> 
     @Query("SELECT COUNT(cs) FROM CallSession cs WHERE cs.call.id = :callId AND cs.sessionStatus = :status")
     long countByCallIdAndSessionStatus(@Param("callId") Long callId, @Param("status") SessionStatus status);
 
-    @Query("SELECT cs FROM CallSession cs WHERE cs.call.id = :callId AND cs.sessionStatus = 'JOINED'")
+    @Query("SELECT cs FROM CallSession cs WHERE cs.call.id = :callId AND cs.sessionStatus = com.ldsilver.chingoohaja.domain.call.enums.SessionStatus.JOINED")
     List<CallSession> findJoinedSessionsByCallId(@Param("callId") Long callId);
 
     // ========== 시간 기반 조회 ==========
@@ -51,7 +51,7 @@ public interface CallSessionRepository extends JpaRepository<CallSession, Long> 
     List<CallSession> findByJoinedAtBetween(@Param("startDate") LocalDateTime startDate,
                                             @Param("endDate") LocalDateTime endDate);
 
-    @Query("SELECT cs FROM CallSession cs WHERE cs.sessionStatus = 'READY' AND cs.createdAt < :expiredTime")
+    @Query("SELECT cs FROM CallSession cs WHERE cs.sessionStatus = com.ldsilver.chingoohaja.domain.call.enums.SessionStatus.READY AND cs.createdAt < :expiredTime")
     List<CallSession> findExpiredSessions(@Param("expiredTime") LocalDateTime expiredTime);
 
     // ========== 통계 쿼리 ==========
@@ -84,14 +84,14 @@ public interface CallSessionRepository extends JpaRepository<CallSession, Long> 
 
     @Modifying
     @Transactional
-    @Query("UPDATE CallSession cs SET cs.sessionStatus = 'EXPIRED' " +
-            "WHERE cs.sessionStatus = 'READY' AND cs.createdAt < :expiredTime")
+    @Query("UPDATE CallSession cs SET cs.sessionStatus = com.ldsilver.chingoohaja.domain.call.enums.SessionStatus.EXPIRED " +
+            "WHERE cs.sessionStatus = com.ldsilver.chingoohaja.domain.call.enums.SessionStatus.READY AND cs.createdAt < :expiredTime")
     int markExpiredSessions(@Param("expiredTime") LocalDateTime expiredTime);
 
     @Modifying
     @Transactional
-    @Query("UPDATE CallSession cs SET cs.sessionStatus = 'LEFT', cs.leftAt = :leftAt " +
-            "WHERE cs.call.id = :callId AND cs.sessionStatus = 'JOINED'")
+    @Query("UPDATE CallSession cs SET cs.sessionStatus = com.ldsilver.chingoohaja.domain.call.enums.SessionStatus.LEFT, cs.leftAt = :leftAt " +
+            "WHERE cs.call.id = :callId AND cs.sessionStatus = com.ldsilver.chingoohaja.domain.call.enums.SessionStatus.JOINED")
     int endAllSessionsForCall(@Param("callId") Long callId, @Param("leftAt") LocalDateTime leftAt);
 
     // ========== 삭제 쿼리 ==========
