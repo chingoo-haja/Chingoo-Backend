@@ -104,7 +104,7 @@ public interface CallSessionRepository extends JpaRepository<CallSession, Long> 
     /**
      * Call이 삭제될 때 관련 세션들도 함께 삭제 (CASCADE로 자동 처리되지만 명시적 쿼리 제공)
      */
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Transactional
     void deleteByCall(Call call);
 }
