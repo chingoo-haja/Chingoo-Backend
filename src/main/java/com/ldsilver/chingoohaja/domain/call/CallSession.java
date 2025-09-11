@@ -10,6 +10,7 @@ import jakarta.validation.constraints.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.time.LocalDateTime;
 
@@ -39,10 +40,12 @@ public class CallSession extends BaseEntity {
     @NotBlank(message = "RTC Token은 필수입니다.")
     @Column(nullable = false, length = 2048)
     @Size(max = 2048, message = "RTC Token은 2048자를 초과할 수 없습니다.")
+    @ToString.Exclude
     private String rtcToken;
 
     @Column(length = 2048)
     @Size(max = 2048, message = "RTM Token은 2048자를 초과할 수 없습니다.")
+    @ToString.Exclude
     private String rtmToken;
 
     @Enumerated(EnumType.STRING)
@@ -78,8 +81,8 @@ public class CallSession extends BaseEntity {
         session.call = call;
         session.user = user;
         session.agoraUid = agoraUid;
-        session.rtcToken = rtcToken;
-        session.rtmToken = rtmToken;
+        session.rtcToken = rtcToken.trim();
+        session.rtmToken = (rtmToken != null && !rtmToken.trim().isEmpty()) ? rtmToken.trim() : null;
         session.sessionStatus = (sessionStatus != null) ? sessionStatus : SessionStatus.READY;
         return session;
     }
