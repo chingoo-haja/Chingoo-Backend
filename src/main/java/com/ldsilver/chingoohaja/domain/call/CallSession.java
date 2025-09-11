@@ -111,6 +111,7 @@ public class CallSession extends BaseEntity {
         if (this.sessionStatus == SessionStatus.READY) {
             this.sessionStatus = SessionStatus.JOINED;
             this.joinedAt = LocalDateTime.now();
+            this.leftAt = null;
         } else {
             throw new CustomException(ErrorCode.SESSION_ALREADY_JOINED);
         }
@@ -186,8 +187,9 @@ public class CallSession extends BaseEntity {
             return null;
         }
 
-        LocalDateTime endTime = leftAt != null ? leftAt : LocalDateTime.now();
-        return (int) java.time.Duration.between(joinedAt, endTime).getSeconds();
+        LocalDateTime endTime = (leftAt != null && !leftAt.isBefore(joinedAt)) ? leftAt : LocalDateTime.now();
+        long secs = java.time.Duration.between(joinedAt, endTime).getSeconds();
+        return (int) Math.max(0, secs);
     }
 
 }
