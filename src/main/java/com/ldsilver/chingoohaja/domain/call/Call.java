@@ -110,4 +110,124 @@ public class Call extends BaseEntity {
         }
     }
 
+    // ========== Agora 관련 메서드 ==========
+
+    public void setAgoraChannelInfo(String channelName) {
+        validateChannelName(channelName);
+        this.agoraChannelName = channelName;
+    }
+
+    public void startCloudRecording(String resourceId, String sid) {
+        validateRecordingParams(resourceId, sid);
+
+        if (this.callStatus != CallStatus.IN_PROGRESS) {
+            throw new CustomException(ErrorCode.CALL_NOT_IN_PROGRESS);
+        }
+
+        this.agoraResourceId = resourceId;
+        this.agoraSid = sid;
+        this.recordingStartedAt = LocalDateTime.now();
+    }
+
+    public void stopCloudRecording(String recordingFileUrl) {
+        if (this.recordingStartedAt == null) {
+            throw new CustomException(ErrorCode.RECORDING_NOT_STARTED);
+        }
+
+        this.recordingFileUrl = recordingFileUrl;
+        this.recordingEndedAt = LocalDateTime.now();
+
+        if (this.recordingStartedAt != null) {
+            this.recordingDurationSeconds = (int) java.time.Duration.between(
+                    this.recordingStartedAt,
+                    this.recordingEndedAt
+            ).getSeconds();
+        }
+    }
+
+    public void endCall() {
+        if (this.callStatus == CallStatus.IN_PROGRESS) {
+            this.callStatus = CallStatus.COMPLETED;
+            this.endAt = LocalDateTime.now();
+
+            if (this.startAt != null) {
+                this.durationSeconds = (int) java.time.Duration.between(
+                        this.startAt,
+                        this.endAt
+                ).getSeconds();
+            }
+        } else {
+            throw new CustomException(ErrorCode.CALL_NOT_IN_PROGRESS);
+        }
+    }
+
+    public void cancelCall() {
+        if (this.callStatus == CallStatus.READY || this.callStatus == CallStatus.IN_PROGRESS) {
+            this.callStatus = CallStatus.CANCELLED;
+            this.endAt = LocalDateTime.now();
+        } else {
+            throw new CustomException(ErrorCode.CALL_ALREADY_ENDED);
+        }
+    }
+
+    public void failCall() {
+        this.callStatus = CallStatus.FAILED;
+        this.endAt = LocalDateTime.now();
+    }
+
+    // ========== 검증 메서드 ==========
+
+    private void validateChannelName(String channelName) {
+        if (channelName == null || channelName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Agora 채널명은 필수입니다.");
+        }
+        if (channelName.length() > 64) {
+            throw new IllegalArgumentException("Agora 채널명은 64자를 초과할 수 없습니다.");
+        }
+        if (!channelName.matches("^[a-zA-Z0-9_-]+$")) {
+            throw new IllegalArgumentException("Agora 채널명은 영문, 숫자, 언더스코어, 하이픈만 사용 가능합니다.");
+        }
+    }
+
+    private void validateRecordingParams(String resourceId, String sid) {
+        if (resourceId == null || resourceId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Agora Resource ID는 필수입니다.");
+        }
+        if (sid == null || sid.trim().isEmpty()) {
+            throw new IllegalArgumentException("Agora SID는 필수입니다.");
+        }
+    }
+
+    // ========== 비즈니스 로직 헬퍼 메서드 ==========
+
+    public boolean isParticipant(Long userId) {
+        return user1.getId().equals(userId) || user2.getId().equals(userId);
+    }
+
+    public User getPartner(Long userId) {
+        if (user1.getId().equals(userId)) {
+            return user2;
+        } else if (user2.getId().equals(userId)) {
+            return user1;
+        } else {
+            throw new IllegalArgumentException("해당 사용자는 이 통화의 참가자가 아닙니다.");
+        }
+    }
+
+    public boolean isInProgress() {
+        return callStatus == CallStatus.IN_PROGRESS;
+    }
+
+    public boolean isCompleted() {
+        return callStatus == CallStatus.COMPLETED;
+    }
+
+    public boolean isRecordingActive() {
+        return recordingStartedAt != null && recordingEndedAt == null;
+    }
+
+    public boolean hasRecordingFile() {
+        return recordingFileUrl != null && !recordingFileUrl.trim().isEmpty();
+    }
+
 }
