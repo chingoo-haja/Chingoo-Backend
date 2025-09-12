@@ -45,6 +45,20 @@ public record TokenRequest(
         return new TokenRequest(channelName, userId, 0L, 3600, "PUBLISHER", true);
     }
 
+    // Agora UID 관련 헬퍼 메서드들
+    public boolean hasCustomAgoraUid() {
+        return agoraUid != null && agoraUid > 0;
+    }
+
+    public Long getEffectiveAgoraUid() {
+        return hasCustomAgoraUid() ? agoraUid : userId;
+    }
+
+    public boolean isValidAgoraUidRange() {
+        final long AGORA_MAX_UID = 4_294_967_295L; // 32-bit unsigned max
+        return agoraUid >= 0 && agoraUid <= AGORA_MAX_UID;
+    }
+
     public boolean isPublisher() {
         return "PUBLISHER".equals(role);
     }
