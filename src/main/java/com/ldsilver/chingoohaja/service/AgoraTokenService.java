@@ -3,6 +3,7 @@ package com.ldsilver.chingoohaja.service;
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.call.Call;
+import com.ldsilver.chingoohaja.dto.call.response.BatchTokenResponse;
 import com.ldsilver.chingoohaja.dto.call.response.TokenResponse;
 import com.ldsilver.chingoohaja.infrastructure.agora.AgoraTokenGenerator;
 import com.ldsilver.chingoohaja.repository.CallRepository;
@@ -11,6 +12,7 @@ import io.agora.media.RtcTokenBuilder2;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -66,6 +68,54 @@ public class AgoraTokenService {
             throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "토큰 생성 중 오류가 발생했습니다.");
         }
     }
+
+    @Transactional
+    public BatchTokenResponse generateTokenForMatching(Call call) {
+        log.debug("매칭 완료용 배치 Token 생성 - callId: {}", call.getId());
+
+        String channelName = getOrCreateChannelName(call);
+
+        Long user1Id = call.getUser1().getId();
+        Long user2Id = call.getUser2().getId();
+
+        try {
+            Long user1AgoraUid = generateAgoraUid(user1Id);
+            String user1Token = agoraTokenGenerator.generateRtcToken(
+                    channelName,
+                    safeLongToInt(user1AgoraUid),
+                    RtcTokenBuilder2.Role.ROLE_PUBLISHER,
+                    3600
+            );
+
+            Long user2AgoraUid = generateAgoraUid(user2Id);
+            String user2Token = agoraTokenGenerator.generateRtcToken(
+                    channelName,
+                    safeLongToInt(user2AgoraUid),
+                    RtcTokenBuilder2.Role.ROLE_PUBLISHER,
+                    3600
+            );
+
+            LocalDateTime expireAt = LocalDateTime.now().plusSeconds(3600);
+
+            TokenResponse user1TokenResponse = TokenResponse.rtcOnly(
+                    user1Token, channelName, user1AgoraUid, user1Id, "PUBLISHER", expireAt
+            );
+
+            TokenResponse user2TokenResponse = TokenResponse.rtcOnly(
+                    user2Token, channelName, user2AgoraUid, user2Id, "PUBLISHER", expireAt
+            );
+
+            log.info("매칭용 배치 Token 생성 완료 - callId: {}, channelName: {}, uids: [{}, {}]",
+                    call.getId(), channelName, user1AgoraUid, user2AgoraUid);
+
+            return new BatchTokenResponse(user1TokenResponse, user2TokenResponse);
+        } catch (Exception e) {
+            log.error("매칭용 배치 Token 생성 실패 - callId: {}", call.getId(), e);
+            throw new CustomException(ErrorCode.CALL_SESSION_ERROR);
+        }
+    }
+
+
 
     private String getOrCreateChannelName(Call call) {
         if (call.getAgoraChannelName() != null && !call.getAgoraChannelName().trim().isEmpty()) {
