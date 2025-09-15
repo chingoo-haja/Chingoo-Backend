@@ -35,6 +35,20 @@ public record CallChannelInfo(
 
     }
 
+    public static CallChannelInfo empty(String channelName, Long callId) {
+        LocalDateTime now = LocalDateTime.now();
+        return new CallChannelInfo(
+                channelName,
+                callId,
+                2, // 기본 2명 제한
+                0,
+                Set.of(),
+                now,
+                now.plusHours(1), // 기본 1시간 만료
+                true
+        );
+    }
+
 
     public boolean isFull() {
         return currentParticipants >= maxParticipants;
