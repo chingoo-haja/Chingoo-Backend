@@ -33,4 +33,38 @@ public record ChannelResponse(
                 channelInfo.createdAt()
         );
     }
+
+    public static ChannelResponse created(CallChannelInfo channelInfo) {
+        return from(channelInfo);
+    }
+
+    public static ChannelResponse joined(CallChannelInfo channelInfo, Long userId) {
+        if (!channelInfo.hasParticipant(userId)) {
+            throw new IllegalArgumentException("사용자가 채널에 참가하지 않았습니다: " + userId);
+        }
+        return from(channelInfo);
+    }
+
+    public static ChannelResponse status(CallChannelInfo channelInfo) {
+        return from(channelInfo);
+    }
+
+    public boolean isAvailableForJoin() {
+        return isActive && !isFull && !isExpired();
+    }
+
+    public boolean isExpired() {
+        return LocalDateTime.now().isAfter(expiresAt);
+    }
+
+    public int getAvailableSlots() {
+        return Math.max(0, maxParticipants - currentParticipants);
+    }
+
+    public double getOccupancyRate() {
+        if (maxParticipants == 0) {
+            return 0.0;
+        }
+        return (double) currentParticipants / maxParticipants * 100;
+    }
 }
