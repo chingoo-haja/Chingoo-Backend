@@ -134,6 +134,23 @@ public class CallChannelService {
         log.info("채널 삭제 완료 - channelName: {}", channelName);
     }
 
+    @Transactional(readOnly = true)
+    public ChannelResponse getChannelStatus(String channelName) {
+        log.debug("채널 상태 조회 - channelName: {}", channelName);
+
+        CallChannelInfo channelInfo = getChannelInfo(channelName);
+
+        if (channelInfo == null) {
+            throw new CustomException(ErrorCode.CALL_NOT_FOUND);
+        }
+        return ChannelResponse.status(channelInfo);
+    }
+
+    @Transactional(readOnly = true)
+    public String getUserCurrentChannelName(Long userId) {
+        return getUserCurrentChannel(userId);
+    }
+
 
 
 
