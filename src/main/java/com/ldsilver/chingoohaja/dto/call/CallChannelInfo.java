@@ -34,4 +34,90 @@ public record CallChannelInfo(
         );
 
     }
+
+
+    public boolean isFull() {
+        return currentParticipants >= maxParticipants;
+    }
+
+    public boolean isEmpty() {
+        return currentParticipants == 0;
+    }
+
+    public boolean hasParticipant(Long userId) {
+        return participantIds.contains(userId);
+    }
+
+    public boolean isExpired() {
+        return LocalDateTime.now().isAfter(expiresAt);
+    }
+
+    public CallChannelInfo addParticipant(Long userId) {
+        if (isFull()) {
+            throw new IllegalStateException("채널이 가득 찼습니다: " + channelName);
+        }
+        if (hasParticipant(userId)) {
+            return this; // 이미 참가 중
+        }
+
+        Set<Long> newParticipants = Set.copyOf(participantIds);
+        newParticipants.add(userId);
+
+        return new CallChannelInfo(
+                channelName,
+                callId,
+                maxParticipants,
+                newParticipants.size(),
+                newParticipants,
+                createdAt,
+                expiresAt,
+                isActive
+        );
+    }
+
+    public CallChannelInfo removeParticipant(Long userId) {
+        if (!hasParticipant(userId)) {
+            return this; // 참가하지 않은 사용자
+        }
+
+        Set<Long> newParticipants = Set.copyOf(participantIds);
+        newParticipants.remove(userId);
+
+        return new CallChannelInfo(
+                channelName,
+                callId,
+                maxParticipants,
+                newParticipants.size(),
+                newParticipants,
+                createdAt,
+                expiresAt,
+                isActive
+        );
+    }
+
+    public CallChannelInfo deactivate() {
+        return new CallChannelInfo(
+                channelName,
+                callId,
+                maxParticipants,
+                currentParticipants,
+                participantIds,
+                createdAt,
+                expiresAt,
+                false
+        );
+    }
+
+    public CallChannelInfo extendExpiration(LocalDateTime newExpiresAt) {
+        return new CallChannelInfo(
+                channelName,
+                callId,
+                maxParticipants,
+                currentParticipants,
+                participantIds,
+                createdAt,
+                newExpiresAt,
+                isActive
+        );
+    }
 }
