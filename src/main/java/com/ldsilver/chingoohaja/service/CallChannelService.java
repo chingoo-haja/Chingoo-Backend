@@ -317,6 +317,9 @@ public class CallChannelService {
                     LocalDateTime.now(),
                     channelInfo.expiresAt().plusHours(1)
             ).getSeconds();
+            if (ttlSeconds <= 0) {
+                ttlSeconds = TimeUnit.HOURS.toSeconds(1);
+            }
 
             redisTemplate.expire(channelKey, ttlSeconds, TimeUnit.SECONDS);
             redisTemplate.expire(participantKey, ttlSeconds, TimeUnit.SECONDS);
