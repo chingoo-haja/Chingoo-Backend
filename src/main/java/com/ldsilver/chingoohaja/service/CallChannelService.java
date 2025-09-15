@@ -234,6 +234,44 @@ public class CallChannelService {
         }
     }
 
+    /**
+     * 모든 활성 채널 조회 (관리자용)
+     */
+    @Transactional(readOnly = true)
+    public List<ChannelResponse> getAllActiveChannels() {
+        log.debug("모든 활성 채널 조회");
+
+        try {
+            Set<String> channelKeys = redisTemplate.keys(CHANNEL_PREFIX + "*");
+
+            if (channelKeys == null || channelKeys.isEmpty()) {
+                return Collections.emptyList();
+            }
+
+            List<ChannelResponse> activeChannels = new ArrayList<>();
+
+            for (String channelKey : channelKeys) {
+                try {
+                    String channelName = channelKey.substring(CHANNEL_PREFIX.length());
+                    CallChannelInfo channelInfo = getChannelInfo(channelName);
+
+                    if (channelInfo != null && channelInfo.isActive() && !channelInfo.isExpired()) {
+                        activeChannels.add(ChannelResponse.from(channelInfo));
+                    }
+                } catch (Exception e) {
+                    log.warn("채널 정보 조회 중 오류 발생 - channelKey: {}", channelKey, e);
+                }
+            }
+
+            log.debug("활성 채널 조회 완료 - 채널 수: {}", activeChannels.size());
+            return activeChannels;
+
+        } catch (Exception e) {
+            log.error("활성 채널 조회 실패", e);
+            return Collections.emptyList();
+        }
+    }
+
 
 
 
