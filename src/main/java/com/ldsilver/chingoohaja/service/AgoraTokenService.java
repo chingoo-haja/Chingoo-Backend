@@ -3,6 +3,7 @@ package com.ldsilver.chingoohaja.service;
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.call.Call;
+import com.ldsilver.chingoohaja.dto.call.request.TokenRequest;
 import com.ldsilver.chingoohaja.dto.call.response.BatchTokenResponse;
 import com.ldsilver.chingoohaja.dto.call.response.TokenResponse;
 import com.ldsilver.chingoohaja.infrastructure.agora.AgoraTokenGenerator;
@@ -115,6 +116,46 @@ public class AgoraTokenService {
         }
     }
 
+    public TokenResponse generateRtcToken(TokenRequest request) {
+        log.debug("일반 RTC Token 생성 - channelName: {}, userId: {}",
+                request.channelName(), request.userId());
+
+        if (!userRepository.existsById(request.userId())) {
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        Long finalAgoraUid = determineAgoraUid(request.agoraUid(), request.userId());
+        RtcTokenBuilder2.Role role = request.isPublisher() ?
+                RtcTokenBuilder2.Role.ROLE_PUBLISHER : RtcTokenBuilder2.Role.ROLE_SUBSCRIBER;
+
+        try {
+            String rtcToken = agoraTokenGenerator.generateRtcToken(
+                    request.channelName(),
+                    safeLongToInt(finalAgoraUid),
+                    role,
+                    request.expirationSeconds()
+            );
+
+            // 나중에 rtmToken이 필요하면 request.needsRtmToken() 활용해 생성
+
+            LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(request.expirationSeconds());
+
+            return TokenResponse.of(
+                    rtcToken, null, request.channelName(),
+                    finalAgoraUid,
+                    request.userId(),
+                    request.role(),
+                    expiresAt
+            );
+
+        } catch (Exception e) {
+            log.error("일반 RTC Token 생성 실패 - userId: {}, channel: {}",
+                    request.userId(), request.channelName(), e);
+            throw new CustomException(ErrorCode.CALL_SESSION_ERROR);
+        }
+
+    }
+
 
 
     private String getOrCreateChannelName(Call call) {
@@ -162,6 +203,13 @@ public class AgoraTokenService {
         }
 
         return longValue.intValue();
+    }
+
+    private Long determineAgoraUid(Long requestedUid, Long userId) {
+        if (requestedUid != null && requestedUid > 0) {
+            return requestedUid.longValue(); // Integer를 Long으로 변환
+        }
+        return generateAgoraUid(userId);
     }
 
 }
