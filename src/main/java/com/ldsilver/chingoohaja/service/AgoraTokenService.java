@@ -72,7 +72,7 @@ public class AgoraTokenService {
             );
         } catch (Exception e) {
             log.error("통화용 Token 생성 실패 - userId: {}, callId: {}", userId, callId, e);
-            throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "토큰 생성 중 오류가 발생했습니다.");
+            throw new CustomException(ErrorCode.CALL_SESSION_ERROR);
         }
     }
 
@@ -178,7 +178,7 @@ public class AgoraTokenService {
     }
 
     private Long generateAgoraUid(Long userId) {
-        if (userId <= 0) {
+        if (userId == null || userId < 0) {
             throw new CustomException(ErrorCode.AGORA_UID_INVALID);
         }
 
@@ -213,7 +213,7 @@ public class AgoraTokenService {
 
     private Long determineAgoraUid(Long requestedUid, Long userId) {
         if (requestedUid != null && requestedUid > 0) {
-            return requestedUid.longValue(); // Integer를 Long으로 변환
+            return requestedUid;
         }
         return generateAgoraUid(userId);
     }
