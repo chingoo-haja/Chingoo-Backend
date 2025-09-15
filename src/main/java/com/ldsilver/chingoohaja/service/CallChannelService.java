@@ -301,7 +301,7 @@ public class CallChannelService {
             channelData.put("channelName", channelInfo.channelName());
             channelData.put("callId", channelInfo.callId());
             channelData.put("maxParticipants", channelInfo.maxParticipants());
-            channelData.put("createAt", channelInfo.createdAt().toString());
+            channelData.put("createdAt", channelInfo.createdAt().toString());
             channelData.put("expiresAt", channelInfo.expiresAt().toString());
             channelData.put("isActive", channelInfo.isActive());
 
