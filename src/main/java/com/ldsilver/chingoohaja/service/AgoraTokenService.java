@@ -27,7 +27,6 @@ public class AgoraTokenService {
     private final UserRepository userRepository;
     private final CallRepository callRepository;
 
-    public final long AGORA_MAX_UID = 4_294_967_295L;
 
     /**
      * - ✅ 매칭 완료 시: generateTokensForMatching() 사용 (배치 생성)
@@ -186,7 +185,7 @@ public class AgoraTokenService {
             throw new CustomException(ErrorCode.AGORA_UID_INVALID);
         }
 
-        if (userId <= AGORA_MAX_UID) {
+        if (userId <= CallValidationConstants.AGORA_MAX_UID) {
             return userId;
         } else {
             throw new CustomException(ErrorCode.USER_ID_TOO_LARGE, userId);
@@ -203,9 +202,9 @@ public class AgoraTokenService {
                     "Agora UID는 음수일 수 없습니다: " + longValue);
         }
 
-        if (longValue > AGORA_MAX_UID) {
+        if (longValue > CallValidationConstants.AGORA_MAX_UID) {
             throw new CustomException(ErrorCode.AGORA_UID_INVALID,
-                    "Agora UID가 최대값을 초과했습니다: " + longValue + " > " + AGORA_MAX_UID);
+                    "Agora UID가 최대값을 초과했습니다: " + longValue + " > " + CallValidationConstants.AGORA_MAX_UID);
         }
 
         return (int) (longValue & 0xFFFF_FFFFL);
