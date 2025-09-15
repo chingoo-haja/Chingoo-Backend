@@ -81,6 +81,59 @@ public class CallChannelService {
         return ChannelResponse.joined(updatedChannelInfo, userId);
     }
 
+    @Transactional
+    public ChannelResponse leaveChannel(String channelName, Long userId) {
+        log.debug("채널 나가기 시작 - channelName: {}, userId: {}", channelName, userId);
+
+        CallChannelInfo channelInfo = getChannelInfo(channelName);
+
+        if (channelInfo == null) {
+            log.warn("존재하지 않는 채널에서 나가기 시도 - channelName: {}, userId: {}", channelName, userId);
+            return null;
+        }
+
+        if (!channelInfo.hasParticipant(userId)) {
+            log.warn("참가하지 않은 채널에서 나가기 시도 - channelName: {}, userId: {}", channelName, userId);
+            return ChannelResponse.from(channelInfo);
+        }
+
+        CallChannelInfo updatedChannelInfo = channelInfo.removeParticipant(userId);
+
+        clearUserCurrentChannel(userId);
+
+        if (updatedChannelInfo.isEmpty()) {
+            deleteChannel(channelName);
+            log.info("빈 채널 삭제 - channelName: {}", channelName);
+            return null;
+        } else {
+            storeChannelInfo(updatedChannelInfo);
+            log.info("채널 나가기 완료 - channelName: {}, userId: {}, participants: {}/{}",
+                    channelName, userId, updatedChannelInfo.currentParticipants(), updatedChannelInfo.maxParticipants());
+            return ChannelResponse.from(updatedChannelInfo);
+        }
+    }
+
+    @Transactional
+    public void deleteChannel(String channelName) {
+        log.debug("채널 삭제 시작 - channelName: {}", channelName);
+
+        CallChannelInfo channelInfo = getChannelInfo(channelName);
+
+        if (channelInfo != null) {
+            for (Long userId: channelInfo.participantIds()) {
+                clearUserCurrentChannel(userId);
+            }
+        }
+
+        String channelKey = CHANNEL_PREFIX + channelName;
+        String participantsKey = CHANNEL_PARTICIPANTS_PREFIX + channelName;
+
+        redisTemplate.delete(channelKey);
+        redisTemplate.delete(participantsKey);
+
+        log.info("채널 삭제 완료 - channelName: {}", channelName);
+    }
+
 
 
 
@@ -184,6 +237,15 @@ public class CallChannelService {
             redisTemplate.opsForValue().set(userChannelKey, channelName, 2, TimeUnit.HOURS);
         } catch (Exception e) {
             log.error("사용자 채널 설정 실패 - userId: {}, channelName: {}", userId, channelName, e);
+        }
+    }
+
+    private void clearUserCurrentChannel(Long userId) {
+        try {
+            String userChannelKey = USER_CHANNEL_PREFIX + userId;
+            redisTemplate.delete(userChannelKey);
+        } catch (Exception e) {
+            log.error("사용자 채널 정보 삭제 실패 - userId: {}", userId, e);
         }
     }
 }
