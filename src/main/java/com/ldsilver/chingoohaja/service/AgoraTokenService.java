@@ -208,7 +208,7 @@ public class AgoraTokenService {
                     "Agora UID가 최대값을 초과했습니다: " + longValue + " > " + AGORA_MAX_UID);
         }
 
-        return longValue.intValue();
+        return (int) (longValue & 0xFFFF_FFFFL);
     }
 
     private Long determineAgoraUid(Long requestedUid, Long userId) {
