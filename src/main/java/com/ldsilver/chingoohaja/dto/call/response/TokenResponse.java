@@ -78,8 +78,11 @@ public record TokenResponse(
     }
 
     private String maskToken(String token) {
-        if (token == null || token.length() < 8) {
-            return "***";
+        if (token == null) {
+            return "<null>";
+        }
+        if (token.length() < 8) {
+            return "<short>";
         }
         return token.substring(0, 4) + "***" + token.substring(token.length() - 4);
     }
