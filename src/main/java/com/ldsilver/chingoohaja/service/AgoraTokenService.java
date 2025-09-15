@@ -32,6 +32,7 @@ public class AgoraTokenService {
      * - ✅ 일반적 용도: 기존 generateRtcToken() 유지
      */
 
+    @Transactional
     public TokenResponse generateTokenForCall(Long userId, Long callId) {
         log.debug("통화용 Token 생성 - userId: {}, callId: {}", userId, callId);
 
