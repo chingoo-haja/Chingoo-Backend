@@ -27,7 +27,7 @@ public record TokenRequest(
 ) {
     public TokenRequest {
         // 기본값 설정
-        agoraUid = agoraUid != null ? agoraUid : 0; // 0이면 Agora가 자동 할당
+        agoraUid = agoraUid != null ? agoraUid : 0L; // 0이면 Agora가 자동 할당
         expirationSeconds = expirationSeconds != null ? expirationSeconds : 3600; // 기본 1시간
         role = role != null ? role : "PUBLISHER";
         includeRtmToken = includeRtmToken != null ? includeRtmToken : false;
