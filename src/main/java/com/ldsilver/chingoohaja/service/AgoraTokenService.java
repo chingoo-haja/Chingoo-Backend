@@ -26,6 +26,12 @@ public class AgoraTokenService {
     private final UserRepository userRepository;
     private final CallRepository callRepository;
 
+    /**
+     * - ✅ 매칭 완료 시: generateTokensForMatching() 사용 (배치 생성)
+     * - ✅ 개별 토큰 필요시: generateTokenForCall() 사용 (권한 검증 포함)
+     * - ✅ 일반적 용도: 기존 generateRtcToken() 유지
+     */
+
     public TokenResponse generateTokenForCall(Long userId, Long callId) {
         log.debug("통화용 Token 생성 - userId: {}, callId: {}", userId, callId);
 
