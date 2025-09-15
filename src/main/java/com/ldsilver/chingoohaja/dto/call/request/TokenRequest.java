@@ -19,6 +19,7 @@ public record TokenRequest(
         @JsonProperty("agora_uid") Long agoraUid,
 
         @Min(value = 60, message = "만료 시간은 최소 60초 이상이어야 합니다.")
+        @Max(value = 86_400, message = "만료 시간은 최대 24시간(86,400초) 이하로 설정해야 합니다.")
         @JsonProperty("expiration_seconds") Integer expirationSeconds,
 
         @Pattern(regexp = "^(PUBLISHER|SUBSCRIBER)$", message = "역할은 PUBLISHER 또는 SUBSCRIBER여야 합니다.")
