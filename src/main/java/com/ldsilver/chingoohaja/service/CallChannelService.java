@@ -227,6 +227,8 @@ public class CallChannelService {
 
             if (cleanedCount > 0) {
                 log.info("빈 채널 정리 완료 - 정리된 채널 수: {}", cleanedCount);
+            } else {
+                log.info("빈 채널 정리 완료  - 정리된 채널이 없습니다.");
             }
 
         } catch (Exception e) {
