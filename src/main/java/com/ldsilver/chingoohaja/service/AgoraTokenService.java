@@ -70,7 +70,7 @@ public class AgoraTokenService {
                     channelName,
                     agoraUid,
                     userId,
-                    "PUBLISHER",
+                    CallValidationConstants.DEFAULT_ROLE,
                     expiresAt
             );
         } catch (Exception e) {
@@ -108,11 +108,11 @@ public class AgoraTokenService {
             LocalDateTime expireAt = LocalDateTime.now().plusSeconds(CallValidationConstants.DEFAULT_TTL_SECONDS);
 
             TokenResponse user1TokenResponse = TokenResponse.rtcOnly(
-                    user1Token, channelName, user1AgoraUid, user1Id, "PUBLISHER", expireAt
+                    user1Token, channelName, user1AgoraUid, user1Id, CallValidationConstants.DEFAULT_ROLE, expireAt
             );
 
             TokenResponse user2TokenResponse = TokenResponse.rtcOnly(
-                    user2Token, channelName, user2AgoraUid, user2Id, "PUBLISHER", expireAt
+                    user2Token, channelName, user2AgoraUid, user2Id, CallValidationConstants.DEFAULT_ROLE, expireAt
             );
 
             log.info("매칭용 배치 Token 생성 완료 - callId: {}, channelName: {}, uids: [{}, {}]",
