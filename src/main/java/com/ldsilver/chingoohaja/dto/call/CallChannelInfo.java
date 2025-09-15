@@ -26,8 +26,8 @@ public record CallChannelInfo(
                 channelName,
                 callId,
                 maxParticipants,
-                participantIds.size(),
-                participantIds,
+                Set.copyOf(participantIds).size(),
+                Set.copyOf(participantIds),
                 createdAt,
                 expiresAt,
                 true
