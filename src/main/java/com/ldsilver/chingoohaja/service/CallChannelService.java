@@ -10,6 +10,7 @@ import com.ldsilver.chingoohaja.validation.CallValidationConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -150,6 +151,89 @@ public class CallChannelService {
     public String getUserCurrentChannelName(Long userId) {
         return getUserCurrentChannel(userId);
     }
+
+    /**
+     * 만료된 채널 정리 (스케줄러)
+     */
+    @Scheduled(fixedDelay = 300000) // 5분마다 실행
+    @Transactional
+    public void cleanupExpiredChannels() {
+        log.debug("만료된 채널 정리 시작");
+
+        try {
+            Set<String> channelKeys = redisTemplate.keys(CHANNEL_PREFIX + "*");
+
+            if (channelKeys == null || channelKeys.isEmpty()) {
+                return;
+            }
+
+            int cleanedCount = 0;
+
+            for (String channelKey : channelKeys) {
+                try {
+                    String channelName = channelKey.substring(CHANNEL_PREFIX.length());
+                    CallChannelInfo channelInfo = getChannelInfo(channelName);
+
+                    if (channelInfo != null && (channelInfo.isExpired() || !channelInfo.isActive())) {
+                        deleteChannel(channelName);
+                        cleanedCount++;
+                        log.debug("만료된 채널 정리 - channelName: {}", channelName);
+                    }
+                } catch (Exception e) {
+                    log.warn("채널 정리 중 오류 발생 - channelKey: {}", channelKey, e);
+                }
+            }
+
+            if (cleanedCount > 0) {
+                log.info("만료된 채널 정리 완료 - 정리된 채널 수: {}", cleanedCount);
+            }
+
+        } catch (Exception e) {
+            log.error("채널 정리 스케줄러 실행 실패", e);
+        }
+    }
+
+    /**
+     * 빈 채널 정리 (스케줄러)
+     */
+    @Scheduled(fixedDelay = 180000) // 3분마다 실행
+    @Transactional
+    public void cleanupEmptyChannels() {
+        log.debug("빈 채널 정리 시작");
+
+        try {
+            Set<String> channelKeys = redisTemplate.keys(CHANNEL_PREFIX + "*");
+
+            if (channelKeys == null || channelKeys.isEmpty()) {
+                return;
+            }
+
+            int cleanedCount = 0;
+
+            for (String channelKey : channelKeys) {
+                try {
+                    String channelName = channelKey.substring(CHANNEL_PREFIX.length());
+                    CallChannelInfo channelInfo = getChannelInfo(channelName);
+
+                    if (channelInfo != null && channelInfo.isEmpty()) {
+                        deleteChannel(channelName);
+                        cleanedCount++;
+                        log.debug("빈 채널 정리 - channelName: {}", channelName);
+                    }
+                } catch (Exception e) {
+                    log.warn("빈 채널 정리 중 오류 발생 - channelKey: {}", channelKey, e);
+                }
+            }
+
+            if (cleanedCount > 0) {
+                log.info("빈 채널 정리 완료 - 정리된 채널 수: {}", cleanedCount);
+            }
+
+        } catch (Exception e) {
+            log.error("빈 채널 정리 스케줄러 실행 실패", e);
+        }
+    }
+
 
 
 
