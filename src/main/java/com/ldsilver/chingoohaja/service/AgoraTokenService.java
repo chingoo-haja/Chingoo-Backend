@@ -215,6 +215,10 @@ public class AgoraTokenService {
         if (requestedUid != null && requestedUid > 0) {
             return requestedUid;
         }
+
+        if (requestedUid != null && requestedUid < 0) {
+            throw new CustomException(ErrorCode.AGORA_UID_INVALID, "Agora UID는 음수일 수 없습니다: " + requestedUid);
+        }
         return generateAgoraUid(userId);
     }
 
