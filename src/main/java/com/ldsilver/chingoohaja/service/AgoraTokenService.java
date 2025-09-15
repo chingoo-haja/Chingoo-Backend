@@ -9,6 +9,7 @@ import com.ldsilver.chingoohaja.dto.call.response.TokenResponse;
 import com.ldsilver.chingoohaja.infrastructure.agora.AgoraTokenGenerator;
 import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.repository.UserRepository;
+import com.ldsilver.chingoohaja.validation.CallValidationConstants;
 import io.agora.media.RtcTokenBuilder2;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,8 @@ public class AgoraTokenService {
     private final AgoraTokenGenerator agoraTokenGenerator;
     private final UserRepository userRepository;
     private final CallRepository callRepository;
+
+    public final long AGORA_MAX_UID = 4_294_967_295L;
 
     /**
      * - ✅ 매칭 완료 시: generateTokensForMatching() 사용 (배치 생성)
@@ -55,10 +58,10 @@ public class AgoraTokenService {
                     channelName,
                     safeLongToInt(agoraUid),
                     RtcTokenBuilder2.Role.ROLE_PUBLISHER,
-                    3600
+                    CallValidationConstants.DEFAULT_TTL_SECONDS
             );
 
-            LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(3600);
+            LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(CallValidationConstants.DEFAULT_TTL_SECONDS);
 
             log.info("통화용 Token 생성 완료 - userId: {}, callId: {}, agoraUid: {}",
                     userId, callId, agoraUid);
@@ -92,7 +95,7 @@ public class AgoraTokenService {
                     channelName,
                     safeLongToInt(user1AgoraUid),
                     RtcTokenBuilder2.Role.ROLE_PUBLISHER,
-                    3600
+                    CallValidationConstants.DEFAULT_TTL_SECONDS
             );
 
             Long user2AgoraUid = generateAgoraUid(user2Id);
@@ -100,10 +103,10 @@ public class AgoraTokenService {
                     channelName,
                     safeLongToInt(user2AgoraUid),
                     RtcTokenBuilder2.Role.ROLE_PUBLISHER,
-                    3600
+                    CallValidationConstants.DEFAULT_TTL_SECONDS
             );
 
-            LocalDateTime expireAt = LocalDateTime.now().plusSeconds(3600);
+            LocalDateTime expireAt = LocalDateTime.now().plusSeconds(CallValidationConstants.DEFAULT_TTL_SECONDS);
 
             TokenResponse user1TokenResponse = TokenResponse.rtcOnly(
                     user1Token, channelName, user1AgoraUid, user1Id, "PUBLISHER", expireAt
@@ -183,8 +186,6 @@ public class AgoraTokenService {
             throw new CustomException(ErrorCode.AGORA_UID_INVALID);
         }
 
-        final long AGORA_MAX_UID = 4_294_967_295L;
-
         if (userId <= AGORA_MAX_UID) {
             return userId;
         } else {
@@ -196,8 +197,6 @@ public class AgoraTokenService {
         if (longValue == null) {
             return 0; // Agora가 자동 할당
         }
-
-        final long AGORA_MAX_UID = 4_294_967_295L;
 
         if (longValue < 0) {
             throw new CustomException(ErrorCode.AGORA_UID_INVALID,

@@ -1,6 +1,7 @@
 package com.ldsilver.chingoohaja.dto.call.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.ldsilver.chingoohaja.validation.CallValidationConstants;
 import com.ldsilver.chingoohaja.validation.CommonValidationConstants;
 import jakarta.validation.constraints.*;
 
@@ -26,28 +27,24 @@ public record TokenRequest(
         @JsonProperty("include_rtm_token") Boolean includeRtmToken
 ) {
 
-    private static final int DEFAULT_TTL_SECONDS = 3600;
-    private static final String DEFAULT_ROLE = "PUBLISHER";
-
-
     public TokenRequest {
         // 기본값 설정
         agoraUid = agoraUid != null ? agoraUid : 0L; // 0이면 Agora가 자동 할당
-        expirationSeconds = expirationSeconds != null ? expirationSeconds : DEFAULT_TTL_SECONDS; // 기본 1시간
-        role = role != null ? role : DEFAULT_ROLE;
+        expirationSeconds = expirationSeconds != null ? expirationSeconds : CallValidationConstants.DEFAULT_TTL_SECONDS; // 기본 1시간
+        role = role != null ? role : CallValidationConstants.DEFAULT_ROLE;
         includeRtmToken = includeRtmToken != null ? includeRtmToken : false;
     }
 
     public static TokenRequest of(String channelName, Long userId) {
-        return new TokenRequest(channelName, userId, 0L, DEFAULT_TTL_SECONDS, DEFAULT_ROLE, false);
+        return new TokenRequest(channelName, userId, 0L, CallValidationConstants.DEFAULT_TTL_SECONDS, CallValidationConstants.DEFAULT_ROLE, false);
     }
 
     public static TokenRequest withRole(String channelName, Long userId, String role) {
-        return new TokenRequest(channelName, userId, 0L, DEFAULT_TTL_SECONDS, role, false);
+        return new TokenRequest(channelName, userId, 0L, CallValidationConstants.DEFAULT_TTL_SECONDS, role, false);
     }
 
     public static TokenRequest withRtm(String channelName, Long userId) {
-        return new TokenRequest(channelName, userId, 0L, DEFAULT_TTL_SECONDS, DEFAULT_ROLE, true);
+        return new TokenRequest(channelName, userId, 0L, CallValidationConstants.DEFAULT_TTL_SECONDS, CallValidationConstants.DEFAULT_ROLE, true);
     }
 
     // Agora UID 관련 헬퍼 메서드들
@@ -65,7 +62,7 @@ public record TokenRequest(
     }
 
     public boolean isPublisher() {
-        return DEFAULT_ROLE.equals(role);
+        return CallValidationConstants.DEFAULT_ROLE.equals(role);
     }
 
     public boolean needsRtmToken() {
