@@ -59,7 +59,8 @@ public record TokenRequest(
 
     public boolean isValidAgoraUidRange() {
         final long AGORA_MAX_UID = 4_294_967_295L; // 32-bit unsigned max
-        return agoraUid >= 0 && agoraUid <= AGORA_MAX_UID;
+        long candidate = getEffectiveAgoraUid();
+        return candidate >= 0 && candidate <= AGORA_MAX_UID;
     }
 
     public boolean isPublisher() {
