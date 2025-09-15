@@ -57,6 +57,7 @@ public enum ErrorCode {
     INVALID_FILE_NAME(HttpStatus.BAD_REQUEST, "U011", "유효하지 않은 파일명입니다."),
     NO_PROFILE_CHANGE(HttpStatus.BAD_REQUEST, "U012", "수정을 원하는 사용자 프로필 데이터가 없습니다."),
     INVALID_IMAGE_URL_LENGTH(HttpStatus.BAD_REQUEST, "U013", "사용자 프로필 이미지 URL 길이가 초과되었습니다."),
+    USER_ID_TOO_LARGE(HttpStatus.BAD_REQUEST, "U014", "사용자 ID가 Agora UID 범위를 초과했습니다: %s"),
 
     // 닉네임 관련 에러
     NICKNAME_WORDS_NOT_LOADED(HttpStatus.INTERNAL_SERVER_ERROR, "N001", "닉네임 생성을 위한 단어가 로드되지 않았습니다."),
