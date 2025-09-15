@@ -15,9 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -47,6 +45,45 @@ public class CallChannelService {
         log.info("채널 생성 완료 - channelName: {}, callId: {}", channelName, call.getId());
         return ChannelResponse.created(channelInfo);
     }
+
+    @Transactional
+    public ChannelResponse joinChannel(String channelName, Long userId) {
+        log.debug("채널 참가 시작 - channelName: {}, userId: {}", channelName, userId);
+
+        CallChannelInfo channelInfo = getChannelInfo(channelName);
+
+        if (channelInfo == null) {
+            throw new CustomException(ErrorCode.CALL_NOT_FOUND, "채널을 찾을 수 없습니다: " + channelName);
+        }
+
+        if (channelInfo.isFull()) {
+            throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "채널이 가득 찼습니다: " + channelName);
+        }
+
+        if (channelInfo.isExpired()) {
+            throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "채널이 만료되었습니다: " + channelName);
+        }
+
+        String existingChannel = getUserCurrentChannel(userId);
+        if (existingChannel != null && !existingChannel.equals(channelName)) {
+            throw new CustomException(ErrorCode.SESSION_ALREADY_JOINED);
+        }
+
+        CallChannelInfo updatedChannelInfo = channelInfo.addParticipant(userId);
+        storeChannelInfo(updatedChannelInfo);
+
+        // 사용자-채널 매핑 저장
+        setUserCurrentChannel(userId, channelName);
+
+        log.info("채널 참가 완료 - channelName: {}, userId: {}, participants: {}/{}",
+                channelName, userId, updatedChannelInfo.currentParticipants(), updatedChannelInfo.maxParticipants());
+
+        return ChannelResponse.joined(updatedChannelInfo, userId);
+    }
+
+
+
+
 
     private String generateChannelName(Call call) {
         long timestamp = System.currentTimeMillis();
@@ -92,6 +129,61 @@ public class CallChannelService {
         } catch (Exception e) {
             log.error("채널 정보 저장 실패 - channelName: {}", channelInfo.channelName(), e);
             throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public CallChannelInfo getChannelInfo(String channelName) {
+        try {
+            String channelKey = CHANNEL_PREFIX + channelName;
+            Map<Object, Object> channelData = redisTemplate.opsForHash().entries(channelKey);
+
+            if (channelData.isEmpty()) {
+                return null;
+            }
+
+            String participantsKey = CHANNEL_PARTICIPANTS_PREFIX + channelName;
+            Set<Object> participantObjects = redisTemplate.opsForSet().members(participantsKey);
+
+            Set<Long> participantIds = new HashSet<>();
+            if (participantObjects != null) {
+                for (Object obj : participantObjects) {
+                    participantIds.add(Long.valueOf(obj.toString()));
+                }
+            }
+
+            return new CallChannelInfo(
+                    (String) channelData.get("channelName"),
+                    Long.valueOf(channelData.get("callId").toString()),
+                    Integer.parseInt(channelData.get("maxParticipants").toString()),
+                    participantIds.size(),
+                    participantIds,
+                    LocalDateTime.parse(channelData.get("createdAt").toString()),
+                    LocalDateTime.parse(channelData.get("expiresAt").toString()),
+                    Boolean.parseBoolean(channelData.get("isActive").toString())
+            );
+        } catch (Exception e) {
+            log.error("채널 정보 조회 실패 - channelName: {}", channelName, e);
+            return null;
+        }
+    }
+
+    private String getUserCurrentChannel(Long userId) {
+        try {
+            String userChannelKey = USER_CHANNEL_PREFIX + userId;
+            Object channel = redisTemplate.opsForValue().get(userChannelKey);
+            return channel != null ? channel.toString() : null;
+        } catch (Exception e) {
+            log.error("사용자 채널 조회 실패 - userId: {}", userId, e);
+            return null;
+        }
+    }
+
+    private void setUserCurrentChannel(Long userId, String channelName) {
+        try {
+            String userChannelKey = USER_CHANNEL_PREFIX + userId;
+            redisTemplate.opsForValue().set(userChannelKey, channelName, 2, TimeUnit.HOURS);
+        } catch (Exception e) {
+            log.error("사용자 채널 설정 실패 - userId: {}, channelName: {}", userId, channelName, e);
         }
     }
 }
