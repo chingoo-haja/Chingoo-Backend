@@ -74,7 +74,7 @@ public record CallChannelInfo(
             return this; // 이미 참가 중
         }
 
-        Set<Long> newParticipants = Set.copyOf(participantIds);
+        Set<Long> newParticipants = new java.util.HashSet<>(participantIds);
         newParticipants.add(userId);
 
         return new CallChannelInfo(
@@ -82,7 +82,7 @@ public record CallChannelInfo(
                 callId,
                 maxParticipants,
                 newParticipants.size(),
-                newParticipants,
+                Set.copyOf(newParticipants),
                 createdAt,
                 expiresAt,
                 isActive
@@ -94,7 +94,7 @@ public record CallChannelInfo(
             return this; // 참가하지 않은 사용자
         }
 
-        Set<Long> newParticipants = Set.copyOf(participantIds);
+        Set<Long> newParticipants = new java.util.HashSet<>(participantIds);
         newParticipants.remove(userId);
 
         return new CallChannelInfo(
@@ -102,7 +102,7 @@ public record CallChannelInfo(
                 callId,
                 maxParticipants,
                 newParticipants.size(),
-                newParticipants,
+                Set.copyOf(newParticipants),
                 createdAt,
                 expiresAt,
                 isActive
