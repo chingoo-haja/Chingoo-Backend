@@ -8,7 +8,7 @@ import jakarta.validation.constraints.*;
 public record TokenRequest(
         @NotBlank(message = "채널명은 필수입니다.")
         @Size(min = 1, max = 64, message = "채널명은 1-64자여야 합니다.")
-        @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "채널명은 영문, 숫자, 언더스코어, 하이픈만 사용 가능합니다.")
+        @Pattern(regexp = CallValidationConstants.CHANNEL_NAME_REGEX, message = "채널명은 영문, 숫자, 언더스코어, 하이픈만 사용 가능합니다.")
         @JsonProperty("channel_name") String channelName,
 
         @NotNull(message = "사용자 ID는 필수입니다.")
