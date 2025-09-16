@@ -19,6 +19,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -324,7 +325,7 @@ public class CallChannelService {
         String channelName = String.format("call_%d_%d_%s",
                 call.getId(), timestamp, randomSuffix);
 
-        if (channelName.getBytes().length > CallValidationConstants.CHANNEL_NAME_MAX_BYTES) {
+        if (channelName.getBytes(StandardCharsets.UTF_8).length > CallValidationConstants.CHANNEL_NAME_MAX_BYTES) {
             channelName = String.format("c_%d_%s", call.getId(), randomSuffix);
         }
         return channelName;
