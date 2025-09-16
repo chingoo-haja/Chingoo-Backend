@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -342,6 +343,7 @@ public class CallChannelService {
             channelData.put("maxParticipants", channelInfo.maxParticipants());
             channelData.put("createdAt", channelInfo.createdAt().toString());
             channelData.put("expiresAt", channelInfo.expiresAt().toString());
+            channelData.put("expiresAtEpoch", String.valueOf(channelInfo.expiresAt().toEpochSecond(ZoneOffset.UTC)));
             channelData.put("isActive", channelInfo.isActive());
 
             redisTemplate.opsForHash().putAll(channelKey, channelData);
