@@ -10,7 +10,10 @@ import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.validation.CallValidationConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -169,9 +172,9 @@ public class CallChannelService {
         log.debug("만료된 채널 정리 시작");
 
         try {
-            Set<String> channelKeys = redisTemplate.keys(CHANNEL_PREFIX + "*");
+            Set<String> channelKeys = scanKeysWithPattern(CHANNEL_PREFIX + "*");
 
-            if (channelKeys == null || channelKeys.isEmpty()) {
+            if (channelKeys.isEmpty()) {
                 return;
             }
 
@@ -197,7 +200,7 @@ public class CallChannelService {
             }
 
         } catch (Exception e) {
-            log.error("채널 정리 스케줄러 실행 실패", e);
+            log.error("만료된 채널 정리 스케줄러 실행 실패", e);
         }
     }
 
@@ -210,9 +213,9 @@ public class CallChannelService {
         log.debug("빈 채널 정리 시작");
 
         try {
-            Set<String> channelKeys = redisTemplate.keys(CHANNEL_PREFIX + "*");
+            Set<String> channelKeys = scanKeysWithPattern(CHANNEL_PREFIX + "*");
 
-            if (channelKeys == null || channelKeys.isEmpty()) {
+            if (channelKeys.isEmpty()) {
                 return;
             }
 
@@ -285,7 +288,34 @@ public class CallChannelService {
 
 
 
+    /**
+     * Redis KEYS 대신 SCAN을 사용하여 패턴 매칭 키 조회 (논블로킹)
+     */
+    private Set<String> scanKeysWithPattern(String pattern) {
+        Set<String> keys = new HashSet<>();
 
+        redisTemplate.execute((RedisCallback<Void>) connection -> {
+            try (Cursor<byte[]> cursor = connection.scan(
+                    ScanOptions.scanOptions()
+                            .match(pattern)
+                            .count(1000)
+                            .build())) {
+
+                while (cursor.hasNext()) {
+                    byte[] key = cursor.next();
+                    String keyStr = (String) redisTemplate.getKeySerializer().deserialize(key);
+                    if (keyStr != null) {
+                        keys.add(keyStr);
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Redis SCAN 중 오류 발생: {}", e.getMessage(), e);
+            }
+            return null;
+        });
+
+        return keys;
+    }
 
     private String generateChannelName(Call call) {
         long timestamp = System.currentTimeMillis();
