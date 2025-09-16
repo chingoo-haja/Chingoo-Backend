@@ -107,20 +107,25 @@ public class CallChannelService {
             return ChannelResponse.from(channelInfo);
         }
 
-        CallChannelInfo updatedChannelInfo = channelInfo.removeParticipant(userId);
+        // 원자적 제거
+        String participantsKey = CHANNEL_PARTICIPANTS_PREFIX + channelName;
+        try {
+                redisTemplate.opsForSet().remove(participantsKey, String.valueOf(userId));
+            } finally {
+                clearUserCurrentChannel(userId);
+            }
 
-        clearUserCurrentChannel(userId);
-
-        if (updatedChannelInfo.isEmpty()) {
-            deleteChannel(channelName);
-            log.info("빈 채널 삭제 - channelName: {}", channelName);
-            return null;
-        } else {
-            storeChannelInfo(updatedChannelInfo);
-            log.info("채널 나가기 완료 - channelName: {}, userId: {}, participants: {}/{}",
-                    channelName, userId, updatedChannelInfo.currentParticipants(), updatedChannelInfo.maxParticipants());
-            return ChannelResponse.from(updatedChannelInfo);
+        // 빈 채널이면 삭제, 아니면 최신 스냅샷 반환
+        Long size = redisTemplate.opsForSet().size(participantsKey);
+        if (size == null || size == 0) {
+                deleteChannel(channelName);
+                log.info("빈 채널 삭제 - channelName: {}", channelName);
+                return null;
         }
+        CallChannelInfo latest = getChannelInfo(channelName);
+        log.info("채널 나가기 완료 - channelName: {}, userId: {}, participants: {}",
+                        channelName, userId, size);
+        return ChannelResponse.from(latest);
     }
 
     @Transactional
