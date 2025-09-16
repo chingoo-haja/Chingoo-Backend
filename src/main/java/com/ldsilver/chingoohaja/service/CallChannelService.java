@@ -350,8 +350,14 @@ public class CallChannelService {
 
             redisTemplate.delete(participantKey);
             if (!channelInfo.participantIds().isEmpty()) {
-                redisTemplate.opsForSet().add(participantKey,
-                        channelInfo.participantIds().toArray());
+                final byte[] keyBytes = participantKey.getBytes(StandardCharsets.UTF_8);
+                redisTemplate.execute((RedisCallback<Long>) conn -> {
+                        List<byte[]> members = new ArrayList<>(channelInfo.participantIds().size());
+                        for (Long id : channelInfo.participantIds()) {
+                                members.add(String.valueOf(id).getBytes(StandardCharsets.UTF_8));
+                            }
+                        return conn.sAdd(keyBytes, members.toArray(new byte[0][]));
+                    });
             }
 
             long ttlSeconds = Duration.between(
