@@ -22,12 +22,14 @@ public record CallChannelInfo(
             Set<Long> participantIds,
             LocalDateTime createdAt,
             LocalDateTime expiresAt) {
+        Set<Long> safe = participantIds == null ? java.util.Set.of() : java.util.Set.copyOf(participantIds);
+
         return new CallChannelInfo(
                 channelName,
                 callId,
                 maxParticipants,
-                Set.copyOf(participantIds).size(),
-                Set.copyOf(participantIds),
+                safe.size(),
+                safe,
                 createdAt,
                 expiresAt,
                 true
