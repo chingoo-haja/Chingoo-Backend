@@ -5,11 +5,13 @@ import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.dto.call.CallChannelInfo;
 import com.ldsilver.chingoohaja.dto.call.response.ChannelResponse;
+import com.ldsilver.chingoohaja.infrastructure.redis.RedisMatchingConstants;
 import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.validation.CallValidationConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,33 +53,35 @@ public class CallChannelService {
     public ChannelResponse joinChannel(String channelName, Long userId) {
         log.debug("채널 참가 시작 - channelName: {}, userId: {}", channelName, userId);
 
-        CallChannelInfo channelInfo = getChannelInfo(channelName);
+        String channelKey = CHANNEL_PREFIX + channelName;
+        String participantsKey = CHANNEL_PARTICIPANTS_PREFIX + channelName;
+        String userChannelKey = USER_CHANNEL_PREFIX + userId;
 
-        if (channelInfo == null) {
-            throw new CustomException(ErrorCode.CALL_NOT_FOUND, "채널을 찾을 수 없습니다: " + channelName);
+        // 현재 시간을 초 단위로 변환 (Redis에서 비교용)
+        long currentTimeSeconds = System.currentTimeMillis() / 1000;
+
+        // Lua 스크립트 실행
+        RedisScript<Long> script = RedisScript.of(RedisMatchingConstants.LuaScripts.JOIN_CHANNEL_LUA_SCRIPT, Long.class);
+        Long result = redisTemplate.execute(script,
+                Arrays.asList(channelKey, participantsKey, userChannelKey),
+                userId.toString(), channelName, "7200", String.valueOf(currentTimeSeconds));
+
+        // 결과에 따른 예외 처리
+        if (result == null || result < 0) {
+            switch (result == null ? -1 : result.intValue()) {
+                case -1 -> throw new CustomException(ErrorCode.CALL_NOT_FOUND, "채널을 찾을 수 없습니다: " + channelName);
+                case -2 -> throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "이미 다른 채널에 참가 중입니다");
+                case -3 -> throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "비활성화된 채널입니다: " + channelName);
+                case -4 -> throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "채널이 만료되었습니다: " + channelName);
+                case -5 -> throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "채널이 가득 찼습니다: " + channelName);
+                default -> throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "채널 참가 실패");
+            }
         }
 
-        if (channelInfo.isFull()) {
-            throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "채널이 가득 찼습니다: " + channelName);
-        }
-
-        if (channelInfo.isExpired()) {
-            throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "채널이 만료되었습니다: " + channelName);
-        }
-
-        String existingChannel = getUserCurrentChannel(userId);
-        if (existingChannel != null && !existingChannel.equals(channelName)) {
-            throw new CustomException(ErrorCode.SESSION_ALREADY_JOINED);
-        }
-
-        CallChannelInfo updatedChannelInfo = channelInfo.addParticipant(userId);
-        storeChannelInfo(updatedChannelInfo);
-
-        // 사용자-채널 매핑 저장
-        setUserCurrentChannel(userId, channelName);
-
-        log.info("채널 참가 완료 - channelName: {}, userId: {}, participants: {}/{}",
-                channelName, userId, updatedChannelInfo.currentParticipants(), updatedChannelInfo.maxParticipants());
+        // 업데이트된 채널 정보 조회 및 반환
+        CallChannelInfo updatedChannelInfo = getChannelInfo(channelName);
+        log.info("채널 참가 완료 - channelName: {}, userId: {}, 현재 참가자 수: {}",
+                channelName, userId, result);
 
         return ChannelResponse.joined(updatedChannelInfo, userId);
     }

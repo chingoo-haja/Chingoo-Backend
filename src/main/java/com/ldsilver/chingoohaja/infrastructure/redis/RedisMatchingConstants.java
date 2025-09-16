@@ -339,6 +339,80 @@ public class RedisMatchingConstants {
                \s
                 return cleanedCount
                """;
+
+        public static final String JOIN_CHANNEL_LUA_SCRIPT = """
+                local channelKey = KEYS[1]
+                local participantsKey = KEYS[2]
+                local userChannelKey = KEYS[3]
+                local userId = ARGV[1]
+                local channelName = ARGV[2]
+                local ttlSeconds = tonumber(ARGV[3])
+                local currentTime = tonumber(ARGV[4])
+               \s
+                -- 채널 존재 여부 확인
+                if redis.call('EXISTS', channelKey) == 0 then
+                    return -1  -- 채널 없음
+                end
+               \s
+                -- 사용자가 이미 다른 채널에 있는지 확인
+                local existingChannel = redis.call('GET', userChannelKey)
+                if existingChannel and existingChannel ~= channelName then
+                    -- 기존 채널이 실제로 존재하고 유효한지 확인
+                    local existingChannelKey = 'call:channel:' .. existingChannel
+                    local existingParticipantsKey = 'call:participants:' .. existingChannel
+                   \s
+                    if redis.call('EXISTS', existingChannelKey) == 0 then
+                        -- 고아 매핑: 채널이 존재하지 않음 -> 매핑 삭제
+                        redis.call('DEL', userChannelKey)
+                    else
+                        -- 기존 채널의 만료/활성 상태 확인
+                        local existingData = redis.call('HMGET', existingChannelKey, 'expiresAt', 'isActive')
+                        local existingExpiresAt = tonumber(existingData[1])
+                        local existingIsActive = existingData[2]
+                       \s
+                        if existingIsActive == 'false' or (existingExpiresAt and currentTime > existingExpiresAt) then
+                            -- 고아 매핑: 채널이 만료/비활성 -> 참가자에서 제거하고 매핑 삭제
+                            redis.call('SREM', existingParticipantsKey, userId)
+                            redis.call('DEL', userChannelKey)
+                        else
+                            -- 유효한 다른 채널에 참가 중
+                            return -2
+                        end
+                    end
+                end
+               \s
+                -- 채널 정보 가져오기
+                local channelData = redis.call('HMGET', channelKey, 'maxParticipants', 'expiresAt', 'isActive')
+                local maxParticipants = tonumber(channelData[1])
+                local expiresAt = tonumber(channelData[2])
+                local isActive = channelData[3]
+               \s
+                -- 채널 상태 검증
+                if isActive == 'false' then
+                    return -3  -- 비활성 채널
+                end
+               \s
+                if expiresAt and currentTime > expiresAt then
+                    return -4  -- 만료된 채널
+                end
+               \s
+                -- 현재 참가자 수 확인
+                local currentCount = redis.call('SCARD', participantsKey)
+                if currentCount >= maxParticipants then
+                    return -5  -- 채널 가득참
+                end
+               \s
+                -- 이미 참가한 사용자인지 확인
+                if redis.call('SISMEMBER', participantsKey, userId) == 1 then
+                    return currentCount  -- 이미 참가한 사용자
+                end
+               \s
+                -- 원자적으로 참가자 추가 및 매핑 설정
+                redis.call('SADD', participantsKey, userId)
+                redis.call('SETEX', userChannelKey, ttlSeconds, channelName)
+               \s
+                return redis.call('SCARD', participantsKey)
+               """;
     }
 
     // Redis 응답 메시지
