@@ -123,15 +123,19 @@ public class CallChannelService {
         log.debug("채널 삭제 시작 - channelName: {}", channelName);
 
         CallChannelInfo channelInfo = getChannelInfo(channelName);
-
+        String participantsKey = CHANNEL_PARTICIPANTS_PREFIX + channelName;
         if (channelInfo != null) {
-            for (Long userId: channelInfo.participantIds()) {
-                clearUserCurrentChannel(userId);
+                for (Long userId: channelInfo.participantIds()) clearUserCurrentChannel(userId);
+            } else {
+                java.util.Set<Object> orphanMembers = redisTemplate.opsForSet().members(participantsKey);
+                if (orphanMembers != null) {
+                        for (Object obj : orphanMembers) {
+                                clearUserCurrentChannel(Long.valueOf(obj.toString()));
+                            }
+                    }
             }
-        }
 
         String channelKey = CHANNEL_PREFIX + channelName;
-        String participantsKey = CHANNEL_PARTICIPANTS_PREFIX + channelName;
 
         redisTemplate.delete(channelKey);
         redisTemplate.delete(participantsKey);
