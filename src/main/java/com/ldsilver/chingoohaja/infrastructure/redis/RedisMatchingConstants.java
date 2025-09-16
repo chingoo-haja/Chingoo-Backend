@@ -382,9 +382,9 @@ public class RedisMatchingConstants {
                 end
                \s
                 -- 채널 정보 가져오기
-                local channelData = redis.call('HMGET', channelKey, 'maxParticipants', 'expiresAt', 'isActive')
+                local channelData = redis.call('HMGET', channelKey, 'maxParticipants', 'expiresAtEpoch', 'isActive')
                 local maxParticipants = tonumber(channelData[1])
-                local expiresAt = tonumber(channelData[2])
+                local expiresAtSec = tonumber(channelData[2])
                 local isActive = channelData[3]
                \s
                 -- 채널 상태 검증
@@ -392,7 +392,7 @@ public class RedisMatchingConstants {
                     return -3  -- 비활성 채널
                 end
                \s
-                if expiresAt and currentTime > expiresAt then
+                if expiresAtSec and currentTime > expiresAtSec then
                     return -4  -- 만료된 채널
                 end
                \s
@@ -404,7 +404,9 @@ public class RedisMatchingConstants {
                \s
                 -- 이미 참가한 사용자인지 확인
                 if redis.call('SISMEMBER', participantsKey, userId) == 1 then
-                    return currentCount  -- 이미 참가한 사용자
+                    -- 동일 채널 재참가: 사용자 매핑 TTL 갱신
+                    redis.call('EXPIRE', userChannelKey, ttlSeconds)
+                    return currentCount 
                 end
                \s
                 -- 원자적으로 참가자 추가 및 매핑 설정
