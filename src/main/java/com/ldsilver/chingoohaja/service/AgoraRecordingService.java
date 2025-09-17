@@ -132,6 +132,49 @@ public class AgoraRecordingService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public RecordingResponse getRecordingStatus(Long callId) {
+        log.debug("Recording 상태 조회 - callId: {}", callId);
+
+        Call call = callRepository.findById(callId)
+                .orElseThrow(() -> new CustomException(ErrorCode.RECORDING_NOT_STARTED));
+
+        if (call.getAgoraResourceId() == null || call.getAgoraSid() == null) {
+            throw new CustomException(ErrorCode.RECORDING_NOT_STARTED);
+        }
+
+        try {
+            Map<String, Object> queryResponse = cloudRecordingClient.queryRecording(
+                    call.getAgoraResourceId(), call.getAgoraSid()
+            ).block();
+
+            if (queryResponse == null) {
+                return RecordingResponse.failed(call.getAgoraResourceId(), call.getAgoraSid(),
+                        callId, call.getAgoraChannelName());
+            }
+
+            RecordingStatus status = extractRecordingStatus(queryResponse);
+            String fileUrl = call.hasRecordingFile() ? call.getRecordingFileUrl() : null;
+
+            return new RecordingResponse(
+                    call.getAgoraResourceId(),
+                    call.getAgoraSid(),
+                    callId,
+                    call.getAgoraChannelName(),
+                    status,
+                    fileUrl,
+                    null,
+                    call.getRecordingStartedAt(),
+                    call.getRecordingEndedAt(),
+                    call.getRecordingDurationSeconds()
+            );
+        } catch (Exception e) {
+            log.error("Recording 상태 조회 실패 - callId: {}", callId, e);
+            return RecordingResponse.failed(call.getAgoraResourceId(), call.getAgoraSid(),
+                    callId, call.getAgoraChannelName());
+        }
+    }
+
 
 
 
@@ -192,6 +235,25 @@ public class AgoraRecordingService {
             log.warn("Recording 파일 크기 추출 실패", e);
         }
         return null;
+    }
+
+    private RecordingStatus extractRecordingStatus(Map<String, Object> queryResponse) {
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> serverResponse = (Map<String, Object>) queryResponse.get("serverResponse");
+
+            if (serverResponse != null) {
+                String status = (String) serverResponse.get("status");
+                return switch (status) {
+                    case "0" -> RecordingStatus.PROCESSING;
+                    case "1", "2", "3", "4" -> RecordingStatus.COMPLETED;
+                    default -> RecordingStatus.FAILED;
+                };
+            }
+        } catch (Exception e) {
+            log.warn("Recording 상태 추출 실패", e);
+        }
+        return RecordingStatus.FAILED;
     }
 
 
