@@ -174,6 +174,54 @@ erDiagram
     calls ||--o{ evaluations : "call_id"
 ```
 
+## 통화 로직
+```mermaid
+graph TB
+subgraph "🎯 매칭 레이어"
+MS[MatchingService<br/>매칭 요청/취소/상태조회]
+MSS[MatchingSchedulerService<br/>자동 매칭 처리]
+RMQS[RedisMatchingQueueService<br/>Redis 큐 관리]
+end
+
+    subgraph "📞 통화 레이어"
+        CS[CallService<br/>통화 시작/종료<br/>자동 녹음 관리]
+        CCS[CallChannelService<br/>Agora 채널 관리]
+        ARS[AgoraRecordingService<br/>Cloud Recording]
+    end
+    
+    subgraph "🔧 인프라 레이어"
+        ATS[AgoraTokenService<br/>토큰 생성]
+        WSE[WebSocketEventService<br/>실시간 알림]
+        Redis[(Redis<br/>매칭 큐)]
+        DB[(Database<br/>Call/Queue)]
+    end
+    
+    %% 의존성 관계
+    MS --> RMQS
+    MSS --> RMQS
+    MSS --> CS
+    MSS --> WSE
+    MSS --> DB
+    
+    CS --> CCS
+    CS --> ARS
+    CS --> DB
+    
+    CCS --> ATS
+    CCS --> Redis
+    
+    RMQS --> Redis
+    
+    %% 스타일링
+    classDef matching fill:#e1f5fe
+    classDef call fill:#f3e5f5
+    classDef infra fill:#e8f5e8
+    
+    class MS,MSS,RMQS matching
+    class CS,CCS,ARS call
+    class ATS,WSE,Redis,DB infra
+```
+
 ## 🔌 주요 API 엔드포인트
 
 ### 인증
