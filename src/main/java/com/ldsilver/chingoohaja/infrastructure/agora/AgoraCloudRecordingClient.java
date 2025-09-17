@@ -3,6 +3,7 @@ package com.ldsilver.chingoohaja.infrastructure.agora;
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.config.AgoraProperties;
+import com.ldsilver.chingoohaja.dto.call.request.RecordingRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -55,6 +56,61 @@ public class AgoraCloudRecordingClient {
                 })
                 .onErrorMap(WebClientResponseException.class, this::mapWebClientException);
     }
+
+    public Mono<String> startRecording(String resourceId, String channelName, RecordingRequest request, String[] fileFormats) {
+        log.debug("Agora Cloud Recording 시작 - resourceId: {}, channel: {}",
+                maskSensitiveData(resourceId), channelName);
+
+        Map<String, Object> storageConfig = Map.of(
+                "vendor", Integer.parseInt(agoraProperties.getRecordingStorageVendor()), // AWS S3
+                "region", agoraProperties.getRecordingRegion(),
+                "bucket", agoraProperties.getRecordingStorageBucket(),
+                "accessKey", agoraProperties.getRecordingStorageAccessKey(),
+                "secretKey", agoraProperties.getRecordingStorageSecretKey(),
+                "fileNamePrefix", new String[]{"recordings", "call_" + request.callId()}
+        );
+
+        Map<String, Object> recordingConfig = Map.of(
+                "maxIdleTime", request.maxIdleTime(),
+                "streamTypes", request.getStreamTypes(),
+                "channelType", request.getChannelType(),
+                "subscribeAudioUids", new String[]{"#allstream#"},
+                "subscribeUidGroup", 0
+        );
+
+        Map<String, Object> recordingFileConfig = Map.of(
+                "avFileType", fileFormats != null ? fileFormats : new String[]{"hls", "mp3"}
+        );
+
+        Map<String, Object> clientRequest = Map.of(
+                "token", "", // RTC Token은 필요시 추가
+                "storageConfig", storageConfig,
+                "recordingConfig", recordingConfig,
+                "recordingFileConfig", recordingFileConfig
+        );
+
+        return webClient.post()
+                .uri("/v1/apps/{appid}/cloud_recording/resourceid/{resourceid}/mode/mix/start",
+                        agoraProperties.getAppId(), resourceId)
+                .header(HttpHeaders.AUTHORIZATION, createBasicAuthHeader())
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .bodyValue(Map.of("cname", channelName, "uid", "0", "clientRequest", clientRequest))
+                .retrieve()
+                .bodyToMono(Map.class)
+                .map(response -> {
+                    String sid = (String) response.get("sid");
+                    if (sid == null || sid.trim().isEmpty()) {
+                        throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "SID를 획득할 수 없습니다.");
+                    }
+                    log.debug("Recording 시작 성공 - sid: {}", maskSensitiveData(sid));
+                    return sid;
+                })
+                .onErrorMap(WebClientResponseException.class, this::mapWebClientException);
+    }
+
+
+
+
 
     private String createBasicAuthHeader() {
         String credentials = agoraProperties.getCustomerId() + ":" + agoraProperties.getCustomerSecret();
