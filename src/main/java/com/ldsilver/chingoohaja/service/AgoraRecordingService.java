@@ -175,6 +175,21 @@ public class AgoraRecordingService {
         }
     }
 
+    @Transactional
+    public void autoStopRecordingOnCallEnd(Long callId) {
+        log.debug("통화 종료로 인한 자동 Recording 중지 - callId: {}", callId);
+
+        try {
+            Call call = callRepository.findById(callId).orElse(null);
+            if (call != null && call.isRecordingActive()) {
+                stopRecording(callId);
+                log.info("통화 종료로 인한 자동 Recording 중지 완료 - callId: {}", callId);
+            }
+        } catch (Exception e) {
+            log.error("자동 Recording 중지 실패 - callId: {}", callId, e);
+        }
+    }
+
 
 
 
