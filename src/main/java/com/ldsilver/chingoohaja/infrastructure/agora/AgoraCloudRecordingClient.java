@@ -7,6 +7,7 @@ import com.ldsilver.chingoohaja.dto.call.request.RecordingRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -105,6 +106,24 @@ public class AgoraCloudRecordingClient {
                     log.debug("Recording 시작 성공 - sid: {}", maskSensitiveData(sid));
                     return sid;
                 })
+                .onErrorMap(WebClientResponseException.class, this::mapWebClientException);
+    }
+
+    public Mono<Map<String, Object>> stopRecording(String resourceId, String sid, String channelName) {
+        log.debug("Agora Cloud Recording 중지 - resourceId: {}, sid: {}, channel: {}",
+                maskSensitiveData(resourceId), maskSensitiveData(sid), channelName);
+
+        return webClient.post()
+                .uri("/v1/apps/{appid}/cloud_recording/resourceid/{resourceid}/sid/{sid}/mode/mix/stop",
+                        agoraProperties.getAppId(), resourceId, sid)
+                .header(HttpHeaders.AUTHORIZATION, createBasicAuthHeader())
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .bodyValue(Map.of("cname", channelName, "uid", "0", "clientRequest", Map.of()))
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .defaultIfEmpty(Map.of())
+                .doOnSuccess(response -> log.debug("Recording 중지 성공 - resourceId: {}",
+                        maskSensitiveData(resourceId)))
                 .onErrorMap(WebClientResponseException.class, this::mapWebClientException);
     }
 
