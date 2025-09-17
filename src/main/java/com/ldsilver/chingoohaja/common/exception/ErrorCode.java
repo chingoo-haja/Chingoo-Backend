@@ -120,6 +120,7 @@ public enum ErrorCode {
     AGORA_REQUEST_EXCEEDED(HttpStatus.INTERNAL_SERVER_ERROR, "L033", "API 호출 한도를 초과했습니다."),
     AGORA_REQUEST_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "L034", "Agora API 호출에 실패했습니다."),
     RECORDING_START_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "L035", "Recording 시작에 실패했습니다."),
+    RECORDING_STOP_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "L036", "Recording 중지 응답을 받지 못했습니다."),
 
 
     // 카테고리 관련 에러
