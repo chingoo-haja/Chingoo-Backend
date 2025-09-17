@@ -56,4 +56,35 @@ public class CallService {
             }
         }
     }
+
+    @Transactional
+    public void endCall(Long callId) {
+        log.debug("통화 종료 처리 - callId: {}", callId);
+
+        Call call = callRepository.findById(callId)
+                .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
+
+        try {
+            if (recordingProperties.isAutoStop() && call.isRecordingActive()) {
+                log.debug("통화 종료로 인한 자동 녹음 중지 - callId: {}", callId);
+                agoraRecordingService.autoStopRecordingOnCallEnd(callId);
+            }
+
+            call.endCall();;
+            callRepository.save(call);
+            log.info("통화 종료 완료 - callId: {}", callId);
+        } catch (Exception e) {
+            log.error("통화 종료 처리 실패 - callId: {}", callId, e);
+
+            // 녹음 중지가 실패해도 통화는 종료
+            try {
+                call.endCall();
+                callRepository.save(call);
+                log.warn("녹음 중지 실패했지만 통화는 종료됨 - callId: {}", callId);
+            } catch (Exception saveEx) {
+                log.error("통화 종료 상태 저장 실패 - callId: {}", callId, saveEx);
+                throw saveEx;
+            }
+        }
+    }
 }
