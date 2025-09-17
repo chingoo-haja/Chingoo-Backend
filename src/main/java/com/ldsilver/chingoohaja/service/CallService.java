@@ -5,6 +5,9 @@ import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.config.RecordingProperties;
 import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.enums.CallStatus;
+import com.ldsilver.chingoohaja.domain.call.enums.CallType;
+import com.ldsilver.chingoohaja.domain.category.Category;
+import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.dto.call.request.RecordingRequest;
 import com.ldsilver.chingoohaja.repository.CallRepository;
 import lombok.RequiredArgsConstructor;
@@ -85,6 +88,24 @@ public class CallService {
                 log.error("통화 종료 상태 저장 실패 - callId: {}", callId, saveEx);
                 throw saveEx;
             }
+        }
+    }
+
+    @Transactional
+    public Call createCallFromMatching(User user1, User user2, Category category) {
+        log.debug("매칭 완료 후 통화 생성 - users: [{}, {}], category: {}",
+                user1.getId(), user2.getId(), category.getName());
+
+        try {
+            Call call = Call.from(user1, user2, category, CallType.RANDOM_MATCH);
+            Call savedCall = callRepository.save(call);
+
+            startCall(savedCall.getId());
+
+            return savedCall;
+        } catch (Exception e) {
+            log.error("매칭 후 통화 생성 실패 - users: [{}, {}]", user1.getId(), user2.getId());
+            throw e;
         }
     }
 }
