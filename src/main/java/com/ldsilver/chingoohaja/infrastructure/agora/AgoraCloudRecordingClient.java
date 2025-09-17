@@ -63,7 +63,7 @@ public class AgoraCloudRecordingClient {
                 maskSensitiveData(resourceId), channelName);
 
         Map<String, Object> storageConfig = Map.of(
-                "vendor", Integer.parseInt(agoraProperties.getRecordingStorageVendor()), // AWS S3
+                "vendor", 1, // AWS S3
                 "region", agoraProperties.getRecordingRegion(),
                 "bucket", agoraProperties.getRecordingStorageBucket(),
                 "accessKey", agoraProperties.getRecordingStorageAccessKey(),
@@ -85,7 +85,6 @@ public class AgoraCloudRecordingClient {
 
         Map<String, Object> clientRequest = Map.of(
                 "token", "", // RTC Token은 필요시 추가
-                "storageConfig", storageConfig,
                 "recordingConfig", recordingConfig,
                 "recordingFileConfig", recordingFileConfig
         );

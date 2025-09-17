@@ -96,7 +96,7 @@ public class AgoraRecordingService {
             }
 
             String fileUrl = extractFileUrl(stopResponse);
-            Long fileSize = extrackFileSize(stopResponse);
+            Long fileSize = extractFileSize(stopResponse);
 
             String finalFileUrl = downloadAndStoreRecordingFile(fileUrl, callId);
 
@@ -253,7 +253,7 @@ public class AgoraRecordingService {
         return null;
     }
 
-    private Long extrackFileSize(Map<String, Object> stopResponse) {
+    private Long extractFileSize(Map<String, Object> stopResponse) {
         try {
             @SuppressWarnings("unchecked")
             Map<String, Object> serverResponse = (Map<String, Object>) stopResponse.get("serverResponse");
