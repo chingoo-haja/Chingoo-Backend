@@ -50,7 +50,7 @@ public class AgoraCloudRecordingClient {
                 .map(response -> {
                     String resourceId = (String) response.get("resourceId");
                     if (resourceId == null || resourceId.trim().isEmpty()) {
-                        throw new CustomException(ErrorCode.INVALID_RESOURCE_IN);
+                        throw new CustomException(ErrorCode.INVALID_RESOURCE_ID);
                     }
                     log.debug("Resource 획득 성공 - resourceId: {}", maskSensitiveData(resourceId));
                     return resourceId;
