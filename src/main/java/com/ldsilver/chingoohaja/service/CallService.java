@@ -15,6 +15,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 매칭 완료 → CallService.createCallFromMatching()
+ * 통화 시작 → CallService.startCall() → 자동 녹음 시작
+ * 통화 종료 → CallService.endCall() → 자동 녹음 중지
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
