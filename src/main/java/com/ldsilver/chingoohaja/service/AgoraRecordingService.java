@@ -190,6 +190,28 @@ public class AgoraRecordingService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public List<RecordingResponse> getActiveRecordings() {
+        log.debug("활성 Recording 목록 조회");
+
+        List<Call> recordingCalls = callRepository.findRecordingCalls();
+
+        return recordingCalls.stream()
+                .map(call -> new RecordingResponse(
+                        call.getAgoraResourceId(),
+                        call.getAgoraSid(),
+                        call.getId(),
+                        call.getAgoraChannelName(),
+                        RecordingStatus.PROCESSING,
+                        call.getRecordingFileUrl(),
+                        null,
+                        call.getRecordingStartedAt(),
+                        call.getRecordingEndedAt(),
+                        call.getRecordingDurationSeconds()
+                ))
+                .toList();
+    }
+
 
 
 
