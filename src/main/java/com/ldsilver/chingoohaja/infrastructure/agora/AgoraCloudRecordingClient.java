@@ -127,6 +127,20 @@ public class AgoraCloudRecordingClient {
                 .onErrorMap(WebClientResponseException.class, this::mapWebClientException);
     }
 
+    public Mono<Map<String, Object>> queryRecording(String resourceId, String sid) {
+        log.debug("Agora Cloud Recording 상태 조회 - resourceId: {}, sid: {}",
+                maskSensitiveData(resourceId), maskSensitiveData(sid));
+
+        return webClient.get()
+                .uri("/v1/apps/{appid}/cloud_recording/resourceid/{resourceid}/sid/{sid}/mode/mix/query",
+                        agoraProperties.getAppId(), resourceId, sid)
+                .header(HttpHeaders.AUTHORIZATION, createBasicAuthHeader())
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .doOnSuccess(response -> log.debug("Recording 상태 조회 성공 - resourceId: {}",
+                        maskSensitiveData(resourceId)))
+                .onErrorMap(WebClientResponseException.class, this::mapWebClientException);
+    }
 
 
 
