@@ -50,7 +50,10 @@ public class AgoraProperties {
 
     public boolean isCloudRecordingConfigured() {
         // 기본적으로 Agora 저장소 사용 (항상 true)
-        return true;
+        return appId != null && !appId.isBlank()
+                && appCertificate != null && !appCertificate.isBlank()
+                && customerId != null && !customerId.isBlank()
+                && customerSecret != null && !customerSecret.isBlank();
     }
 
     public boolean useCustomStorage() {
