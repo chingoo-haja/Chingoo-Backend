@@ -24,10 +24,10 @@ public record RecordingRequest(
         ) {
     public RecordingRequest {
         // 기본값 설정
-        if (maxIdleTime == null || maxIdleTime <= 0) {
+        if (maxIdleTime == null || maxIdleTime < 10 || maxIdleTime > 300) {
             maxIdleTime = 30; // 30초
         }
-        if (audioProfile == null) {
+        if (audioProfile == null || audioProfile < 0 || audioProfile > 2) {
             audioProfile = 0; // 기본 오디오 프로필
         }
         if (enableAudioOnly == null) {
