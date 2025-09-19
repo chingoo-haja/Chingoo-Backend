@@ -47,31 +47,9 @@ public class AgoraRecordingService {
             throw new CustomException(ErrorCode.RECORDING_ALREADY_STARTED);
         }
 
-        try {
-            String resourceId = cloudRecordingClient.acpireResource(request.channelName()).block();
-            if (resourceId == null) {
-                throw new CustomException(ErrorCode.INVALID_RESOURCE_ID);
-            }
+        startRecordingAsync(request.callId(), request.channelName());
 
-            String sid = cloudRecordingClient.startRecording(
-                    resourceId, request.channelName(), request, recordingProperties.getFileFormats()
-            ).block();
-            if (sid == null) {
-                throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
-            }
-
-            call.startCloudRecording(resourceId, sid);
-            callRepository.save(call);
-
-            log.info("Cloud Recording 시작 성공 - callId: {}, resourceId: {}, sid: {}",
-                    request.callId(), maskId(resourceId), maskId(sid));
-
-            return RecordingResponse.started(resourceId, sid, request.callId(), request.channelName());
-        } catch (Exception e) {
-            log.error("Cloud Recording 시작 실패 - callId: {}", request.callId());
-            if (e instanceof  CustomException) {throw e;}
-            throw new CustomException(ErrorCode.RECORDING_START_FAILED);
-        }
+        return RecordingResponse.started("pending", "pending", request.callId(), request.channelName());
     }
 
     @Async("recordingTaskExecutor")
@@ -215,19 +193,22 @@ public class AgoraRecordingService {
         }
     }
 
+    @Async("recordingTaskExecutor")
     @Transactional
-    public void autoStopRecordingOnCallEnd(Long callId) {
+    public CompletableFuture<Void> autoStopRecordingOnCallEnd(Long callId) {
         log.debug("통화 종료로 인한 자동 Recording 중지 - callId: {}", callId);
 
-        try {
-            Call call = callRepository.findById(callId).orElse(null);
-            if (call != null && call.isRecordingActive()) {
-                stopRecording(callId);
-                log.info("통화 종료로 인한 자동 Recording 중지 완료 - callId: {}", callId);
+        return CompletableFuture.runAsync(() -> {
+            try {
+                Call call = callRepository.findById(callId).orElse(null);
+                if (call != null && call.isRecordingActive()) {
+                    stopRecording(callId);
+                    log.info("통화 종료로 인한 자동 Recording 중지 완료 - callId: {}", callId);
+                }
+            } catch (Exception e) {
+                log.error("자동 Recording 중지 실패 - callId: {}", callId, e);
             }
-        } catch (Exception e) {
-            log.error("자동 Recording 중지 실패 - callId: {}", callId, e);
-        }
+        });
     }
 
     @Transactional(readOnly = true)
