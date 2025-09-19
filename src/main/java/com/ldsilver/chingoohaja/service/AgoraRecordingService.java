@@ -315,8 +315,9 @@ public class AgoraRecordingService {
             if (serverResponse != null) {
                 String status = (String) serverResponse.get("status");
                 return switch (status) {
-                    case "0" -> RecordingStatus.PROCESSING;
-                    case "1", "2", "3", "4" -> RecordingStatus.COMPLETED;
+                    case "0", "1", "2", "3", "4", "5" -> RecordingStatus.PROCESSING;
+                    case "6", "7", "8" -> RecordingStatus.COMPLETED;
+                    case "20" -> RecordingStatus.FAILED;
                     default -> RecordingStatus.FAILED;
                 };
             }
