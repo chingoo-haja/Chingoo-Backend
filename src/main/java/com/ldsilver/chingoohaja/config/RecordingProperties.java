@@ -1,5 +1,6 @@
 package com.ldsilver.chingoohaja.config;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.Getter;
@@ -122,5 +123,15 @@ public class RecordingProperties {
         return maxIdleTime >= 10 && maxIdleTime <= 300 &&
                 audioProfile >= 0 && audioProfile <= 2 &&
                 fileFormats != null && fileFormats.length > 0;
+    }
+
+    @AssertTrue(message = "fileFormats는 hls/mp3/mp4만 허용됩니다.")
+    public boolean areFileFormatsValid() {
+        if (fileFormats == null || fileFormats.length == 0) return false;
+        java.util.Set<String> allowed = java.util.Set.of("hls","mp3","mp4");
+        for (String f : fileFormats) {
+            if (f == null || !allowed.contains(f.toLowerCase())) return false;
+        }
+        return true;
     }
 }
