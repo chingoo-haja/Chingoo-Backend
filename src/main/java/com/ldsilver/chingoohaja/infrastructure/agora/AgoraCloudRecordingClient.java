@@ -84,7 +84,7 @@ public class AgoraCloudRecordingClient {
         );
 
         Map<String, Object> clientRequest = Map.of(
-                "token", "", // RTC Token은 필요시 추가
+                "token", "", // TODO: #보안이슈번호 - RTC 토큰 인증 구현 필요
                 "recordingConfig", recordingConfig,
                 "recordingFileConfig", recordingFileConfig
         );
