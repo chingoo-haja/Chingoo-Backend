@@ -1,5 +1,6 @@
 package com.ldsilver.chingoohaja.dto.call.request;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ldsilver.chingoohaja.validation.CommonValidationConstants;
 import jakarta.validation.constraints.Min;
@@ -7,6 +8,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public record RecordingRequest(
         @NotNull(message = "통화 ID는 필수입니다.")
         @Min(value = CommonValidationConstants.Id.MIN_VALUE, message = CommonValidationConstants.Id.INVALID_ID)
