@@ -174,6 +174,174 @@ erDiagram
     calls ||--o{ evaluations : "call_id"
 ```
 
+## 통화관련 서비스간 관계 및 통합 플로우
+```mermaid
+graph TB
+subgraph "🎯 매칭 레이어"
+MS[MatchingService<br/>매칭 요청/취소/상태조회]
+MSS[MatchingSchedulerService<br/>자동 매칭 처리]
+RMQS[RedisMatchingQueueService<br/>Redis 큐 관리]
+end
+
+    subgraph "📞 통화 레이어"
+        CS[CallService<br/>통화 시작/종료<br/>자동 녹음 관리]
+        CCS[CallChannelService<br/>Agora 채널 관리]
+        ARS[AgoraRecordingService<br/>Cloud Recording]
+    end
+    
+    subgraph "🔧 인프라 레이어"
+        ATS[AgoraTokenService<br/>토큰 생성]
+        WSE[WebSocketEventService<br/>실시간 알림]
+        Redis[(Redis<br/>매칭 큐)]
+        DB[(Database<br/>Call/Queue)]
+    end
+    
+    %% 의존성 관계
+    MS --> RMQS
+    MSS --> RMQS
+    MSS --> CS
+    MSS --> WSE
+    MSS --> DB
+    
+    CS --> CCS
+    CS --> ARS
+    CS --> DB
+    
+    CCS --> ATS
+    CCS --> Redis
+    
+    RMQS --> Redis
+    
+    %% 스타일링
+    classDef matching fill:#e1f5fe
+    classDef call fill:#f3e5f5
+    classDef infra fill:#e8f5e8
+    
+    class MS,MSS,RMQS matching
+    class CS,CCS,ARS call
+    class ATS,WSE,Redis,DB infra
+```
+
+## 매칭부터 통화까지 전체 플로우
+```mermaid
+sequenceDiagram
+    participant User1 as 👤 사용자1
+    participant User2 as 👤 사용자2
+    participant API as 🌐 MatchingController
+    participant MS as 🎯 MatchingService
+    participant Redis as 🔴 Redis Queue
+    participant Scheduler as ⏰ MatchingScheduler
+    participant CS as 📞 CallService
+    participant CCS as 🏢 CallChannelService
+    participant ARS as 🎙️ AgoraRecordingService
+    participant ATS as 🔧 AgoraTokenService
+    participant WSE as 📡 WebSocket
+    participant DB as 🗄️ Database
+
+    Note over User1, DB: 1️⃣ 매칭 대기열 참가 단계
+    User1->>API: POST /api/v1/calls/match {categoryId: 1}
+    API->>MS: joinMatchingQueue(userId, request)
+    MS->>Redis: enqueueUser(userId1, categoryId, queueId)
+    Redis-->>MS: success, position: 1
+    MS->>DB: save MatchingQueue entity
+    MS-->>API: MatchingResponse (waiting)
+    API-->>User1: 매칭 대기 중 (1번째)
+
+    User2->>API: POST /api/v1/calls/match {categoryId: 1}
+    API->>MS: joinMatchingQueue(userId, request)  
+    MS->>Redis: enqueueUser(userId2, categoryId, queueId)
+    Redis-->>MS: success, position: 2
+    MS->>DB: save MatchingQueue entity
+    MS-->>API: MatchingResponse (waiting)
+    API-->>User2: 매칭 대기 중 (2번째)
+
+    Note over User1, DB: 2️⃣ 자동 매칭 처리 단계 (5초마다)
+    Scheduler->>Scheduler: processMatching() 실행
+    Scheduler->>Redis: getWaitingCount(categoryId)
+    Redis-->>Scheduler: count: 2 (충분함)
+    Scheduler->>Redis: findMatchCandidates(categoryId, 2)
+    Redis-->>Scheduler: [userId1, userId2]
+    
+    Scheduler->>DB: findById(userId1), findById(userId2)
+    DB-->>Scheduler: User1, User2 entities
+    
+    Scheduler->>DB: save Call.from(user1, user2, category)
+    DB-->>Scheduler: savedCall (id: 123, status: READY)
+    
+    Note over User1, DB: 3️⃣ 통화 시작 및 채널 생성 단계
+    Scheduler->>CS: startCall(callId: 123)
+    CS->>DB: findById(callId: 123)
+    DB-->>CS: call entity
+    CS->>CS: call.startCall() → status: IN_PROGRESS
+    CS->>DB: save(call) 
+    
+    Note over CS, ATS: 채널 생성 및 토큰 발급
+    CS->>CCS: createChannel(call)
+    CCS->>CCS: generateChannelName("call_123_timestamp")
+    CCS->>Redis: storeChannelInfo(channelInfo)
+    CCS->>ATS: generateTokensForMatching(call)
+    ATS-->>CCS: BatchTokenResponse(user1Token, user2Token)
+    CCS-->>CS: ChannelResponse + tokens
+
+    Note over CS, ARS: 자동 녹음 시작
+    alt recordingProperties.isAutoStart() == true
+        CS->>ARS: startRecording(RecordingRequest)
+        ARS->>ARS: acquireResource(channelName)
+        ARS->>ARS: startRecording(resourceId, channelName)
+        ARS->>DB: call.startCloudRecording(resourceId, sid)
+        ARS-->>CS: RecordingResponse.started()
+    end
+
+    CS->>DB: updateMatchingQueueStatus([userId1, userId2], MATCHING)
+
+    Note over User1, DB: 4️⃣ 매칭 성공 알림 단계
+    CS-->>Scheduler: 통화 시작 완료
+    Scheduler->>Redis: removeMatchedUsers(categoryId, [userId1, userId2])
+    Redis-->>Scheduler: 사용자 제거 완료
+
+    Scheduler->>WSE: sendMatchingSuccessNotification(userId1, callId, userId2, nickname2)
+    WSE-->>User1: 🔔 매칭 성공! 상대: nickname2
+    
+    Scheduler->>WSE: sendMatchingSuccessNotification(userId2, callId, userId1, nickname1)  
+    WSE-->>User2: 🔔 매칭 성공! 상대: nickname1
+
+    Note over User1, DB: 5️⃣ 통화 참가 단계
+    User1->>CCS: joinChannel(channelName, userId1)
+    CCS->>Redis: Lua script - 원자적 참가 처리
+    Redis-->>CCS: 참가 완료 (1/2)
+    CCS-->>User1: ChannelResponse + user1Token
+
+    User2->>CCS: joinChannel(channelName, userId2)  
+    CCS->>Redis: Lua script - 원자적 참가 처리
+    Redis-->>CCS: 참가 완료 (2/2)
+    CCS-->>User2: ChannelResponse + user2Token
+
+    Note over User1, User2: 🎙️ Agora SDK로 실제 음성 통화 시작
+    User1-->>User2: 음성 통화 진행 + 자동 녹음 중
+    
+    Note over User1, DB: 6️⃣ 통화 종료 단계
+    User1->>CS: endCall(callId: 123)
+    CS->>DB: findById(callId: 123)
+    DB-->>CS: call entity
+
+    alt recordingProperties.isAutoStop() == true && call.isRecordingActive()
+        CS->>ARS: autoStopRecordingOnCallEnd(callId)
+        ARS->>ARS: stopRecording(resourceId, sid, channelName)
+        ARS->>DB: call.stopCloudRecording(fileUrl)
+        ARS->>DB: save CallRecording entity
+        ARS-->>CS: RecordingResponse.stopped()
+    end
+
+    CS->>CS: call.endCall() → status: COMPLETED
+    CS->>DB: save(call)
+    CS->>CCS: deleteChannel(channelName)
+    CCS->>Redis: 채널 정보 삭제 + 참가자 정리
+    
+    CS-->>User1: 통화 종료 완료
+
+    Note over User1, DB: ✅ 최종 상태: 통화 완료, 녹음 파일 저장됨
+```
+
 ## 🔌 주요 API 엔드포인트
 
 ### 인증

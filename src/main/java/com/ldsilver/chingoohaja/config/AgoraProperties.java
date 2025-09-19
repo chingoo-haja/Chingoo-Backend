@@ -42,13 +42,23 @@ public class AgoraProperties {
 
     // Cloud Recording 설정
     private String recordingRegion = "AP"; // Asia Pacific
+    private boolean useCustomStorage = false; // 커스텀 저장소 사용 여부
     private String recordingStorageVendor = "1"; // AWS S3
     private String recordingStorageBucket;
     private String recordingStorageAccessKey;
     private String recordingStorageSecretKey;
 
     public boolean isCloudRecordingConfigured() {
-        return recordingStorageBucket != null && !recordingStorageBucket.trim().isEmpty() &&
+        // 기본적으로 Agora 저장소 사용 (항상 true)
+        return appId != null && !appId.isBlank()
+                && appCertificate != null && !appCertificate.isBlank()
+                && customerId != null && !customerId.isBlank()
+                && customerSecret != null && !customerSecret.isBlank();
+    }
+
+    public boolean useCustomStorage() {
+        return useCustomStorage &&
+                recordingStorageBucket != null && !recordingStorageBucket.trim().isEmpty() &&
                 recordingStorageAccessKey != null && !recordingStorageAccessKey.trim().isEmpty() &&
                 recordingStorageSecretKey != null && !recordingStorageSecretKey.trim().isEmpty();
     }

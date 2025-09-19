@@ -114,6 +114,14 @@ public enum ErrorCode {
     CALL_USER_NOT_EQUAL(HttpStatus.BAD_REQUEST, "L027", "통화 참가자는 서로 다른 사용자여야 합니다."),
     AGORA_RESOURCE_ID_REQUIRED(HttpStatus.BAD_REQUEST, "L028", "Agora Resource ID는 필수입니다."),
     AGORA_SID_REQUIRED(HttpStatus.BAD_REQUEST, "L029", "Agora SID는 필수입니다."),
+    INVALID_RESOURCE_ID(HttpStatus.INTERNAL_SERVER_ERROR, "L030", "Resource ID를 획득할 수 없습니다."),
+    AGORA_UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "L031", "Agora API 인증에 실패했습니다."),
+    RECORDING_RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "L032", "녹음 리소스를 찾을 수 없습니다."),
+    AGORA_REQUEST_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "L033", "API 호출 한도를 초과했습니다."),
+    AGORA_REQUEST_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "L034", "Agora API 호출에 실패했습니다."),
+    RECORDING_START_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "L035", "Recording 시작에 실패했습니다."),
+    RECORDING_STOP_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "L036", "Recording 중지 응답을 받지 못했습니다."),
+
 
     // 카테고리 관련 에러
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "T001", "카테고리를 찾을 수 없습니다."),
