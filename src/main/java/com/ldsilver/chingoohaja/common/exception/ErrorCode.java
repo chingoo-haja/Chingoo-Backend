@@ -117,7 +117,7 @@ public enum ErrorCode {
     INVALID_RESOURCE_ID(HttpStatus.INTERNAL_SERVER_ERROR, "L030", "Resource ID를 획득할 수 없습니다."),
     AGORA_UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "L031", "Agora API 인증에 실패했습니다."),
     RECORDING_RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "L032", "녹음 리소스를 찾을 수 없습니다."),
-    AGORA_REQUEST_EXCEEDED(HttpStatus.INTERNAL_SERVER_ERROR, "L033", "API 호출 한도를 초과했습니다."),
+    AGORA_REQUEST_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "L033", "API 호출 한도를 초과했습니다."),
     AGORA_REQUEST_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "L034", "Agora API 호출에 실패했습니다."),
     RECORDING_START_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "L035", "Recording 시작에 실패했습니다."),
     RECORDING_STOP_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "L036", "Recording 중지 응답을 받지 못했습니다."),
