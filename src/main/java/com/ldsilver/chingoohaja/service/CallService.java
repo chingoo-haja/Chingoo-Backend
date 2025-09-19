@@ -37,7 +37,7 @@ public class CallService {
                 .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
 
         try {
-            call.startCall();;
+            call.startCall();
             callRepository.save(call);
 
             if (recordingProperties.isAutoStart() && call.getAgoraChannelName() != null) {
@@ -78,7 +78,7 @@ public class CallService {
                 agoraRecordingService.autoStopRecordingOnCallEnd(callId);
             }
 
-            call.endCall();;
+            call.endCall();
             callRepository.save(call);
             log.info("통화 종료 완료 - callId: {}", callId);
         } catch (Exception e) {
