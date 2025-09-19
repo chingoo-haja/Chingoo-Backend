@@ -65,7 +65,7 @@ public class AgoraRecordingService {
                     return;
                 }
 
-                String resourceId = cloudRecordingClient.acpireResource(channelName).block();
+                String resourceId = cloudRecordingClient.acquireResource(channelName).block();
                 if (resourceId == null) {
                     throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "Resource 획득 실패");
                 }

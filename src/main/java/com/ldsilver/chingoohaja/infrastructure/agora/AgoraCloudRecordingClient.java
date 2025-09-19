@@ -28,7 +28,7 @@ public class AgoraCloudRecordingClient {
     private final WebClient webClient;
     private final AgoraProperties agoraProperties;
 
-    public Mono<String> acpireResource(String channelName) {
+    public Mono<String> acquireResource(String channelName) {
         log.debug("Agora Cloud Recording Resource 획득 시작 - channel: {}", channelName);
 
         if (!agoraProperties.isCloudRecordingConfigured()) {
