@@ -13,11 +13,13 @@ import com.ldsilver.chingoohaja.repository.CallRecordingRepository;
 import com.ldsilver.chingoohaja.repository.CallRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
@@ -41,7 +43,7 @@ public class AgoraRecordingService {
         if (!call.isInProgress()) {
             throw new CustomException(ErrorCode.CALL_NOT_IN_PROGRESS);
         }
-        if (!call.isRecordingActive()) {
+        if (call.isRecordingActive()) {
             throw new CustomException(ErrorCode.RECORDING_ALREADY_STARTED);
         }
 
@@ -70,6 +72,44 @@ public class AgoraRecordingService {
             if (e instanceof  CustomException) {throw e;}
             throw new CustomException(ErrorCode.RECORDING_START_FAILED);
         }
+    }
+
+    @Async("recordingTaskExecutor")
+    @Transactional
+    public CompletableFuture<Void> startRecordingAsync(Long callId, String channelName) {
+        log.debug("비동기 녹음 시작 - callId: {}", callId);
+
+        return CompletableFuture.runAsync(() -> {
+            try {
+                Call call = callRepository.findById(callId).orElse(null);
+                if (call == null || !call.isInProgress()) {
+                    log.warn("녹음 시작 실패: 통화가 없거나 진행 중이 아님 - callId: {}", callId);
+                    return;
+                }
+
+                String resourceId = cloudRecordingClient.acpireResource(channelName).block();
+                if (resourceId == null) {
+                    throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "Resource 획득 실패");
+                }
+
+                RecordingRequest request = RecordingRequest.of(callId, channelName);
+                String sid = cloudRecordingClient.startRecording(
+                        resourceId, channelName, request, recordingProperties.getFileFormats()
+                ).block();
+
+                if (sid == null) {
+                    throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "Recording 시작 실패");
+                }
+
+                call.startCloudRecording(resourceId, sid);
+                callRepository.save(call);
+
+                log.debug("비동기 녹음 시작 완료 - callId: {}, resourceId: {}, sid: {}", callId, maskId(resourceId), maskId(sid));
+            } catch (Exception e) {
+                log.error("비동기 녹음 시작 실패 - callId: {}", callId, e);
+                updateCallRecordingFailureStatus(callId);
+            }
+        });
     }
 
     @Transactional
@@ -213,6 +253,18 @@ public class AgoraRecordingService {
     }
 
 
+
+    private void updateCallRecordingFailureStatus(Long callId) {
+        try {
+            Call call = callRepository.findById(callId).orElse(null);
+            if (call != null) {
+                call.stopCloudRecording(null);
+                callRepository.save(call);
+            }
+        } catch (Exception e) {
+            log.error("Recording 실패 상태 업데이트 실패 - callId: {}", callId, e);
+        }
+    }
 
 
     private String downloadAndStoreRecordingFile(String originalUrl, Long callId) {
