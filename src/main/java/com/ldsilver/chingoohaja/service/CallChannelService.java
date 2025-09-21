@@ -58,6 +58,14 @@ public class CallChannelService {
     public ChannelResponse joinChannel(String channelName, Long userId) {
         log.debug("채널 참가 시작 - channelName: {}, userId: {}", channelName, userId);
 
+        // call 권한 검증
+        Call call = callRepository.findByAgoraChannelName(channelName)
+                .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
+
+        if (!call.isParticipant(userId)) {
+            throw new CustomException(ErrorCode.CALL_NOT_PARTICIPANT);
+        }
+
         String channelKey = CHANNEL_PREFIX + channelName;
         String participantsKey = CHANNEL_PARTICIPANTS_PREFIX + channelName;
         String userChannelKey = USER_CHANNEL_PREFIX + userId;
