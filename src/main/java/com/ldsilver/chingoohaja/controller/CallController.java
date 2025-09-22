@@ -11,10 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
@@ -40,6 +37,23 @@ public class CallController {
 
         CallStatusResponse response = callStatusService.getCallStatus(callId, userDetails.getUserId());
         return ApiResponse.ok("통화 상태 조회 성공", response);
+    }
+
+    @Operation(
+            summary = "통화 종료",
+            description = "현재 진행 중인 통화를 종료합니다. " +
+                    "통화 참가자만 종료할 수 있으며, 자동으로 녹음도 중지됩니다."
+    )
+    @PostMapping("/{callId}/end")
+    public ApiResponse<CallStatusResponse> endCall(
+            @Parameter(description = "통화 ID", example = "1")
+            @PathVariable Long callId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        log.debug("통화 종료 요청 - callId: {}, userId: {}", callId, userDetails.getUserId());
+
+        CallStatusResponse response = callControllerService.endCall(callId, userDetails.getUserId());
+        return ApiResponse.ok("통화 종료 성공", response);
     }
 
 }
