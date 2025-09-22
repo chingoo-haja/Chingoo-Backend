@@ -25,6 +25,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -142,6 +144,7 @@ public class MatchingSchedulerService {
                         @Override
                         public void afterCommit() {
                             try {
+                                // Redis에서 사용자 제거
                                 RedisMatchingQueueService.RemoveUserResult removeResult =
                                         redisMatchingQueueService.removeMatchedUsers(category.getId(), userIds);
 
@@ -149,13 +152,17 @@ public class MatchingSchedulerService {
                                     log.warn("Redis 사용자 제거 실패 - categoryId: {}, userIds: {}, reason: {}",
                                             category.getId(), userIds, removeResult.message());
                                     // DB는 성공했으므로 매칭은 진행하되, Redis 정리만 실패한 상황
+                                    // Redis 정리 실패 시 재시도 스케줄링
+                                    scheduleRedisCleanupRetry(category.getId(), userIds);
                                 }
-                            } catch (Exception ex) {
-                                log.warn("Redis 사용자 제거 중 예외 발생(커밋 후) - categoryId: {}, userIds: {}",
-                                        category.getId(), userIds, ex);
-                            }
 
-                            sendMatchingSuccessNotification(user1, user2, savedCall);
+                                sendMatchingSuccessNotification(user1, user2, savedCall);
+
+                            } catch (Exception ex) {
+                                log.error("Redis 사용자 제거 중 예외 발생(커밋 후) - categoryId: {}, userIds: {}",
+                                        category.getId(), userIds, ex);
+                                scheduleRedisCleanupRetry(category.getId(), userIds);
+                            }
                         }
                     }
             );
@@ -264,6 +271,25 @@ public class MatchingSchedulerService {
     private String generateQueueId(Long userId, Long categoryId) {
         return String.format("queue_%d_%d_%s", userId, categoryId,
                 UUID.randomUUID().toString().substring(0, 8));
+    }
+
+
+    private void scheduleRedisCleanupRetry(Long categoryId, List<Long> userIds) {
+        CompletableFuture.delayedExecutor(5, TimeUnit.SECONDS).execute(() -> {
+            try {
+                log.info("Redis 정리 재시도 - categoryId: {}, userIds: {}", categoryId, userIds);
+                RedisMatchingQueueService.RemoveUserResult retryResult =
+                        redisMatchingQueueService.removeMatchedUsers(categoryId, userIds);
+
+                if (retryResult.success()) {
+                    log.info("Redis 정리 재시도 성공 - categoryId: {}", categoryId);
+                } else {
+                    log.warn("Redis 정리 재시도 실패 - categoryId: {}, reason: {}", categoryId, retryResult.message());
+                }
+            } catch (Exception e) {
+                log.error("Redis 정리 재시도 중 예외 발생 - categoryId: {}", categoryId, e );
+            }
+        });
     }
 
 
