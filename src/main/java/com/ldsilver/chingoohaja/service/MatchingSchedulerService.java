@@ -7,6 +7,7 @@ import com.ldsilver.chingoohaja.domain.category.Category;
 import com.ldsilver.chingoohaja.domain.matching.MatchingQueue;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus;
 import com.ldsilver.chingoohaja.domain.user.User;
+import com.ldsilver.chingoohaja.event.MatchingSuccessEvent;
 import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.repository.CategoryRepository;
 import com.ldsilver.chingoohaja.repository.MatchingQueueRepository;
@@ -14,11 +15,10 @@ import com.ldsilver.chingoohaja.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -46,6 +46,7 @@ public class MatchingSchedulerService {
     private final MatchingQueueRepository matchingQueueRepository;
     private final WebSocketEventService webSocketEventService;
     private final MatchingSchedulerProperties schedulerProperties;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Scheduled(fixedDelayString = "#{@matchingSchedulerProperties.matchingDelay}")
     public void processMatching() {
@@ -72,7 +73,7 @@ public class MatchingSchedulerService {
         }
     }
 
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    @Transactional
     protected boolean processMatchingForCategory(Category category) {
         try {
             // 1. 대기 인원 확인
@@ -138,37 +139,18 @@ public class MatchingSchedulerService {
             // 6. 통화방 입장용 세션 토큰 생성
             String sessionToken = generateSessionToken();
 
-            // 7. 커밋 이후 처리: Redis 제거 → WebSocket 매칭 성공 알림 전송
-            TransactionSynchronizationManager.registerSynchronization(
-                    new TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            try {
-                                // Redis에서 사용자 제거
-                                RedisMatchingQueueService.RemoveUserResult removeResult =
-                                        redisMatchingQueueService.removeMatchedUsers(category.getId(), userIds);
-
-                                if (!removeResult.success()) {
-                                    log.warn("Redis 사용자 제거 실패 - categoryId: {}, userIds: {}, reason: {}",
-                                            category.getId(), userIds, removeResult.message());
-                                    // DB는 성공했으므로 매칭은 진행하되, Redis 정리만 실패한 상황
-                                    // Redis 정리 실패 시 재시도 스케줄링
-                                    scheduleRedisCleanupRetry(category.getId(), userIds);
-                                }
-
-                                sendMatchingSuccessNotification(user1, user2, savedCall);
-
-                            } catch (Exception ex) {
-                                log.error("Redis 사용자 제거 중 예외 발생(커밋 후) - categoryId: {}, userIds: {}",
-                                        category.getId(), userIds, ex);
-                                scheduleRedisCleanupRetry(category.getId(), userIds);
-                            }
-                        }
-                    }
-            );
-
             log.debug("매칭 성공 완료 - categoryId: {}, callId: {}, users: {}",
                     category.getId(), savedCall.getId(), userIds);
+
+            // 7. 커밋 이후 처리: Redis 제거 → WebSocket 매칭 성공 알림 전송
+            // 수정: 이벤트 발행 (트랜젝션 커밋 후 처리)
+            eventPublisher.publishEvent(new MatchingSuccessEvent(
+                    savedCall.getId(),
+                    category.getId(),
+                    userIds,
+                    user1,
+                    user2
+            ));
 
             return true;
 
