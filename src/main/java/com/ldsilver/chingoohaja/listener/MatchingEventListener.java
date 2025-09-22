@@ -19,7 +19,7 @@ public class MatchingEventListener {
     private final WebSocketEventService webSocketEventService;
 
     @Async
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void handleMatchingSuccess(MatchingSuccessEvent event) {
         log.debug("매칭 성공 이벤트 처리 시작 - callId: {}", event.getCallId());
 
