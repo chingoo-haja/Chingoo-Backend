@@ -67,6 +67,12 @@ public class CallChannelService {
             throw new CustomException(ErrorCode.CALL_NOT_PARTICIPANT);
         }
 
+        // 상태 검증: 진행 가능한 상태만 입장 허용
+        switch (call.getCallStatus()) {
+            case READY, IN_PROGRESS -> { /* OK */ }
+            default -> throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "입장 불가 상태: " + call.getCallStatus());
+        }
+
         String channelKey = CHANNEL_PREFIX + channelName;
         String participantsKey = CHANNEL_PARTICIPANTS_PREFIX + channelName;
         String userChannelKey = USER_CHANNEL_PREFIX + userId;
