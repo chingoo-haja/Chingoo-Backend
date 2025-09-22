@@ -11,6 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -59,5 +61,19 @@ public class CallStatusService {
                 callId, userId, updatedCall.getDurationSeconds());
 
         return CallStatusResponse.from(updatedCall, userId);
+    }
+
+    @Transactional(readOnly = true)
+    public CallStatusResponse getActiveCallByUserId (Long userId) {
+        log.debug("활성 통화 조회 - userId: {}", userId);
+
+        List<Call> activeCalls = callRepository.findActiveCallsByUserId(userId);
+
+        if (activeCalls.isEmpty()) {
+            throw new CustomException(ErrorCode.CALL_NOT_FOUND);
+        }
+
+        Call activeCall = activeCalls.get(0);
+        return CallStatusResponse.from(activeCall, userId);
     }
 }

@@ -52,8 +52,22 @@ public class CallController {
 
         log.debug("통화 종료 요청 - callId: {}, userId: {}", callId, userDetails.getUserId());
 
-        CallStatusResponse response = callControllerService.endCall(callId, userDetails.getUserId());
+        CallStatusResponse response = callStatusService.endCall(callId, userDetails.getUserId());
         return ApiResponse.ok("통화 종료 성공", response);
+    }
+
+    @Operation(
+            summary = "내 활성 통화 조회",
+            description = "현재 사용자가 참여 중인 활성 통화를 조회합니다."
+    )
+    @GetMapping("/active")
+    public ApiResponse<CallStatusResponse> getMyActiveCall(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        log.debug("활성 통화 조회 요청 - userId: {}", userDetails.getUserId());
+
+        CallStatusResponse response = callStatusService.getActiveCallByUserId(userDetails.getUserId());
+        return ApiResponse.ok("활성 통화 조회 성공", response);
     }
 
 }
