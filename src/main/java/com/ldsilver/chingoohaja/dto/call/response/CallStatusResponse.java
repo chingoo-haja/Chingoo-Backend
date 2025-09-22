@@ -8,6 +8,8 @@ import com.ldsilver.chingoohaja.domain.user.User;
 
 import java.time.LocalDateTime;
 
+import static java.util.Objects.requireNonNull;
+
 public record CallStatusResponse(
         @JsonProperty("call_id") Long callId,
         @JsonProperty("call_status") CallStatus callStatus,
@@ -26,16 +28,27 @@ public record CallStatusResponse(
         @JsonProperty("created_at") LocalDateTime createdAt
 ) {
     public static CallStatusResponse from(Call call, Long currentUserId) {
-        User partner = call.getPartner(currentUserId);
+        requireNonNull(call, "call must not be null");
+        final User partner = requireNonNull(
+                call.getPartner(currentUserId), "Partner not found for call " + call.getId());
+
+        final var category = call.getCategory();
+        final String categoryName = (category != null ? category.getName() : null);
+
+        final var status = call.getCallStatus();
+        final String channelName =
+                (status == CallStatus.READY || status == CallStatus.IN_PROGRESS)
+                        ? call.getAgoraChannelName()
+                        : null;
 
         return new CallStatusResponse(
                 call.getId(),
-                call.getCallStatus(),
+                status,
                 call.getCallType(),
-                call.getCategory().getName(),
+                categoryName,
                 partner.getNickname(),
                 partner.getId(),
-                call.getAgoraChannelName(),
+                channelName,
                 call.getStartAt(),
                 call.getEndAt(),
                 call.getDurationSeconds(),
