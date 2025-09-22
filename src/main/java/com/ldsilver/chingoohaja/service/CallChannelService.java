@@ -129,7 +129,7 @@ public class CallChannelService {
         if (size == null || size == 0) {
                 deleteChannel(channelName);
                 log.info("빈 채널 삭제 - channelName: {}", channelName);
-                return null;
+                return ChannelResponse.deleted(channelInfo);
         }
         CallChannelInfo latest = getChannelInfo(channelName);
         log.info("채널 나가기 완료 - channelName: {}, userId: {}, participants: {}",

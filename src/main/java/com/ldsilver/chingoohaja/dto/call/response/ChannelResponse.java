@@ -49,6 +49,10 @@ public record ChannelResponse(
         return from(channelInfo);
     }
 
+    public static ChannelResponse deleted(CallChannelInfo channelInfo) {
+        return from(channelInfo);
+    }
+
     public boolean isAvailableForJoin() {
         return isActive && !isFull && !isExpired();
     }
