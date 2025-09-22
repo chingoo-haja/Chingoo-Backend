@@ -446,7 +446,7 @@ public class CallChannelService {
     private void setUserCurrentChannel(Long userId, String channelName) {
         try {
             String userChannelKey = USER_CHANNEL_PREFIX + userId;
-            redisTemplate.opsForValue().set(userChannelKey, channelName, USER_CHANNEL_TTL_SECONDS, TimeUnit.HOURS);
+            redisTemplate.opsForValue().set(userChannelKey, channelName, USER_CHANNEL_TTL_SECONDS, TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("사용자 채널 설정 실패 - userId: {}, channelName: {}", userId, channelName, e);
         }
