@@ -107,7 +107,7 @@ public class CallChannelService {
 
         if (channelInfo == null) {
             log.warn("존재하지 않는 채널에서 나가기 시도 - channelName: {}, userId: {}", channelName, userId);
-            return null;
+            throw new CustomException(ErrorCode.CALL_NOT_FOUND);
         }
 
         if (!channelInfo.hasParticipant(userId)) {
