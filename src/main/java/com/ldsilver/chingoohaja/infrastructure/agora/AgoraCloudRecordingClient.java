@@ -152,8 +152,8 @@ public class AgoraCloudRecordingClient {
 
     private String generateRecordingToken(String channelName) {
         return agoraTokenGenerator.generateRtcToken(
-                channelName, 0,
-                RtcTokenBuilder2.Role.ROLE_SUBSCRIBER,
+                channelName, 1,
+                RtcTokenBuilder2.Role.ROLE_PUBLISHER,
                 7200
         );
     }
