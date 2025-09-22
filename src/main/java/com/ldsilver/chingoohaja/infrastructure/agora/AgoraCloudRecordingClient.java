@@ -64,6 +64,11 @@ public class AgoraCloudRecordingClient {
         log.debug("Agora Cloud Recording 시작 - resourceId: {}, channel: {}",
                 maskSensitiveData(resourceId), channelName);
 
+        if (!agoraProperties.isCloudRecordingConfigured()) {
+            log.error("Agora Cloud Recording이 설정되지 않았습니다.");
+            return Mono.error(new CustomException(ErrorCode.OAUTH_CONFIG_ERROR));
+        }
+
         Map<String, Object> storageConfig = Map.of(
                 "vendor", 1, // AWS S3
                 "region", agoraProperties.getRecordingRegion(),
