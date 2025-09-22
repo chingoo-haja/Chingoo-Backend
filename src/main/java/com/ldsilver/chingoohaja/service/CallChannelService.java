@@ -270,7 +270,7 @@ public class CallChannelService {
         log.debug("모든 활성 채널 조회");
 
         try {
-            Set<String> channelKeys = redisTemplate.keys(CHANNEL_PREFIX + "*");
+            Set<String> channelKeys = scanKeysWithPattern(CHANNEL_PREFIX + "*");
 
             if (channelKeys == null || channelKeys.isEmpty()) {
                 return Collections.emptyList();
