@@ -37,6 +37,7 @@ public class CallChannelService {
     private static final String CHANNEL_PREFIX = "call:channel:";
     private static final String CHANNEL_PARTICIPANTS_PREFIX = "call:participants:";
     private static final String USER_CHANNEL_PREFIX = "call:user_channel:";
+    private static final long USER_CHANNEL_TTL_SECONDS = TimeUnit.HOURS.toSeconds(2);
 
     @Transactional
     public ChannelResponse createChannel(Call call) {
@@ -77,7 +78,7 @@ public class CallChannelService {
         RedisScript<Long> script = RedisScript.of(RedisMatchingConstants.LuaScripts.JOIN_CHANNEL_LUA_SCRIPT, Long.class);
         Long result = redisTemplate.execute(script,
                 Arrays.asList(channelKey, participantsKey, userChannelKey),
-                userId.toString(), channelName, "7200", String.valueOf(currentTimeSeconds));
+                userId.toString(), channelName, String.valueOf(USER_CHANNEL_TTL_SECONDS), String.valueOf(currentTimeSeconds));
 
         // 결과에 따른 예외 처리
         if (result == null || result < 0) {
@@ -438,7 +439,7 @@ public class CallChannelService {
     private void setUserCurrentChannel(Long userId, String channelName) {
         try {
             String userChannelKey = USER_CHANNEL_PREFIX + userId;
-            redisTemplate.opsForValue().set(userChannelKey, channelName, 2, TimeUnit.HOURS);
+            redisTemplate.opsForValue().set(userChannelKey, channelName, USER_CHANNEL_TTL_SECONDS, TimeUnit.HOURS);
         } catch (Exception e) {
             log.error("사용자 채널 설정 실패 - userId: {}, channelName: {}", userId, channelName, e);
         }
