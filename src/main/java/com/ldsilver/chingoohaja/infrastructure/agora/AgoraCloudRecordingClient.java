@@ -4,6 +4,7 @@ import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.config.AgoraProperties;
 import com.ldsilver.chingoohaja.dto.call.request.RecordingRequest;
+import com.ldsilver.chingoohaja.validation.CallValidationConstants;
 import io.agora.media.RtcTokenBuilder2;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -152,9 +153,10 @@ public class AgoraCloudRecordingClient {
 
     private String generateRecordingToken(String channelName) {
         return agoraTokenGenerator.generateRtcToken(
-                channelName, 1,
+                channelName,
+                CallValidationConstants.RECORDING_UID_INT,
                 RtcTokenBuilder2.Role.ROLE_PUBLISHER,
-                7200
+                CallValidationConstants.RECORDING_TOKEN_TTL_SECONDS
         );
     }
 
