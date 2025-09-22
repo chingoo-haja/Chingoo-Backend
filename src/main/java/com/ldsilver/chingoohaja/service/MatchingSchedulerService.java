@@ -18,7 +18,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -47,6 +49,7 @@ public class MatchingSchedulerService {
     private final WebSocketEventService webSocketEventService;
     private final MatchingSchedulerProperties schedulerProperties;
     private final ApplicationEventPublisher eventPublisher;
+    private final PlatformTransactionManager transactionManager;
 
     @Scheduled(fixedDelayString = "#{@matchingSchedulerProperties.matchingDelay}")
     public void processMatching() {
@@ -59,8 +62,9 @@ public class MatchingSchedulerService {
             int processedCount = 0;
 
             for (Category category : activeCategories) {
-                boolean processed = processMatchingForCategory(category);
-                if (processed) processedCount++;
+                Boolean processed = new TransactionTemplate(transactionManager)
+                        .execute(status -> processMatchingForCategory(category));
+                if (Boolean.TRUE.equals(processed)) processedCount++;
             }
 
             // 처리된 매칭이 있을 때만 로그 출력 (로컬 환경 고려)
@@ -73,7 +77,7 @@ public class MatchingSchedulerService {
         }
     }
 
-    @Transactional
+
     protected boolean processMatchingForCategory(Category category) {
         try {
             // 1. 대기 인원 확인
