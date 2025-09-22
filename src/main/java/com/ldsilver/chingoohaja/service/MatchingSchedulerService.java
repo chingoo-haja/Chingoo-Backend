@@ -114,6 +114,7 @@ public class MatchingSchedulerService {
             if (user1Opt.isEmpty() || user2Opt.isEmpty()) {
                 log.error("매칭된 사용자 조회 실패 - user1Id: {}, user2Id: {}, user1Exists: {}, user2Exists: {}",
                         user1Id, user2Id, user1Opt.isPresent(), user2Opt.isPresent());
+                restoreUsersToQueue(userIds, category.getId());
                 return false;
             }
 
@@ -125,7 +126,7 @@ public class MatchingSchedulerService {
 
             if (savedCall == null) {
                 log.error("Call 생성 실패 - categoryId: {}, userIds: {}", category.getId(), userIds);
-                // Call 생성 실패 시 Redis 큐에서 사용자를 제거할지 아니면 다시 시도할지 결정 필요
+                restoreUsersToQueue(userIds, category.getId());
                 return false;
             }
 
@@ -167,6 +168,32 @@ public class MatchingSchedulerService {
         } catch (Exception e) {
             log.error("카테고리 매칭 처리 실패 - categoryId: {}", category.getId(), e);
             return false;
+        }
+    }
+
+
+
+    private void restoreUsersToQueue(List<Long> userIds, Long categoryId) {
+        if (userIds == null || userIds.isEmpty()) {
+            return;
+        }
+
+        log.info("매칭 실패로 인한 사용자 큐 복구 시작 - categoryId: {}, userIds: {}",categoryId, userIds);
+
+        for (Long userId: userIds) {
+            try {
+                String newQueueId = generateQueueId(userId, categoryId);
+                RedisMatchingQueueService.EnqueueResult result =
+                        redisMatchingQueueService.enqueueUser(userId, categoryId, newQueueId);
+
+                if (result.success()) {
+                    log.debug("사용자 큐 복구 성공 - userId: {}, newQueueId: {}", userId, newQueueId);
+                } else {
+                    log.warn("사용자 큐 복구 실패 - userId: {}, reason: {}", userId, result.message());
+                }
+            } catch (Exception e) {
+                log.error("사용자 큐 복구 중 예외 발생 - userId: {}", userId, e);
+            }
         }
     }
 
@@ -232,6 +259,11 @@ public class MatchingSchedulerService {
 
     private String generateSessionToken() {
         return "session_" + UUID.randomUUID().toString().replace("-", "");
+    }
+
+    private String generateQueueId(Long userId, Long categoryId) {
+        return String.format("queue_%d_%d_%s", userId, categoryId,
+                UUID.randomUUID().toString().substring(0, 8));
     }
 
 
