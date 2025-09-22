@@ -119,8 +119,9 @@ public class CallChannelService {
         // 원자적 제거
         String participantsKey = CHANNEL_PARTICIPANTS_PREFIX + channelName;
         try {
-                redisTemplate.opsForSet().remove(participantsKey, String.valueOf(userId));
-            } finally {
+                Long removed = redisTemplate.opsForSet().remove(participantsKey, String.valueOf(userId));
+                log.debug("참가자 제거 결과 - channelName: {}, userId: {}, removed: {}", channelName, userId, removed);
+        } finally {
                 clearUserCurrentChannel(userId);
             }
 
