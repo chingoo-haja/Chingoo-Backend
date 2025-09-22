@@ -31,21 +31,21 @@ public record TokenRequest(
     public TokenRequest {
         // 기본값 설정
         agoraUid = agoraUid != null ? agoraUid : 0L; // 0이면 Agora가 자동 할당
-        expirationSeconds = expirationSeconds != null ? expirationSeconds : CallValidationConstants.DEFAULT_TTL_SECONDS; // 기본 1시간
+        expirationSeconds = expirationSeconds != null ? expirationSeconds : CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS; // 기본 1시간
         role = role != null ? role : CallValidationConstants.DEFAULT_ROLE;
         includeRtmToken = includeRtmToken != null ? includeRtmToken : false;
     }
 
     public static TokenRequest of(String channelName, Long userId) {
-        return new TokenRequest(channelName, userId, 0L, CallValidationConstants.DEFAULT_TTL_SECONDS, CallValidationConstants.DEFAULT_ROLE, false);
+        return new TokenRequest(channelName, userId, 0L, CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS, CallValidationConstants.DEFAULT_ROLE, false);
     }
 
     public static TokenRequest withRole(String channelName, Long userId, String role) {
-        return new TokenRequest(channelName, userId, 0L, CallValidationConstants.DEFAULT_TTL_SECONDS, role, false);
+        return new TokenRequest(channelName, userId, 0L, CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS, role, false);
     }
 
     public static TokenRequest withRtm(String channelName, Long userId) {
-        return new TokenRequest(channelName, userId, 0L, CallValidationConstants.DEFAULT_TTL_SECONDS, CallValidationConstants.DEFAULT_ROLE, true);
+        return new TokenRequest(channelName, userId, 0L, CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS, CallValidationConstants.DEFAULT_ROLE, true);
     }
 
     // Agora UID 관련 헬퍼 메서드들
