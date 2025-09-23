@@ -7,7 +7,6 @@ import com.ldsilver.chingoohaja.validation.CallValidationConstants;
 import io.agora.media.RtcTokenBuilder2;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 
@@ -15,7 +14,6 @@ import static com.ldsilver.chingoohaja.validation.CallValidationConstants.CHANNE
 
 @Slf4j
 @RequiredArgsConstructor
-@Component
 public class AgoraTokenGenerator {
 
     private final AgoraProperties agoraProperties;
