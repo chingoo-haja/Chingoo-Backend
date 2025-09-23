@@ -63,8 +63,6 @@ public class RecordingProperties {
      */
     private CleanupConfig cleanup = new CleanupConfig();
 
-    private boolean useCustomStorage = false;
-
     @Getter
     @Setter
     public static class CleanupConfig {
