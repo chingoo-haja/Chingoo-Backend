@@ -1,5 +1,6 @@
 package com.ldsilver.chingoohaja.service;
 
+import com.ldsilver.chingoohaja.dto.call.AgoraHealthStatus;
 import com.ldsilver.chingoohaja.infrastructure.agora.AgoraRestClient;
 import com.ldsilver.chingoohaja.infrastructure.agora.AgoraTokenGenerator;
 import jakarta.annotation.PostConstruct;
@@ -35,6 +36,15 @@ public class AgoraService {
      */
     public boolean initializeAndTest() {
         try {
+            // 토큰 생성 테스트
+            String testToken = generateTestToken();
+            boolean tokenGenerated = testToken != null && !testToken.isEmpty();
+
+            if (!tokenGenerated) {
+                log.error("Agora 토큰 생성 실패 - 앱 설정 확인 필요");
+                return false;
+            }
+
             // REST API 연결 테스트
             Boolean connectionResult = restClient.testConnection().block();
 
@@ -48,6 +58,67 @@ public class AgoraService {
         } catch (Exception e) {
             log.error("Agora 서비스 초기화 실패", e);
             return false;
+        }
+    }
+
+    /**
+     * 헬스체크 - Agora 서비스 상태 확인
+     */
+    public AgoraHealthStatus checkHealth() {
+        try {
+            // 1. 토큰 생성 테스트
+            String testToken = generateTestToken();
+            boolean tokenAvailable = testToken != null && !testToken.isEmpty();
+
+            // 2. REST API 연결 테스트
+            Boolean apiConnected = restClient.testConnection().block();
+            boolean restApiAvailable = Boolean.TRUE.equals(apiConnected);
+
+            // 3. 전체 상태 판단
+            boolean isHealthy = tokenAvailable; // 토큰만 되면 기본 기능은 OK
+            String statusMessage = buildStatusMessage(tokenAvailable, restApiAvailable);
+
+            return AgoraHealthStatus.builder()
+                    .isHealthy(isHealthy)
+                    .tokenGenerationAvailable(tokenAvailable)
+                    .restApiAvailable(restApiAvailable)
+                    .statusMessage(statusMessage)
+                    .checkedAt(java.time.LocalDateTime.now())
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Agora 헬스체크 실패", e);
+            return AgoraHealthStatus.builder()
+                    .isHealthy(false)
+                    .tokenGenerationAvailable(false)
+                    .restApiAvailable(false)
+                    .statusMessage("Agora 서비스 점검 중 오류 발생: " + e.getMessage())
+                    .errorMessage(e.getMessage())
+                    .checkedAt(java.time.LocalDateTime.now())
+                    .build();
+        }
+    }
+
+
+    private String buildStatusMessage(boolean tokenAvailable, boolean restApiAvailable) {
+        if (tokenAvailable && restApiAvailable) {
+            return "모든 Agora 서비스가 정상 작동 중입니다.";
+        } else if (tokenAvailable && !restApiAvailable) {
+            return "기본 통화 기능은 정상이나, Cloud Recording 등 고급 기능이 제한될 수 있습니다.";
+        } else if (!tokenAvailable && restApiAvailable) {
+            return "토큰 생성에 문제가 있어 통화 기능을 사용할 수 없습니다.";
+        } else {
+            return "Agora 서비스에 전체적인 문제가 발생했습니다.";
+        }
+    }
+
+    private String generateTestToken() {
+        try {
+            String testChannel = "health_check_" + System.currentTimeMillis();
+            return tokenGenerator.generateRtcToken(testChannel, 0);
+        } catch (Exception e) {
+            log.error("테스트 토큰 생성 실패", e);
+            return null;
         }
     }
 
