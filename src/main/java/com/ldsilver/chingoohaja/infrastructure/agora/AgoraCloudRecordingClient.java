@@ -62,7 +62,7 @@ public class AgoraCloudRecordingClient {
     }
 
     public Mono<String> startRecording(String resourceId, String channelName, RecordingRequest request, String[] fileFormats) {
-        log.debug("Agora Cloud Recording 시작 - resourceId: {}, channel: {}",
+        log.debug("오디오 전용 Agora Cloud Recording 시작 - resourceId: {}, channel: {}",
                 maskSensitiveData(resourceId), channelName);
 
         if (!agoraProperties.isCloudRecordingConfigured()) {
@@ -81,14 +81,16 @@ public class AgoraCloudRecordingClient {
 
         Map<String, Object> recordingConfig = Map.of(
                 "maxIdleTime", request.maxIdleTime(),
-                "streamTypes", request.getStreamTypes(),
-                "channelType", request.getChannelType(),
-                "subscribeAudioUids", new String[]{"#allstream#"},
-                "subscribeUidGroup", 0
+                "streamTypes", 0, // 0 = 오디오만 (비디오 완전 차단)
+                "channelType", 0, // 0 = 통신 모드
+                "subscribeAudioUids", new String[]{"#allstream#"}, // 모든 오디오 구독
+                "subscribeVideoUids", new String[]{}, // 비디오 구독 완전 차단
+                "subscribeUidGroup", 0,
+                "audioProfile", request.audioProfile() // 오디오 품질 설정
         );
 
         Map<String, Object> recordingFileConfig = Map.of(
-                "avFileType", fileFormats != null ? fileFormats : new String[]{"hls", "mp3"}
+                "avFileType", new String[]{"hls"}
         );
 
         Map<String, Object> clientRequest = Map.of(
