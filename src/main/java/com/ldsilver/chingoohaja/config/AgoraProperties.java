@@ -56,7 +56,7 @@ public class AgoraProperties {
                 && customerSecret != null && !customerSecret.isBlank();
     }
 
-    public boolean useCustomStorage() {
+    public boolean isCustomStorageConfigured() {
         return useCustomStorage &&
                 recordingStorageBucket != null && !recordingStorageBucket.trim().isEmpty() &&
                 recordingStorageAccessKey != null && !recordingStorageAccessKey.trim().isEmpty() &&
