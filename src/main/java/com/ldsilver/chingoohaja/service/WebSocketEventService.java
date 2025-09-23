@@ -1,5 +1,6 @@
 package com.ldsilver.chingoohaja.service;
 
+import com.ldsilver.chingoohaja.dto.call.CallStartInfo;
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingNotificationResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +45,19 @@ public class WebSocketEventService {
             log.debug("매칭 취소 알림 전송 완료 - userId: {}", userId);
         } catch (Exception e) {
             log.error("매칭 취소 알림 전송 실패 - userId: {}", userId, e);
+        }
+    }
+
+    public void sendCallStartNotification(Long userId, CallStartInfo callStartInfo) {
+        try {
+            messagingTemplate.convertAndSendToUser(
+                    String.valueOf(userId),
+                    "/queue/call-start",
+                    callStartInfo
+            );
+            log.debug("통화 시작 알림 전송 완료 - userId: {}", userId);
+        } catch (Exception e) {
+            log.error("통화 시작 알림 전송 실패 - userId: {}", userId, e);
         }
     }
 

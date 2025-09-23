@@ -43,8 +43,20 @@ public class CallChannelService {
     public ChannelResponse createChannel(Call call) {
         log.debug("채널 생성 시작 - callId: {}", call.getId());
 
-        String channelName = generateChannelName(call);
+        // 기존 채널명이 있는지 확인 (멱등성 보장)
+        String channelName = call.getAgoraChannelName();
+        if (channelName != null && !channelName.trim().isEmpty()) {
+            CallChannelInfo existingChannelInfo = getChannelInfo(channelName);
+            if (existingChannelInfo != null) {
+                return ChannelResponse.created(existingChannelInfo);
+            }
 
+            CallChannelInfo channelInfo = CallChannelInfo.empty(channelName, call.getId());
+            storeChannelInfo(channelInfo);
+            return ChannelResponse.created(channelInfo);
+        }
+
+        channelName = generateChannelName(call);
         call.setAgoraChannelInfo(channelName);
         callRepository.save(call);
 
