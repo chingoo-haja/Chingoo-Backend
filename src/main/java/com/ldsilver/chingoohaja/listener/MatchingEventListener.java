@@ -1,6 +1,5 @@
 package com.ldsilver.chingoohaja.listener;
 
-import com.ldsilver.chingoohaja.config.AgoraProperties;
 import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.dto.call.CallStartInfo;
 import com.ldsilver.chingoohaja.dto.call.response.BatchTokenResponse;
@@ -27,7 +26,6 @@ public class MatchingEventListener {
     private final WebSocketEventService webSocketEventService;
     private final CallRepository callRepository;
     private final CallChannelService callChannelService;
-    private final AgoraProperties agoraProperties;
     private final AgoraTokenService agoraTokenService;
 
     @Async
