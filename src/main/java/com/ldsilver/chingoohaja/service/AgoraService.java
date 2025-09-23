@@ -2,6 +2,7 @@ package com.ldsilver.chingoohaja.service;
 
 import com.ldsilver.chingoohaja.infrastructure.agora.AgoraRestClient;
 import com.ldsilver.chingoohaja.infrastructure.agora.AgoraTokenGenerator;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,11 +16,24 @@ public class AgoraService {
     private final AgoraRestClient restClient;
 
     /**
+     * 애플리케이션 시작 시 Agora 서비스 초기화
+     */
+    @PostConstruct
+    public void initializeOnStartup() {
+        log.info("애플리케이션 시작 - Agora 서비스 초기화");
+        boolean result = initializeAndTest();
+
+        if (result) {
+            log.info("Agora 서비스 초기화 성공 - 모든 기능 사용 가능");
+        } else {
+            log.warn("Agora 일부 기능에 문제가 있지만 애플리케이션은 계속 실행됩니다.");
+        }
+    }
+
+    /**
      * Agora 서비스 초기화 및 연결 테스트
      */
     public boolean initializeAndTest() {
-        log.info("Agora 서비스 초기화 시작");
-
         try {
             // REST API 연결 테스트
             Boolean connectionResult = restClient.testConnection().block();
@@ -37,40 +51,4 @@ public class AgoraService {
         }
     }
 
-    /**
-     * 채널용 RTC 토큰 생성
-     */
-    public String generateChannelToken(String channelName, Long userId) {
-        validateInput(channelName, userId);
-
-        // userId를 int로 변환 (Agora는 32bit 정수 사용)
-        int agoraUid = userId.intValue();
-
-        return tokenGenerator.generateRtcToken(channelName, agoraUid);
-    }
-
-    /**
-     * 테스트용 토큰 생성
-     */
-    public String generateTestToken() {
-        String testChannel = "test_channel_" + System.currentTimeMillis();
-        return tokenGenerator.generateRtcToken(testChannel, 0);
-    }
-
-
-
-    private void validateInput(String channelName, Long userId) {
-        if (channelName == null || channelName.trim().isEmpty()) {
-            throw new IllegalArgumentException("채널명은 필수입니다.");
-        }
-        if (userId == null) {
-            throw new IllegalArgumentException("사용자 ID는 필수입니다.");
-        }
-        if (userId <= 0) {
-            throw new IllegalArgumentException("사용자 ID는 양수여야 합니다.");
-        }
-        if (userId > Integer.MAX_VALUE) {
-            throw new IllegalArgumentException("사용자 ID가 너무 큽니다.");
-        }
-    }
 }
