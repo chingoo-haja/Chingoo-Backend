@@ -20,8 +20,8 @@ public class RecordingProperties {
      * 녹음 기본 설정
      */
     @Min(value = 10, message = "최대 유휴 시간은 최소 10초 이상이어야 합니다.")
-    @Max(value = 300, message = "최대 유휴 시간은 최대 300초 이하여야 합니다.")
-    private int maxIdleTime = 30; // 30초 기본값
+    @Max(value = 300, message = "최대 유휴 시간은 최대 300초 이하여야 합니다.") //5분
+    private int maxIdleTime = 300; // 기본값
 
     /**
      * 오디오 프로필 설정
@@ -36,7 +36,7 @@ public class RecordingProperties {
     /**
      * 오디오만 녹음 (비용 절약)
      */
-    private boolean audioOnly = true;
+    private final boolean audioOnly = true;
 
     /**
      * 자동 녹음 시작 (통화 시작 시)
@@ -56,12 +56,14 @@ public class RecordingProperties {
     /**
      * 녹음 파일 포맷 (hls, mp3, mp4)
      */
-    private String[] fileFormats = {"hls", "mp3"};
+    private String[] fileFormats = {"hls"};
 
     /**
      * 정리 스케줄러 활성화
      */
     private CleanupConfig cleanup = new CleanupConfig();
+
+    private boolean useCustomStorage = false;
 
     @Getter
     @Setter
@@ -100,20 +102,14 @@ public class RecordingProperties {
      * Agora API용 스트림 타입 반환
      */
     public int getStreamTypes() {
-        return audioOnly ? 0 : 2; // 0: 오디오만, 2: 오디오+비디오
+        return 0; // 0: 오디오만, 2: 오디오+비디오
     }
 
     /**
      * 현재 설정으로 예상 비용 등급 반환 (참고용)
      */
     public String getCostLevel() {
-        if (audioOnly && audioProfile == 0) {
-            return "LOW"; // 최저 비용
-        } else if (audioOnly && audioProfile == 1) {
-            return "MEDIUM"; // 중간 비용
-        } else {
-            return "HIGH"; // 높은 비용 (비디오 포함)
-        }
+        return "MINIMUM";
     }
 
     /**
