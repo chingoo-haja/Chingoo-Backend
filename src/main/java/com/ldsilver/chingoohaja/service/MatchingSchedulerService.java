@@ -138,7 +138,7 @@ public class MatchingSchedulerService {
             }
 
             // 5. DB 매칭 큐 상태 업데이트 (WAITING -> MATCHING)
-            updateMatchingQueueStatus(userIds, QueueStatus.MATCHING);
+            updateMatchingQueueStatus(userIds, category.getId(),QueueStatus.MATCHING);
 
             // 6. 통화방 입장용 세션 토큰 생성
             String sessionToken = generateSessionToken();
@@ -202,7 +202,7 @@ public class MatchingSchedulerService {
         }
     }
 
-    private void updateMatchingQueueStatus(List<Long> userIds, QueueStatus newStatus) {
+    private void updateMatchingQueueStatus(List<Long> userIds, Long categoryId,QueueStatus newStatus) {
         try {
             for (Long userId: userIds) {
                 User user = userRepository.findById(userId).orElse(null);
@@ -210,7 +210,9 @@ public class MatchingSchedulerService {
                     List<MatchingQueue> waitingQueues = matchingQueueRepository
                             .findByUserOrderByCreatedAtDesc(user)
                             .stream()
-                            .filter(q -> q.getQueueStatus() == QueueStatus.WAITING)
+                            .filter(q -> q.getQueueStatus() == QueueStatus.WAITING
+                                                    && q.getCategory() != null
+                                                    && q.getCategory().getId().equals(categoryId))
                             .limit(1)
                             .toList();
 
