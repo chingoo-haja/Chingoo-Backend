@@ -85,7 +85,7 @@ public class MatchingEventListener {
                 channelResponse.channelName(),
                 tokenResponse.user1Token().rtcToken(),
                 tokenResponse.user1Token().agoraUid(),
-                channelResponse.expiresAt()
+                tokenResponse.user1Token().expiresAt()
         );
 
         try {
@@ -103,7 +103,7 @@ public class MatchingEventListener {
                 channelResponse.channelName(),
                 tokenResponse.user2Token().rtcToken(),
                 tokenResponse.user2Token().agoraUid(),
-                channelResponse.expiresAt()
+                tokenResponse.user2Token().expiresAt()
         );
 
         try {
