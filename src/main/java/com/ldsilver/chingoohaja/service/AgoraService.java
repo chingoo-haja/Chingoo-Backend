@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -15,6 +17,8 @@ public class AgoraService {
 
     private final AgoraTokenGenerator tokenGenerator;
     private final AgoraRestClient restClient;
+
+    private static final Duration HEALTH_TIMEOUT = Duration.ofSeconds(3);
 
     /**
      * 애플리케이션 시작 시 Agora 서비스 초기화
@@ -46,7 +50,7 @@ public class AgoraService {
             }
 
             // REST API 연결 테스트
-            Boolean connectionResult = restClient.testConnection().block();
+            Boolean connectionResult = restClient.testConnection().block(HEALTH_TIMEOUT);
 
             if (Boolean.TRUE.equals(connectionResult)) {
                 log.info("Agora 서비스 초기화 완료 - API 연결 성공");
@@ -71,7 +75,7 @@ public class AgoraService {
             boolean tokenAvailable = testToken != null && !testToken.isEmpty();
 
             // 2. REST API 연결 테스트
-            Boolean apiConnected = restClient.testConnection().block();
+            Boolean apiConnected = restClient.testConnection().block(HEALTH_TIMEOUT);
             boolean restApiAvailable = Boolean.TRUE.equals(apiConnected);
 
             // 3. 전체 상태 판단
@@ -87,13 +91,13 @@ public class AgoraService {
                     .build();
 
         } catch (Exception e) {
-            log.error("Agora 헬스체크 실패", e);
+            String ref = java.util.UUID.randomUUID().toString();
+            log.error("Agora 헬스체크 실패 - ref={}", ref, e);
             return AgoraHealthStatus.builder()
                     .isHealthy(false)
                     .tokenGenerationAvailable(false)
                     .restApiAvailable(false)
-                    .statusMessage("Agora 서비스 점검 중 오류 발생: " + e.getMessage())
-                    .errorMessage(e.getMessage())
+                    .statusMessage("Agora 서비스 점검 중 오류 발생. 관리자에게 ref=" + ref + "를 전달해 주세요.")
                     .checkedAt(java.time.LocalDateTime.now())
                     .build();
         }

@@ -1,9 +1,7 @@
 package com.ldsilver.chingoohaja.controller;
 
 import com.ldsilver.chingoohaja.domain.user.CustomUserDetails;
-import com.ldsilver.chingoohaja.dto.call.request.TokenRequest;
 import com.ldsilver.chingoohaja.dto.call.response.CallStatusResponse;
-import com.ldsilver.chingoohaja.dto.call.response.TokenResponse;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.service.AgoraTokenService;
 import com.ldsilver.chingoohaja.service.CallStatusService;
@@ -11,7 +9,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -73,15 +70,6 @@ public class CallController {
 
         CallStatusResponse response = callStatusService.getActiveCallByUserId(userDetails.getUserId());
         return ApiResponse.ok("활성 통화 조회 성공", response);
-    }
-
-    @PostMapping("/token/refresh")
-    public ApiResponse<TokenResponse> refreshToken(
-            @Valid @RequestBody TokenRequest request,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-
-        TokenResponse response = agoraTokenService.generateRtcToken(request);
-        return ApiResponse.ok("토큰 갱신 성공", response);
     }
 
 }
