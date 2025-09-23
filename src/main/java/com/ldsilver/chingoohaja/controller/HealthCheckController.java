@@ -1,6 +1,8 @@
 package com.ldsilver.chingoohaja.controller;
 
+import com.ldsilver.chingoohaja.dto.call.AgoraHealthStatus;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
+import com.ldsilver.chingoohaja.service.AgoraService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,6 +25,7 @@ import java.util.Objects;
 public class HealthCheckController {
     private final DataSource dataSource;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final AgoraService agoraService;
 
     @Value("{application.version:1.0.0}")
     private String applicationVersion;
@@ -53,10 +56,20 @@ public class HealthCheckController {
         Map<String, Object> redisHealth = checkRedisHealth();
         healthInfo.put("redis", redisHealth);
 
+        // Agora 상태 확인
+        Map<String, Object> agoraHealth = checkAgoraHealth();
+        healthInfo.put("agora", agoraHealth);
+
         // 전체 상태 결정
         Boolean dbHealthy = (Boolean) dbHealth.get("healthy");
         Boolean redisHealthy = (Boolean) redisHealth.get("healthy");
-        boolean isHealthy = Boolean.TRUE.equals(dbHealthy) && Boolean.TRUE.equals(redisHealthy);        healthInfo.put("status", isHealthy ? "UP" : "DOWN");
+        Boolean agoraHealthy = (Boolean) agoraHealth.get("healthy");
+
+        boolean isHealthy = Boolean.TRUE.equals(dbHealthy) &&
+                Boolean.TRUE.equals(redisHealthy) &&
+                Boolean.TRUE.equals(agoraHealthy);
+
+        healthInfo.put("status", isHealthy ? "UP" : "DOWN");
         healthInfo.put("healthy", isHealthy);
 
         return ApiResponse.ok("상세 헬스체크 완료", healthInfo);
@@ -111,4 +124,35 @@ public class HealthCheckController {
 
         return redisHealth;
     }
+
+    private Map<String, Object> checkAgoraHealth() {
+        Map<String, Object> agoraHealth = new HashMap<>();
+
+        try {
+            AgoraHealthStatus status = agoraService.checkHealth();
+
+            agoraHealth.put("status", status.isHealthy() ? "UP" : "DOWN");
+            agoraHealth.put("healthy", status.isHealthy());
+            agoraHealth.put("tokenGeneration", status.tokenGenerationAvailable());
+            agoraHealth.put("restApi", status.restApiAvailable());
+            agoraHealth.put("message", status.statusMessage());
+            agoraHealth.put("canMakeCalls", status.canMakeCalls());
+            agoraHealth.put("canUseRecording", status.canUseCloudRecording());
+            agoraHealth.put("fullyOperational", status.isFullyOperational());
+            agoraHealth.put("checkedAt", status.checkedAt());
+
+            if (status.errorMessage() != null) {
+                agoraHealth.put("errorDetails", status.errorMessage());
+            }
+
+        } catch (Exception e) {
+            log.error("Agora 헬스체크 실패", e);
+            agoraHealth.put("status", "DOWN");
+            agoraHealth.put("healthy", false);
+            agoraHealth.put("error", e.getMessage());
+        }
+
+        return agoraHealth;
+    }
+
 }
