@@ -1,15 +1,13 @@
 package com.ldsilver.chingoohaja.listener;
 
 import com.ldsilver.chingoohaja.domain.call.Call;
+import com.ldsilver.chingoohaja.dto.call.AgoraHealthStatus;
 import com.ldsilver.chingoohaja.dto.call.CallStartInfo;
 import com.ldsilver.chingoohaja.dto.call.response.BatchTokenResponse;
 import com.ldsilver.chingoohaja.dto.call.response.ChannelResponse;
 import com.ldsilver.chingoohaja.event.MatchingSuccessEvent;
 import com.ldsilver.chingoohaja.repository.CallRepository;
-import com.ldsilver.chingoohaja.service.AgoraTokenService;
-import com.ldsilver.chingoohaja.service.CallChannelService;
-import com.ldsilver.chingoohaja.service.RedisMatchingQueueService;
-import com.ldsilver.chingoohaja.service.WebSocketEventService;
+import com.ldsilver.chingoohaja.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -27,11 +25,22 @@ public class MatchingEventListener {
     private final CallRepository callRepository;
     private final CallChannelService callChannelService;
     private final AgoraTokenService agoraTokenService;
+    private final AgoraService agoraService;
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void handleMatchingSuccess(MatchingSuccessEvent event) {
         log.debug("매칭 성공 이벤트 처리 시작 - callId: {}", event.getCallId());
+
+        AgoraHealthStatus agoraStatus = agoraService.checkHealth();
+        if (!agoraStatus.canMakeCalls()) {
+            log.error("매칭 성공했지만 통화 기능 사용 불가 - callId: {}, status: {}",
+                    event.getCallId(), agoraStatus.statusMessage());
+
+            // 사용자들에게 오류 알림 전송
+            sendServiceErrorNotifications(event);
+            return;
+        }
 
         try {
             // 1. Redis에서 매칭된 사용자들 제거
@@ -75,7 +84,9 @@ public class MatchingEventListener {
     }
 
 
-    private void sendCallStartNotifications(MatchingSuccessEvent event, ChannelResponse channelResponse, BatchTokenResponse tokenResponse) {
+    private void sendCallStartNotifications(MatchingSuccessEvent event,
+                                            ChannelResponse channelResponse,
+                                            BatchTokenResponse tokenResponse) {
         CallStartInfo user1CallInfo = new CallStartInfo(
                 event.getCallId(),
                 event.getUser2().getId(),
@@ -138,6 +149,17 @@ public class MatchingEventListener {
 
         } catch (Exception e) {
             log.error("매칭 성공 알림 전송 실패 - callId: {}", event.getCallId(), e);
+        }
+    }
+
+    private void sendServiceErrorNotifications(MatchingSuccessEvent event) {
+        try {
+            webSocketEventService.sendMatchingCancelledNotification(
+                    event.getUser1().getId(), "일시적으로 통화 서비스에 문제가 발생했습니다.");
+            webSocketEventService.sendMatchingCancelledNotification(
+                    event.getUser2().getId(), "일시적으로 통화 서비스에 문제가 발생했습니다.");
+        } catch (Exception e) {
+            log.error("서비스 오류 알림 전송 실패", e);
         }
     }
 }

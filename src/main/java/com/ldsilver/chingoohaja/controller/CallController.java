@@ -3,6 +3,7 @@ package com.ldsilver.chingoohaja.controller;
 import com.ldsilver.chingoohaja.domain.user.CustomUserDetails;
 import com.ldsilver.chingoohaja.dto.call.response.CallStatusResponse;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
+import com.ldsilver.chingoohaja.service.AgoraTokenService;
 import com.ldsilver.chingoohaja.service.CallStatusService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 public class CallController {
 
     private final CallStatusService callStatusService;
+    private final AgoraTokenService agoraTokenService;
 
     @Operation(
             summary = "통화 상태 조회",
