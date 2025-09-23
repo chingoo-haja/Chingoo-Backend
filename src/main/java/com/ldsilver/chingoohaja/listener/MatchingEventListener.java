@@ -78,40 +78,44 @@ public class MatchingEventListener {
 
 
     private void sendCallStartNotifications(MatchingSuccessEvent event, ChannelResponse channelResponse, BatchTokenResponse tokenResponse) {
-        try {
-            CallStartInfo user1CallInfo = new CallStartInfo(
-                    event.getCallId(),
-                    event.getUser2().getId(),
-                    event.getUser2().getNickname(),
-                    channelResponse.channelName(),
-                    tokenResponse.user1Token().rtcToken(),
-                    tokenResponse.user1Token().agoraUid(),
-                    channelResponse.expiresAt()
-            );
+        CallStartInfo user1CallInfo = new CallStartInfo(
+                event.getCallId(),
+                event.getUser2().getId(),
+                event.getUser2().getNickname(),
+                channelResponse.channelName(),
+                tokenResponse.user1Token().rtcToken(),
+                tokenResponse.user1Token().agoraUid(),
+                channelResponse.expiresAt()
+        );
 
+        try {
             webSocketEventService.sendCallStartNotification(
                     event.getUser1().getId(), user1CallInfo
             );
+        } catch (Exception e) {
+            log.error("통화 시작 알림 전송 실패(user1) - callId: {}", event.getCallId(), e);
+        }
 
-            CallStartInfo user2CallInfo = new CallStartInfo(
-                    event.getCallId(),
-                    event.getUser1().getId(),
-                    event.getUser1().getNickname(),
-                    channelResponse.channelName(),
-                    tokenResponse.user2Token().rtcToken(),
-                    tokenResponse.user2Token().agoraUid(),
-                    channelResponse.expiresAt()
-            );
+        CallStartInfo user2CallInfo = new CallStartInfo(
+                event.getCallId(),
+                event.getUser1().getId(),
+                event.getUser1().getNickname(),
+                channelResponse.channelName(),
+                tokenResponse.user2Token().rtcToken(),
+                tokenResponse.user2Token().agoraUid(),
+                channelResponse.expiresAt()
+        );
 
+        try {
             webSocketEventService.sendCallStartNotification(
                     event.getUser2().getId(), user2CallInfo
             );
-
-            log.debug("통화 시작 알림 전송 완료 - callId: {}, users: [{}, {}]",
-                    event.getCallId(), event.getUser1().getId(), event.getUser2().getId());
         } catch (Exception e) {
-            log.error("통화 시작 알림 전송 실패 - callId: {}", event.getCallId(), e);
+            log.error("통화 시작 알림 전송 실패(user2) - callId: {}", event.getCallId(), e);
         }
+
+        log.debug("통화 시작 알림 전송 완료 - callId: {}, users: [{}, {}]",
+                event.getCallId(), event.getUser1().getId(), event.getUser2().getId());
     }
 
     private void sendMatchingSuccessNotifications(MatchingSuccessEvent event) {
