@@ -87,13 +87,13 @@ public class AgoraService {
                     .build();
 
         } catch (Exception e) {
-            log.error("Agora 헬스체크 실패", e);
+            String ref = java.util.UUID.randomUUID().toString();
+            log.error("Agora 헬스체크 실패 - ref={}", ref, e);
             return AgoraHealthStatus.builder()
                     .isHealthy(false)
                     .tokenGenerationAvailable(false)
                     .restApiAvailable(false)
-                    .statusMessage("Agora 서비스 점검 중 오류 발생: " + e.getMessage())
-                    .errorMessage(e.getMessage())
+                    .statusMessage("Agora 서비스 점검 중 오류 발생. 관리자에게 ref=" + ref + "를 전달해 주세요.")
                     .checkedAt(java.time.LocalDateTime.now())
                     .build();
         }
