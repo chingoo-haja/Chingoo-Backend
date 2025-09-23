@@ -84,7 +84,9 @@ public class MatchingEventListener {
     }
 
 
-    private void sendCallStartNotifications(MatchingSuccessEvent event, ChannelResponse channelResponse, BatchTokenResponse tokenResponse) {
+    private void sendCallStartNotifications(MatchingSuccessEvent event,
+                                            ChannelResponse channelResponse,
+                                            BatchTokenResponse tokenResponse) {
         CallStartInfo user1CallInfo = new CallStartInfo(
                 event.getCallId(),
                 event.getUser2().getId(),
