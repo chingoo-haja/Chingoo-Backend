@@ -68,11 +68,14 @@ public class MatchingEventListener {
             log.debug("Agora 채널 생성 완료 - callId: {}, channelName: {}",
                     event.getCallId(), channelResponse.channelName());
 
-            // 4. 토큰 생성
+            // 4. 매칭된 사용자들을 채널에 자동 참가시킴
+            joinUsersToChannel(event, channelResponse.channelName());
+
+            // 5. 토큰 생성
             BatchTokenResponse tokenResponse = agoraTokenService.generateTokenForMatching(call);
             log.debug("Agora 토큰 생성 완료 - callId: {}", event.getCallId());
 
-            // 5. WebSocket 매칭 성공 알림 전송
+            // 6. WebSocket 매칭 성공 알림 전송
             sendMatchingSuccessNotifications(event);
             sendCallStartNotifications(event, channelResponse, tokenResponse);
 
@@ -81,6 +84,31 @@ public class MatchingEventListener {
         } catch (Exception e) {
             log.error("매칭 성공 후처리 실패 - callId: {}", event.getCallId(), e);
         }
+    }
+
+
+    private void joinUsersToChannel(MatchingSuccessEvent event, String channelName) {
+        Long user1Id = event.getUser1().getId();
+        Long user2Id = event.getUser2().getId();
+
+        try {
+            ChannelResponse user1JoinResult = callChannelService.joinChannel(channelName, user1Id);
+            log.debug("User1 채널 참가 성공 - callId: {}, userId: {}, participants: {}",
+                    event.getCallId(), user1Id, user1JoinResult.currentParticipants());
+        } catch (Exception e) {
+            log.error("User1 채널 참가 실패 - callId: {}, userId: {}", event.getCallId(), user1Id, e);
+        }
+
+        try {
+            ChannelResponse user2JoinResult = callChannelService.joinChannel(channelName, user2Id);
+            log.debug("User2 채널 참가 성공 - callId: {}, userId: {}, participants: {}",
+                    event.getCallId(), user2Id, user2JoinResult.currentParticipants());
+        } catch (Exception e) {
+            log.error("User2 채널 참가 실패 - callId: {}, userId: {}", event.getCallId(), user2Id, e);
+        }
+
+        log.info("매칭된 사용자들 채널 자동 참가 처리 완료 - callId: {}, channelName: {}, users: [{}, {}]",
+                event.getCallId(), channelName, user1Id, user2Id);
     }
 
 
