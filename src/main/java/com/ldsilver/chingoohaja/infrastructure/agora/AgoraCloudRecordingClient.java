@@ -61,7 +61,7 @@ public class AgoraCloudRecordingClient {
                 .onErrorMap(WebClientResponseException.class, this::mapWebClientException);
     }
 
-    public Mono<String> startRecording(String resourceId, String channelName, RecordingRequest request, String[] fileFormats) {
+    public Mono<String> startRecording(String resourceId, String channelName, RecordingRequest request) {
         log.debug("오디오 전용 Agora Cloud Recording 시작 - resourceId: {}, channel: {}",
                 maskSensitiveData(resourceId), channelName);
 

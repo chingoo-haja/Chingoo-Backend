@@ -36,7 +36,7 @@ public class RecordingProperties {
     /**
      * 오디오만 녹음 (비용 절약)
      */
-    private final boolean audioOnly = true;
+    private boolean audioOnly = true;
 
     /**
      * 자동 녹음 시작 (통화 시작 시)
