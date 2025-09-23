@@ -94,7 +94,8 @@ public class AgoraCloudRecordingClient {
         Map<String, Object> clientRequest = Map.of(
                 "token", generateRecordingToken(channelName),
                 "recordingConfig", recordingConfig,
-                "recordingFileConfig", recordingFileConfig
+                "recordingFileConfig", recordingFileConfig,
+                "storageConfig", storageConfig
         );
 
         return webClient.post()
