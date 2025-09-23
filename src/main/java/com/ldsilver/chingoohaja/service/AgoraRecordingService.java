@@ -6,6 +6,7 @@ import com.ldsilver.chingoohaja.config.RecordingProperties;
 import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.CallRecording;
 import com.ldsilver.chingoohaja.domain.call.enums.RecordingStatus;
+import com.ldsilver.chingoohaja.dto.call.AgoraHealthStatus;
 import com.ldsilver.chingoohaja.dto.call.request.RecordingRequest;
 import com.ldsilver.chingoohaja.dto.call.response.RecordingResponse;
 import com.ldsilver.chingoohaja.infrastructure.agora.AgoraCloudRecordingClient;
@@ -31,11 +32,19 @@ public class AgoraRecordingService {
     private final CallRecordingRepository callRecordingRepository;
     private final FirebaseStorageService firebaseStorageService;
     private final RecordingProperties recordingProperties;
+    private final AgoraService agoraService;
 
     @Transactional
     public RecordingResponse startRecording(RecordingRequest request) {
         log.debug("Cloud Recording 시작 - callId: {}, channel: {}",
                 request.callId(), request.channelName());
+
+        AgoraHealthStatus agoraStatus = agoraService.checkHealth();
+        if (!agoraStatus.canUseCloudRecording()) {
+            log.error("Cloud Recording을 사용할 수 없는 상태 - {}", agoraStatus.statusMessage());
+            throw new CustomException(ErrorCode.AGORA_REQUEST_FAILED,
+                    "녹음 서비스가 현재 사용 불가능합니다: " + agoraStatus.statusMessage());
+        }
 
         Call call = callRepository.findById(request.callId())
                 .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
