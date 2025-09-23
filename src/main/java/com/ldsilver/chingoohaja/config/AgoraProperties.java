@@ -35,7 +35,7 @@ public class AgoraProperties {
     // Token 설정
     @Min(1)
     @Max(86400) // 24h
-    private int tokenExpirationInSeconds = CallValidationConstants.DEFAULT_TTL_SECONDS; // 1시간
+    private int tokenExpirationInSeconds = CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS; // 1시간
 
     // REST API 설정
     private String restApiBaseUrl = "https://api.agora.io";
@@ -56,7 +56,7 @@ public class AgoraProperties {
                 && customerSecret != null && !customerSecret.isBlank();
     }
 
-    public boolean useCustomStorage() {
+    public boolean isCustomStorageConfigured() {
         return useCustomStorage &&
                 recordingStorageBucket != null && !recordingStorageBucket.trim().isEmpty() &&
                 recordingStorageAccessKey != null && !recordingStorageAccessKey.trim().isEmpty() &&

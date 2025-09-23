@@ -72,7 +72,7 @@ public class AgoraRecordingService {
 
                 RecordingRequest request = RecordingRequest.of(callId, channelName);
                 String sid = cloudRecordingClient.startRecording(
-                        resourceId, channelName, request, recordingProperties.getFileFormats()
+                        resourceId, channelName, request
                 ).block();
 
                 if (sid == null) {
@@ -122,7 +122,7 @@ public class AgoraRecordingService {
             callRepository.save(call);
 
             CallRecording callRecording = CallRecording.of(
-                    call, finalFileUrl, fileSize, "mp3", RecordingStatus.COMPLETED
+                    call, finalFileUrl, fileSize, "hls", RecordingStatus.COMPLETED
             );
             callRecordingRepository.save(callRecording);
 

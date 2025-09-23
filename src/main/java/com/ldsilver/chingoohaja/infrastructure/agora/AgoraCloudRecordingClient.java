@@ -4,6 +4,8 @@ import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.config.AgoraProperties;
 import com.ldsilver.chingoohaja.dto.call.request.RecordingRequest;
+import com.ldsilver.chingoohaja.validation.CallValidationConstants;
+import io.agora.media.RtcTokenBuilder2;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -27,6 +29,7 @@ public class AgoraCloudRecordingClient {
     @Qualifier("agoraWebClient")
     private final WebClient webClient;
     private final AgoraProperties agoraProperties;
+    private final AgoraTokenGenerator agoraTokenGenerator;
 
     public Mono<String> acquireResource(String channelName) {
         log.debug("Agora Cloud Recording Resource 획득 시작 - channel: {}", channelName);
@@ -58,9 +61,14 @@ public class AgoraCloudRecordingClient {
                 .onErrorMap(WebClientResponseException.class, this::mapWebClientException);
     }
 
-    public Mono<String> startRecording(String resourceId, String channelName, RecordingRequest request, String[] fileFormats) {
-        log.debug("Agora Cloud Recording 시작 - resourceId: {}, channel: {}",
+    public Mono<String> startRecording(String resourceId, String channelName, RecordingRequest request) {
+        log.debug("오디오 전용 Agora Cloud Recording 시작 - resourceId: {}, channel: {}",
                 maskSensitiveData(resourceId), channelName);
+
+        if (!agoraProperties.isCloudRecordingConfigured()) {
+            log.error("Agora Cloud Recording이 설정되지 않았습니다.");
+            return Mono.error(new CustomException(ErrorCode.OAUTH_CONFIG_ERROR));
+        }
 
         Map<String, Object> storageConfig = Map.of(
                 "vendor", 1, // AWS S3
@@ -73,20 +81,23 @@ public class AgoraCloudRecordingClient {
 
         Map<String, Object> recordingConfig = Map.of(
                 "maxIdleTime", request.maxIdleTime(),
-                "streamTypes", request.getStreamTypes(),
-                "channelType", request.getChannelType(),
-                "subscribeAudioUids", new String[]{"#allstream#"},
-                "subscribeUidGroup", 0
+                "streamTypes", 0, // 0 = 오디오만 (비디오 완전 차단)
+                "channelType", 0, // 0 = 통신 모드
+                "subscribeAudioUids", new String[]{"#allstream#"}, // 모든 오디오 구독
+                "subscribeVideoUids", new String[]{}, // 비디오 구독 완전 차단
+                "subscribeUidGroup", 0,
+                "audioProfile", request.audioProfile() // 오디오 품질 설정
         );
 
         Map<String, Object> recordingFileConfig = Map.of(
-                "avFileType", fileFormats != null ? fileFormats : new String[]{"hls", "mp3"}
+                "avFileType", new String[]{"hls"}
         );
 
         Map<String, Object> clientRequest = Map.of(
-                "token", "", // TODO: #보안이슈번호 - RTC 토큰 인증 구현 필요
+                "token", generateRecordingToken(channelName),
                 "recordingConfig", recordingConfig,
-                "recordingFileConfig", recordingFileConfig
+                "recordingFileConfig", recordingFileConfig,
+                "storageConfig", storageConfig
         );
 
         return webClient.post()
@@ -143,6 +154,14 @@ public class AgoraCloudRecordingClient {
 
 
 
+    private String generateRecordingToken(String channelName) {
+        return agoraTokenGenerator.generateRtcToken(
+                channelName,
+                CallValidationConstants.RECORDING_UID_INT,
+                RtcTokenBuilder2.Role.ROLE_PUBLISHER,
+                CallValidationConstants.RECORDING_TOKEN_TTL_SECONDS
+        );
+    }
 
     private String createBasicAuthHeader() {
         String credentials = agoraProperties.getCustomerId() + ":" + agoraProperties.getCustomerSecret();

@@ -57,10 +57,10 @@ public class AgoraTokenService {
                     channelName,
                     safeLongToInt(agoraUid),
                     RtcTokenBuilder2.Role.ROLE_PUBLISHER,
-                    CallValidationConstants.DEFAULT_TTL_SECONDS
+                    CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS
             );
 
-            LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(CallValidationConstants.DEFAULT_TTL_SECONDS);
+            LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS);
 
             log.info("통화용 Token 생성 완료 - userId: {}, callId: {}, agoraUid: {}",
                     userId, callId, agoraUid);
@@ -94,7 +94,7 @@ public class AgoraTokenService {
                     channelName,
                     safeLongToInt(user1AgoraUid),
                     RtcTokenBuilder2.Role.ROLE_PUBLISHER,
-                    CallValidationConstants.DEFAULT_TTL_SECONDS
+                    CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS
             );
 
             Long user2AgoraUid = generateAgoraUid(user2Id);
@@ -102,10 +102,10 @@ public class AgoraTokenService {
                     channelName,
                     safeLongToInt(user2AgoraUid),
                     RtcTokenBuilder2.Role.ROLE_PUBLISHER,
-                    CallValidationConstants.DEFAULT_TTL_SECONDS
+                    CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS
             );
 
-            LocalDateTime expireAt = LocalDateTime.now().plusSeconds(CallValidationConstants.DEFAULT_TTL_SECONDS);
+            LocalDateTime expireAt = LocalDateTime.now().plusSeconds(CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS);
 
             TokenResponse user1TokenResponse = TokenResponse.rtcOnly(
                     user1Token, channelName, user1AgoraUid, user1Id, CallValidationConstants.DEFAULT_ROLE, expireAt

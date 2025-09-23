@@ -7,6 +7,7 @@ import com.ldsilver.chingoohaja.domain.category.Category;
 import com.ldsilver.chingoohaja.domain.matching.MatchingQueue;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus;
 import com.ldsilver.chingoohaja.domain.user.User;
+import com.ldsilver.chingoohaja.event.MatchingSuccessEvent;
 import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.repository.CategoryRepository;
 import com.ldsilver.chingoohaja.repository.MatchingQueueRepository;
@@ -14,17 +15,20 @@ import com.ldsilver.chingoohaja.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -44,6 +48,8 @@ public class MatchingSchedulerService {
     private final MatchingQueueRepository matchingQueueRepository;
     private final WebSocketEventService webSocketEventService;
     private final MatchingSchedulerProperties schedulerProperties;
+    private final ApplicationEventPublisher eventPublisher;
+    private final PlatformTransactionManager transactionManager;
 
     @Scheduled(fixedDelayString = "#{@matchingSchedulerProperties.matchingDelay}")
     public void processMatching() {
@@ -56,8 +62,9 @@ public class MatchingSchedulerService {
             int processedCount = 0;
 
             for (Category category : activeCategories) {
-                boolean processed = processMatchingForCategory(category);
-                if (processed) processedCount++;
+                Boolean processed = new TransactionTemplate(transactionManager)
+                        .execute(status -> processMatchingForCategory(category));
+                if (Boolean.TRUE.equals(processed)) processedCount++;
             }
 
             // 처리된 매칭이 있을 때만 로그 출력 (로컬 환경 고려)
@@ -70,7 +77,7 @@ public class MatchingSchedulerService {
         }
     }
 
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+
     protected boolean processMatchingForCategory(Category category) {
         try {
             // 1. 대기 인원 확인
@@ -114,6 +121,7 @@ public class MatchingSchedulerService {
             if (user1Opt.isEmpty() || user2Opt.isEmpty()) {
                 log.error("매칭된 사용자 조회 실패 - user1Id: {}, user2Id: {}, user1Exists: {}, user2Exists: {}",
                         user1Id, user2Id, user1Opt.isPresent(), user2Opt.isPresent());
+                restoreUsersToQueue(userIds, category.getId());
                 return false;
             }
 
@@ -125,48 +133,60 @@ public class MatchingSchedulerService {
 
             if (savedCall == null) {
                 log.error("Call 생성 실패 - categoryId: {}, userIds: {}", category.getId(), userIds);
-                // Call 생성 실패 시 Redis 큐에서 사용자를 제거할지 아니면 다시 시도할지 결정 필요
+                restoreUsersToQueue(userIds, category.getId());
                 return false;
             }
 
             // 5. DB 매칭 큐 상태 업데이트 (WAITING -> MATCHING)
-            updateMatchingQueueStatus(userIds, QueueStatus.MATCHING);
+            updateMatchingQueueStatus(userIds, category.getId(),QueueStatus.MATCHING);
 
             // 6. 통화방 입장용 세션 토큰 생성
             String sessionToken = generateSessionToken();
 
-            // 7. 커밋 이후 처리: Redis 제거 → WebSocket 매칭 성공 알림 전송
-            TransactionSynchronizationManager.registerSynchronization(
-                    new TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            try {
-                                RedisMatchingQueueService.RemoveUserResult removeResult =
-                                        redisMatchingQueueService.removeMatchedUsers(category.getId(), userIds);
-
-                                if (!removeResult.success()) {
-                                    log.warn("Redis 사용자 제거 실패 - categoryId: {}, userIds: {}, reason: {}",
-                                            category.getId(), userIds, removeResult.message());
-                                    // DB는 성공했으므로 매칭은 진행하되, Redis 정리만 실패한 상황
-                                }
-                            } catch (Exception ex) {
-                                log.warn("Redis 사용자 제거 중 예외 발생(커밋 후) - categoryId: {}, userIds: {}",
-                                        category.getId(), userIds, ex);
-                            }
-
-                            sendMatchingSuccessNotification(user1, user2, savedCall);
-                        }
-                    }
-            );
-
             log.debug("매칭 성공 완료 - categoryId: {}, callId: {}, users: {}",
                     category.getId(), savedCall.getId(), userIds);
+
+            // 7. 커밋 이후 처리: Redis 제거 → WebSocket 매칭 성공 알림 전송
+            // 수정: 이벤트 발행 (트랜젝션 커밋 후 처리)
+            eventPublisher.publishEvent(new MatchingSuccessEvent(
+                    savedCall.getId(),
+                    category.getId(),
+                    userIds,
+                    user1,
+                    user2
+            ));
 
             return true;
 
         } catch (Exception e) {
             log.error("카테고리 매칭 처리 실패 - categoryId: {}", category.getId(), e);
             return false;
+        }
+    }
+
+
+
+    private void restoreUsersToQueue(List<Long> userIds, Long categoryId) {
+        if (userIds == null || userIds.isEmpty()) {
+            return;
+        }
+
+        log.info("매칭 실패로 인한 사용자 큐 복구 시작 - categoryId: {}, userIds: {}",categoryId, userIds);
+
+        for (Long userId: userIds) {
+            try {
+                String newQueueId = generateQueueId(userId, categoryId);
+                RedisMatchingQueueService.EnqueueResult result =
+                        redisMatchingQueueService.enqueueUser(userId, categoryId, newQueueId);
+
+                if (result.success()) {
+                    log.debug("사용자 큐 복구 성공 - userId: {}, newQueueId: {}", userId, newQueueId);
+                } else {
+                    log.warn("사용자 큐 복구 실패 - userId: {}, reason: {}", userId, result.message());
+                }
+            } catch (Exception e) {
+                log.error("사용자 큐 복구 중 예외 발생 - userId: {}", userId, e);
+            }
         }
     }
 
@@ -182,7 +202,7 @@ public class MatchingSchedulerService {
         }
     }
 
-    private void updateMatchingQueueStatus(List<Long> userIds, QueueStatus newStatus) {
+    private void updateMatchingQueueStatus(List<Long> userIds, Long categoryId,QueueStatus newStatus) {
         try {
             for (Long userId: userIds) {
                 User user = userRepository.findById(userId).orElse(null);
@@ -190,7 +210,9 @@ public class MatchingSchedulerService {
                     List<MatchingQueue> waitingQueues = matchingQueueRepository
                             .findByUserOrderByCreatedAtDesc(user)
                             .stream()
-                            .filter(q -> q.getQueueStatus() == QueueStatus.WAITING)
+                            .filter(q -> q.getQueueStatus() == QueueStatus.WAITING
+                                                    && q.getCategory() != null
+                                                    && q.getCategory().getId().equals(categoryId))
                             .limit(1)
                             .toList();
 
@@ -232,6 +254,30 @@ public class MatchingSchedulerService {
 
     private String generateSessionToken() {
         return "session_" + UUID.randomUUID().toString().replace("-", "");
+    }
+
+    private String generateQueueId(Long userId, Long categoryId) {
+        return String.format("queue_%d_%d_%s", userId, categoryId,
+                UUID.randomUUID().toString().substring(0, 8));
+    }
+
+
+    private void scheduleRedisCleanupRetry(Long categoryId, List<Long> userIds) {
+        CompletableFuture.delayedExecutor(5, TimeUnit.SECONDS).execute(() -> {
+            try {
+                log.info("Redis 정리 재시도 - categoryId: {}, userIds: {}", categoryId, userIds);
+                RedisMatchingQueueService.RemoveUserResult retryResult =
+                        redisMatchingQueueService.removeMatchedUsers(categoryId, userIds);
+
+                if (retryResult.success()) {
+                    log.info("Redis 정리 재시도 성공 - categoryId: {}", categoryId);
+                } else {
+                    log.warn("Redis 정리 재시도 실패 - categoryId: {}, reason: {}", categoryId, retryResult.message());
+                }
+            } catch (Exception e) {
+                log.error("Redis 정리 재시도 중 예외 발생 - categoryId: {}", categoryId, e );
+            }
+        });
     }
 
 

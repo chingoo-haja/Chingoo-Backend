@@ -37,6 +37,7 @@ public class CallChannelService {
     private static final String CHANNEL_PREFIX = "call:channel:";
     private static final String CHANNEL_PARTICIPANTS_PREFIX = "call:participants:";
     private static final String USER_CHANNEL_PREFIX = "call:user_channel:";
+    private static final long USER_CHANNEL_TTL_SECONDS = TimeUnit.HOURS.toSeconds(2);
 
     @Transactional
     public ChannelResponse createChannel(Call call) {
@@ -58,6 +59,20 @@ public class CallChannelService {
     public ChannelResponse joinChannel(String channelName, Long userId) {
         log.debug("채널 참가 시작 - channelName: {}, userId: {}", channelName, userId);
 
+        // call 권한 검증
+        Call call = callRepository.findByAgoraChannelName(channelName)
+                .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
+
+        if (!call.isParticipant(userId)) {
+            throw new CustomException(ErrorCode.CALL_NOT_PARTICIPANT);
+        }
+
+        // 상태 검증: 진행 가능한 상태만 입장 허용
+        switch (call.getCallStatus()) {
+            case READY, IN_PROGRESS -> { /* OK */ }
+            default -> throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "입장 불가 상태: " + call.getCallStatus());
+        }
+
         String channelKey = CHANNEL_PREFIX + channelName;
         String participantsKey = CHANNEL_PARTICIPANTS_PREFIX + channelName;
         String userChannelKey = USER_CHANNEL_PREFIX + userId;
@@ -69,7 +84,7 @@ public class CallChannelService {
         RedisScript<Long> script = RedisScript.of(RedisMatchingConstants.LuaScripts.JOIN_CHANNEL_LUA_SCRIPT, Long.class);
         Long result = redisTemplate.execute(script,
                 Arrays.asList(channelKey, participantsKey, userChannelKey),
-                userId.toString(), channelName, "7200", String.valueOf(currentTimeSeconds));
+                userId.toString(), channelName, String.valueOf(USER_CHANNEL_TTL_SECONDS), String.valueOf(currentTimeSeconds));
 
         // 결과에 따른 예외 처리
         if (result == null || result < 0) {
@@ -99,7 +114,7 @@ public class CallChannelService {
 
         if (channelInfo == null) {
             log.warn("존재하지 않는 채널에서 나가기 시도 - channelName: {}, userId: {}", channelName, userId);
-            return null;
+            throw new CustomException(ErrorCode.CALL_NOT_FOUND);
         }
 
         if (!channelInfo.hasParticipant(userId)) {
@@ -110,8 +125,9 @@ public class CallChannelService {
         // 원자적 제거
         String participantsKey = CHANNEL_PARTICIPANTS_PREFIX + channelName;
         try {
-                redisTemplate.opsForSet().remove(participantsKey, String.valueOf(userId));
-            } finally {
+                Long removed = redisTemplate.opsForSet().remove(participantsKey, String.valueOf(userId));
+                log.debug("참가자 제거 결과 - channelName: {}, userId: {}, removed: {}", channelName, userId, removed);
+        } finally {
                 clearUserCurrentChannel(userId);
             }
 
@@ -120,7 +136,7 @@ public class CallChannelService {
         if (size == null || size == 0) {
                 deleteChannel(channelName);
                 log.info("빈 채널 삭제 - channelName: {}", channelName);
-                return null;
+                return ChannelResponse.deleted(channelInfo);
         }
         CallChannelInfo latest = getChannelInfo(channelName);
         log.info("채널 나가기 완료 - channelName: {}, userId: {}, participants: {}",
@@ -262,7 +278,7 @@ public class CallChannelService {
         log.debug("모든 활성 채널 조회");
 
         try {
-            Set<String> channelKeys = redisTemplate.keys(CHANNEL_PREFIX + "*");
+            Set<String> channelKeys = scanKeysWithPattern(CHANNEL_PREFIX + "*");
 
             if (channelKeys == null || channelKeys.isEmpty()) {
                 return Collections.emptyList();
@@ -430,7 +446,7 @@ public class CallChannelService {
     private void setUserCurrentChannel(Long userId, String channelName) {
         try {
             String userChannelKey = USER_CHANNEL_PREFIX + userId;
-            redisTemplate.opsForValue().set(userChannelKey, channelName, 2, TimeUnit.HOURS);
+            redisTemplate.opsForValue().set(userChannelKey, channelName, USER_CHANNEL_TTL_SECONDS, TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("사용자 채널 설정 실패 - userId: {}, channelName: {}", userId, channelName, e);
         }
