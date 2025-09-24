@@ -15,6 +15,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -69,7 +72,7 @@ public class MatchingEventListener {
                     event.getCallId(), channelResponse.channelName());
 
             // 4. 매칭된 사용자들을 채널에 자동 참가시킴
-            joinUsersToChannel(event, channelResponse.channelName());
+            Set<Long> joinedUserIds = joinUsersToChannel(event, channelResponse.channelName());
 
             // 5. 토큰 생성
             BatchTokenResponse tokenResponse = agoraTokenService.generateTokenForMatching(call);
@@ -77,7 +80,7 @@ public class MatchingEventListener {
 
             // 6. WebSocket 매칭 성공 알림 전송
             sendMatchingSuccessNotifications(event);
-            sendCallStartNotifications(event, channelResponse, tokenResponse);
+            sendCallStartNotifications(event, channelResponse, tokenResponse, joinedUserIds);
 
             log.info("매칭 성공 후처리 완료 - callId: {}", event.getCallId());
 
@@ -87,14 +90,16 @@ public class MatchingEventListener {
     }
 
 
-    private void joinUsersToChannel(MatchingSuccessEvent event, String channelName) {
+    private Set<Long> joinUsersToChannel(MatchingSuccessEvent event, String channelName) {
         Long user1Id = event.getUser1().getId();
         Long user2Id = event.getUser2().getId();
+        Set<Long> joinedUserIDs = new HashSet<>();
 
         try {
             ChannelResponse user1JoinResult = callChannelService.joinChannel(channelName, user1Id);
             log.debug("User1 채널 참가 성공 - callId: {}, userId: {}, participants: {}",
                     event.getCallId(), user1Id, user1JoinResult.currentParticipants());
+            joinedUserIDs.add(user1Id);
         } catch (Exception e) {
             log.error("User1 채널 참가 실패 - callId: {}, userId: {}", event.getCallId(), user1Id, e);
         }
@@ -103,52 +108,65 @@ public class MatchingEventListener {
             ChannelResponse user2JoinResult = callChannelService.joinChannel(channelName, user2Id);
             log.debug("User2 채널 참가 성공 - callId: {}, userId: {}, participants: {}",
                     event.getCallId(), user2Id, user2JoinResult.currentParticipants());
+            joinedUserIDs.add(user2Id);
         } catch (Exception e) {
             log.error("User2 채널 참가 실패 - callId: {}, userId: {}", event.getCallId(), user2Id, e);
         }
 
-        log.info("매칭된 사용자들 채널 자동 참가 처리 완료 - callId: {}, channelName: {}, users: [{}, {}]",
-                event.getCallId(), channelName, user1Id, user2Id);
+        log.info("매칭된 사용자들 채널 자동 참가 처리 완료 - callId: {}, channelName: {}, 성공: {}/{}, joinedUsers: {}",
+                event.getCallId(), channelName, joinedUserIDs.size(), 2, joinedUserIDs);
+        return joinedUserIDs;
     }
 
 
     private void sendCallStartNotifications(MatchingSuccessEvent event,
                                             ChannelResponse channelResponse,
-                                            BatchTokenResponse tokenResponse) {
-        CallStartInfo user1CallInfo = new CallStartInfo(
-                event.getCallId(),
-                event.getUser2().getId(),
-                event.getUser2().getNickname(),
-                channelResponse.channelName(),
-                tokenResponse.user1Token().rtcToken(),
-                tokenResponse.user1Token().agoraUid(),
-                tokenResponse.user1Token().expiresAt()
-        );
-
-        try {
-            webSocketEventService.sendCallStartNotification(
-                    event.getUser1().getId(), user1CallInfo
+                                            BatchTokenResponse tokenResponse,
+                                            Set<Long> joinedUserIds) {
+        if (joinedUserIds.contains(event.getUser1().getId())){
+            CallStartInfo user1CallInfo = new CallStartInfo(
+                    event.getCallId(),
+                    event.getUser2().getId(),
+                    event.getUser2().getNickname(),
+                    channelResponse.channelName(),
+                    tokenResponse.user1Token().rtcToken(),
+                    tokenResponse.user1Token().agoraUid(),
+                    tokenResponse.user1Token().expiresAt()
             );
-        } catch (Exception e) {
-            log.error("통화 시작 알림 전송 실패(user1) - callId: {}", event.getCallId(), e);
+            try {
+                webSocketEventService.sendCallStartNotification(
+                        event.getUser1().getId(), user1CallInfo
+                );
+            } catch (Exception e) {
+                log.error("통화 시작 알림 전송 실패(user1) - callId: {}", event.getCallId(), e);
+            }
+        } else {
+            log.warn("user1 조인 실패로 CallStart 알림 건너뜀 - callId: {}, userId: {}",
+                    event.getCallId(), event.getUser1().getId());
         }
 
-        CallStartInfo user2CallInfo = new CallStartInfo(
-                event.getCallId(),
-                event.getUser1().getId(),
-                event.getUser1().getNickname(),
-                channelResponse.channelName(),
-                tokenResponse.user2Token().rtcToken(),
-                tokenResponse.user2Token().agoraUid(),
-                tokenResponse.user2Token().expiresAt()
-        );
 
-        try {
-            webSocketEventService.sendCallStartNotification(
-                    event.getUser2().getId(), user2CallInfo
+        if (joinedUserIds.contains(event.getUser2().getId())){
+            CallStartInfo user2CallInfo = new CallStartInfo(
+                    event.getCallId(),
+                    event.getUser1().getId(),
+                    event.getUser1().getNickname(),
+                    channelResponse.channelName(),
+                    tokenResponse.user2Token().rtcToken(),
+                    tokenResponse.user2Token().agoraUid(),
+                    tokenResponse.user2Token().expiresAt()
             );
-        } catch (Exception e) {
-            log.error("통화 시작 알림 전송 실패(user2) - callId: {}", event.getCallId(), e);
+
+            try {
+                webSocketEventService.sendCallStartNotification(
+                        event.getUser2().getId(), user2CallInfo
+                );
+            } catch (Exception e) {
+                log.error("통화 시작 알림 전송 실패(user2) - callId: {}", event.getCallId(), e);
+            }
+        } else {
+            log.warn("user2 조인 실패로 CallStart 알림 건너뜀 - callId: {}, userId: {}",
+                    event.getCallId(), event.getUser2().getId());
         }
 
         log.debug("통화 시작 알림 전송 완료 - callId: {}, users: [{}, {}]",
