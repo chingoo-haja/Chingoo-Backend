@@ -16,7 +16,7 @@ import java.util.Optional;
 public interface EvaluationRepository extends JpaRepository<Evaluation, Long> {
     // 사용자의 평균 평점 계산 (긍정 평가 비율)
     @Query("SELECT " +
-            "CASE WHEN COUNT(e) = 0 THEN 0.0 ELSE "+
+            "CASE WHEN COUNT(e) = 0 THEN NULL ELSE "+
             "COUNT(CASE WHEN e.feedbackType = 'POSITIVE' THEN 1 END) * 100.0 / COUNT(e) END " +
             "FROM Evaluation e WHERE e.evaluated = :user")
     Double getPositiveFeedbackPercentageByUser(@Param("user") User user);
@@ -70,7 +70,7 @@ public interface EvaluationRepository extends JpaRepository<Evaluation, Long> {
 
     // 이번 달 상위 10% 사용자 조회 (뱃지 지급용)
     @Query("SELECT e.evaluated.id, " +
-            "COUNT(CASE WHEN e.feedbackType = 'POSITIVE' THEN 1 END) * 100.0 / COUNT(e) " +
+            "SUM(CASE WHEN e.feedbackType = 'POSITIVE' THEN 1 ELSE 0 END) * 100.0 / COUNT(e), " +
             "COUNT(e) as totalCount " +
             "FROM Evaluation e " +
             "WHERE e.createdAt >= :monthStart AND e.createdAt < :monthEnd " +
