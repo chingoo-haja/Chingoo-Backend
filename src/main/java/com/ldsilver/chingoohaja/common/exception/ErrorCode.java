@@ -134,6 +134,9 @@ public enum ErrorCode {
     EVALUATION_ALREADY_EXISTS(HttpStatus.CONFLICT, "E001", "이미 평가를 완료했습니다."),
     EVALUATION_NOT_ALLOWED(HttpStatus.FORBIDDEN, "E002", "평가할 수 있는 권한이 없습니다."),
     SELF_EVALUATION_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "E003", "자기 자신을 평가할 수 없습니다."),
+    EVALUATION_FOR_NOT_COMPLETED_CALL(HttpStatus.FORBIDDEN, "E004", "완료된 통화만 평가할 수 있습니다."),
+    FEEDBACK_TYPE_NOT_NULL(HttpStatus.BAD_REQUEST, "E005", "피드백 타입은 null일 수 없습니다."),
+    INVALID_FEEDBACK_TYPE(HttpStatus.BAD_REQUEST, "E006", "피드백 타입이 유효하지 않습니다."),
 
     // 친구 관련 에러
     FRIENDSHIP_ALREADY_EXISTS(HttpStatus.CONFLICT, "F001", "이미 친구 관계입니다."),
