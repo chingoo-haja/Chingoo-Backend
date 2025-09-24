@@ -20,6 +20,7 @@ public class CallStatusService {
 
     private final CallRepository callRepository;
     private final CallService callService;
+    private final EvaluationService evaluationService;
 
     @Transactional(readOnly = true)
     public CallStatusResponse getCallStatus(Long callId, Long userId) {
@@ -32,7 +33,17 @@ public class CallStatusService {
             throw new CustomException(ErrorCode.CALL_NOT_PARTICIPANT);
         }
 
-        return CallStatusResponse.from(call, userId);
+        CallStatusResponse baseResponse = CallStatusResponse.from(call, userId);
+
+        // 평가 정보 추가 (완료된 통화의 경우에만)
+        if (call.getCallStatus() == CallStatus.COMPLETED) {
+            boolean canEvaluate = evaluationService.canEvaluate(userId, callId);
+            boolean hasEvaluated = evaluationService.hasUserEvaluatedCall(userId, callId);
+
+            return baseResponse.withEvaluationInfo(canEvaluate, hasEvaluated);
+        }
+
+        return baseResponse.withEvaluationInfo(false, false);
     }
 
     @Transactional
