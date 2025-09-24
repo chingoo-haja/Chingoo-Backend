@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -95,27 +96,71 @@ public class MatchingEventListener {
         Long user2Id = event.getUser2().getId();
         Set<Long> joinedUserIds = new HashSet<>(2);
 
-        try {
-            ChannelResponse user1JoinResult = callChannelService.joinChannel(channelName, user1Id);
-            log.debug("User1 채널 참가 성공 - callId: {}, userId: {}, participants: {}",
-                    event.getCallId(), user1Id, user1JoinResult.currentParticipants());
-            joinedUserIds.add(user1Id);
-        } catch (Exception e) {
-            log.error("User1 채널 참가 실패 - callId: {}, userId: {}", event.getCallId(), user1Id, e);
+        boolean user1Success = attemptUserJoin(user1Id, channelName, event.getCallId());
+        boolean user2Success = attemptUserJoin(user2Id, channelName, event.getCallId());
+
+        if (user1Success) joinedUserIds.add(user1Id);
+        if (user2Success) joinedUserIds.add(user2Id);
+
+        if (joinedUserIds.size() < 2) {
+            log.warn("채널 조인 전체 실패 - callId: {}, 성공한 사용자 수: {}/2",
+                    event.getCallId(), joinedUserIds.size());
+
+            // 성공한 사용자가 있다면 정리
+            cleanupPartiallyJoinedUsers(joinedUserIds, channelName);
+
+            // 매칭 무효화 및 재매칭 처리
+            handleJoinFailure(event);
+
+            return Collections.emptySet(); // 빈 Set 반환으로 알림 전송 방지
         }
 
-        try {
-            ChannelResponse user2JoinResult = callChannelService.joinChannel(channelName, user2Id);
-            log.debug("User2 채널 참가 성공 - callId: {}, userId: {}, participants: {}",
-                    event.getCallId(), user2Id, user2JoinResult.currentParticipants());
-            joinedUserIds.add(user2Id);
-        } catch (Exception e) {
-            log.error("User2 채널 참가 실패 - callId: {}, userId: {}", event.getCallId(), user2Id, e);
-        }
-
-        log.info("매칭된 사용자들 채널 자동 참가 처리 완료 - callId: {}, channelName: {}, 성공: {}/{}, joinedUsers: {}",
-                event.getCallId(), channelName, joinedUserIds.size(), 2, joinedUserIds);
+        log.info("매칭된 사용자들 채널 조인 성공 - callId: {}, channelName: {}",
+                event.getCallId(), channelName);
         return joinedUserIds;
+    }
+
+    private boolean attemptUserJoin(Long userId, String channelName, Long callId) {
+        try {
+            ChannelResponse response = callChannelService.joinChannel(channelName, userId);
+            log.debug("사용자 채널 조인 성공 - callId: {}, userId: {}, participants: {}",
+                    callId, userId, response.currentParticipants());
+            return true;
+        } catch (Exception e) {
+            log.error("사용자 채널 조인 실패 - callId: {}, userId: {}, error: {}",
+                    callId, userId, e.getMessage());
+            return false;
+        }
+    }
+
+    private void cleanupPartiallyJoinedUsers(Set<Long> joinedUserIds, String channelName) {
+        for (Long userId : joinedUserIds) {
+            try {
+                callChannelService.leaveChannel(channelName, userId);
+                log.info("부분 조인 실패로 인한 사용자 채널 정리 - userId: {}", userId);
+            } catch (Exception e ){
+                log.error("부분 조인 실패지만 사용자 채널 정리 실패 - userId: {}", userId);
+            }
+        }
+    }
+
+    private void handleJoinFailure(MatchingSuccessEvent event) {
+        try {
+            Call call = callRepository.findById(event.getCallId()).orElse(null);
+            if (call != null) {
+                log.info("채널 조인 실패로 인한 Call 무효화 - callId: {}", event.getCallId());
+            }
+
+            webSocketEventService.sendMatchingCancelledNotification(
+                    event.getUser1().getId(), "통화 연결에 실패했습니다. 잠시 후 다시 시도해주세요.");
+            webSocketEventService.sendMatchingCancelledNotification(
+                    event.getUser2().getId(), "통화 연결에 실패했습니다. 잠시 후 다시 시도해주세요.");
+
+//            scheduleAutoRematch(event.getUser1().getId(), event.getCategoryId(), 5); // 5초 후
+//            scheduleAutoRematch(event.getUser2().getId(), event.getCategoryId(), 5);
+        } catch (Exception e) {
+            log.error("조인 실패 후처리 중 오류 발생 - callId : {}", event.getCallId(), e);
+        }
     }
 
 
@@ -123,54 +168,41 @@ public class MatchingEventListener {
                                             ChannelResponse channelResponse,
                                             BatchTokenResponse tokenResponse,
                                             Set<Long> joinedUserIds) {
-        if (joinedUserIds.contains(event.getUser1().getId())){
-            CallStartInfo user1CallInfo = new CallStartInfo(
-                    event.getCallId(),
-                    event.getUser2().getId(),
-                    event.getUser2().getNickname(),
-                    channelResponse.channelName(),
-                    tokenResponse.user1Token().rtcToken(),
-                    tokenResponse.user1Token().agoraUid(),
-                    tokenResponse.user1Token().expiresAt()
-            );
-            try {
-                webSocketEventService.sendCallStartNotification(
-                        event.getUser1().getId(), user1CallInfo
-                );
-            } catch (Exception e) {
-                log.error("통화 시작 알림 전송 실패(user1) - callId: {}", event.getCallId(), e);
-            }
-        } else {
-            log.warn("user1 조인 실패로 CallStart 알림 건너뜀 - callId: {}, userId: {}",
-                    event.getCallId(), event.getUser1().getId());
+        if (joinedUserIds.size() != 2) {
+            log.warn("조인된 사용자 수가 부족하여 CallStart 알림 전송 생략 - callId: {}, joinedCount: {}",
+                    event.getCallId(), joinedUserIds.size());
+            return;
         }
 
+        // 두 사용자 모두 조인 성공한 경우에만 알림 전송
+        CallStartInfo user1CallInfo = new CallStartInfo(
+                event.getCallId(),
+                event.getUser2().getId(),
+                event.getUser2().getNickname(),
+                channelResponse.channelName(),
+                tokenResponse.user1Token().rtcToken(),
+                tokenResponse.user1Token().agoraUid(),
+                tokenResponse.user1Token().expiresAt()
+        );
 
-        if (joinedUserIds.contains(event.getUser2().getId())){
-            CallStartInfo user2CallInfo = new CallStartInfo(
-                    event.getCallId(),
-                    event.getUser1().getId(),
-                    event.getUser1().getNickname(),
-                    channelResponse.channelName(),
-                    tokenResponse.user2Token().rtcToken(),
-                    tokenResponse.user2Token().agoraUid(),
-                    tokenResponse.user2Token().expiresAt()
-            );
+        CallStartInfo user2CallInfo = new CallStartInfo(
+                event.getCallId(),
+                event.getUser1().getId(),
+                event.getUser1().getNickname(),
+                channelResponse.channelName(),
+                tokenResponse.user2Token().rtcToken(),
+                tokenResponse.user2Token().agoraUid(),
+                tokenResponse.user2Token().expiresAt()
+        );
 
-            try {
-                webSocketEventService.sendCallStartNotification(
-                        event.getUser2().getId(), user2CallInfo
-                );
-            } catch (Exception e) {
-                log.error("통화 시작 알림 전송 실패(user2) - callId: {}", event.getCallId(), e);
-            }
-        } else {
-            log.warn("user2 조인 실패로 CallStart 알림 건너뜀 - callId: {}, userId: {}",
-                    event.getCallId(), event.getUser2().getId());
+        try {
+            webSocketEventService.sendCallStartNotification(event.getUser1().getId(), user1CallInfo);
+            webSocketEventService.sendCallStartNotification(event.getUser2().getId(), user2CallInfo);
+            log.info("통화 시작 알림 전송 완료 - callId: {}, users: [{}, {}]",
+                    event.getCallId(), event.getUser1().getId(), event.getUser2().getId());
+        } catch (Exception e) {
+            log.error("통화 시작 알림 전송 실패 - callId: {}", event.getCallId(), e);
         }
-
-        log.debug("통화 시작 알림 전송 완료 - callId: {}, users: [{}, {}]",
-                event.getCallId(), event.getUser1().getId(), event.getUser2().getId());
     }
 
     private void sendMatchingSuccessNotifications(MatchingSuccessEvent event) {
