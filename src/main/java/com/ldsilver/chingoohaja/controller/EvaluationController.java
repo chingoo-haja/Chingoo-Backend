@@ -7,6 +7,7 @@ import com.ldsilver.chingoohaja.dto.evaluation.response.EvaluationResponse;
 import com.ldsilver.chingoohaja.dto.evaluation.response.EvaluationStatsResponse;
 import com.ldsilver.chingoohaja.service.EvaluationService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -59,5 +60,25 @@ public class EvaluationController {
                 userDetails.getUserId());
 
         return ApiResponse.ok("평가 통계 조회 성공", response);
+    }
+
+    @Operation(
+            summary = "평가 가능 여부 확인",
+            description = "특정 통화에 대해 평가할 수 있는지 여부를 확인합니다. " +
+                    "통화가 완료되었고, 아직 평가하지 않은 경우에만 true를 반환합니다."
+    )
+    @GetMapping("/can-evaluate/{callId}")
+    public ApiResponse<Boolean> canEvaluate(
+            @Parameter(description = "통화 ID", example = "1")
+            @PathVariable Long callId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        log.debug("평가 가능 여부 확인 - userId: {}, callId: {}",
+                userDetails.getUserId(), callId);
+
+        boolean canEvaluate = evaluationService.canEvaluate(
+                userDetails.getUserId(), callId);
+
+        return ApiResponse.ok("평가 가능 여부 확인 완료", canEvaluate);
     }
 }
