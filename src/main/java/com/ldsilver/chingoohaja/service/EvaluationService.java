@@ -73,7 +73,7 @@ public class EvaluationService {
         }
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public EvaluationStatsResponse getUserEvaluationStats(Long userId) {
         log.debug("사용자 평가 통계 조회 - userId: {}", userId);
 
