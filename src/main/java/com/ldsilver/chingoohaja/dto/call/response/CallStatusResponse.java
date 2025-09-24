@@ -25,7 +25,9 @@ public record CallStatusResponse(
         @JsonProperty("recording_started_at") LocalDateTime recordingStartedAt,
         @JsonProperty("recording_ended_at") LocalDateTime recordingEndedAt,
         @JsonProperty("recording_duration_seconds") Integer recordingDurationSeconds,
-        @JsonProperty("created_at") LocalDateTime createdAt
+        @JsonProperty("created_at") LocalDateTime createdAt,
+        @JsonProperty("can_evaluate") Boolean canEvaluate,
+        @JsonProperty("has_evaluated") Boolean hasEvaluated
 ) {
     public static CallStatusResponse from(Call call, Long currentUserId) {
         requireNonNull(call, "call must not be null");
@@ -56,9 +58,21 @@ public record CallStatusResponse(
                 call.getRecordingStartedAt(),
                 call.getRecordingEndedAt(),
                 call.getRecordingDurationSeconds(),
-                call.getCreatedAt()
+                call.getCreatedAt(),
+                null,
+                null
         );
     }
+
+    public CallStatusResponse withEvaluationInfo(boolean canEvaluate, boolean hasEvaluated) {
+        return new CallStatusResponse(
+                callId, callStatus, callType, categoryName, partnerNickname, partnerId,
+                agoraChannelName, startAt, endAt, durationSeconds, isRecordingActive,
+                recordingStartedAt, recordingEndedAt, recordingDurationSeconds, createdAt,
+                canEvaluate, hasEvaluated
+        );
+    }
+
 
     public boolean isActive() {
         return callStatus == CallStatus.READY || callStatus == CallStatus.IN_PROGRESS;
