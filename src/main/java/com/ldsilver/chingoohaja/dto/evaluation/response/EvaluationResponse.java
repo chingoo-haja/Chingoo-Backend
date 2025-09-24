@@ -13,7 +13,6 @@ public record EvaluationResponse(
         @JsonProperty("evaluated_id") Long evaluatedId,
         @JsonProperty("evaluated_nickname") String evaluatedNickname,
         @JsonProperty("feedback_type") FeedbackType feedbackType,
-        @JsonProperty("is_positive") boolean isPositive,
         @JsonProperty("created_at") LocalDateTime createdAt
 ) {
     public static EvaluationResponse from(Evaluation evaluation) {
@@ -24,11 +23,11 @@ public record EvaluationResponse(
                 evaluation.getEvaluated().getId(),
                 evaluation.getEvaluated().getNickname(),
                 evaluation.getFeedbackType(),
-                evaluation.getFeedbackType() == FeedbackType.POSITIVE,
                 evaluation.getCreatedAt()
         );
     }
 
+    @JsonProperty("is_positive")
     public boolean isPositive() {
         return feedbackType == FeedbackType.POSITIVE;
     }
