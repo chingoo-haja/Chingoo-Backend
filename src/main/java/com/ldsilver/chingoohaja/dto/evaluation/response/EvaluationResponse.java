@@ -29,16 +29,11 @@ public record EvaluationResponse(
         );
     }
 
-    public static EvaluationResponse submitted(Evaluation evaluation, String evaluatedNickname) {
-        return new EvaluationResponse(
-                evaluation.getId(),
-                evaluation.getCall().getId(),
-                evaluation.getEvaluator().getId(),
-                evaluation.getEvaluated().getId(),
-                evaluatedNickname,
-                evaluation.getFeedbackType(),
-                evaluation.getFeedbackType() == FeedbackType.POSITIVE,
-                evaluation.getCreatedAt()
-        );
+    public boolean isPositive() {
+        return feedbackType == FeedbackType.POSITIVE;
+    }
+
+    public boolean isNegative() {
+        return feedbackType == FeedbackType.NEGATIVE;
     }
 }
