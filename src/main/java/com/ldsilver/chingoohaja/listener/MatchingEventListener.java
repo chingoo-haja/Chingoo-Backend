@@ -82,6 +82,11 @@ public class MatchingEventListener {
             // 4. 매칭된 사용자들을 채널에 자동 참가시킴
             Set<Long> joinedUserIds = joinUsersToChannel(event, channelResponse.channelName());
 
+            if (joinedUserIds.size() != 2) {
+                log.warn("두 사용자 채널 조인 미완료로 후속 처리 중단");
+                return;
+            }
+
             // 5. 토큰 생성
             BatchTokenResponse tokenResponse = agoraTokenService.generateTokenForMatching(call);
             log.debug("Agora 토큰 생성 완료 - callId: {}", event.getCallId());
