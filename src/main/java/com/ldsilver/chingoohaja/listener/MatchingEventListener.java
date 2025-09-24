@@ -11,7 +11,6 @@ import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -34,9 +33,7 @@ public class MatchingEventListener {
     private final CallChannelService callChannelService;
     private final AgoraTokenService agoraTokenService;
     private final AgoraService agoraService;
-
-    @Autowired
-    private MatchingService matchingService;
+    private final MatchingService matchingService;
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
@@ -139,8 +136,7 @@ public class MatchingEventListener {
                     callId, userId, response.currentParticipants());
             return true;
         } catch (Exception e) {
-            log.error("사용자 채널 조인 실패 - callId: {}, userId: {}, error: {}",
-                    callId, userId, e.getMessage());
+            log.error("사용자 채널 조인 실패 - callId: {}, userId: {}", callId, userId, e);
             return false;
         }
     }
