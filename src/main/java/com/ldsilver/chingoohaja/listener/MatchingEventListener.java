@@ -1,6 +1,7 @@
 package com.ldsilver.chingoohaja.listener;
 
 import com.ldsilver.chingoohaja.domain.call.Call;
+import com.ldsilver.chingoohaja.domain.call.enums.CallStatus;
 import com.ldsilver.chingoohaja.dto.call.AgoraHealthStatus;
 import com.ldsilver.chingoohaja.dto.call.CallStartInfo;
 import com.ldsilver.chingoohaja.dto.call.response.BatchTokenResponse;
@@ -156,7 +157,27 @@ public class MatchingEventListener {
         try {
             Call call = callRepository.findById(event.getCallId()).orElse(null);
             if (call != null) {
-                log.info("채널 조인 실패로 인한 Call 무효화 - callId: {}", event.getCallId());
+                if (call.getCallStatus() == CallStatus.COMPLETED ||
+                        call.getCallStatus() == CallStatus.CANCELLED ||
+                        call.getCallStatus() == CallStatus.FAILED) {
+                    log.warn("Call이 이미 종료 상태 - callId: {}, currentStatus: {}",
+                            event.getCallId(), call.getCallStatus());
+                    return; // 중복 처리 방지
+                }
+
+                try {
+                    // Call 엔티티의 기존 cancelCall() 메서드 사용
+                    call.cancelCall(); // CANCELLED 상태로 변경 + endAt 설정
+                    callRepository.save(call);
+
+                    log.info("채널 조인 실패로 인한 Call 상태 업데이트 완료 - callId: {}, status: CANCELLED",
+                            event.getCallId());
+                } catch (Exception saveEx) {
+                    log.error("Call 상태 저장 실패 - callId: {}", event.getCallId(), saveEx);
+                    // 저장 실패해도 사용자 알림은 계속 진행
+                }
+            } else {
+                log.warn("Call 조회 실패로 상태 업데이트 불가 - callId: {}", event.getCallId());
             }
 
             webSocketEventService.sendMatchingCancelledNotification(
@@ -166,6 +187,7 @@ public class MatchingEventListener {
 
             scheduleAutoRematch(event.getUser1().getId(), event.getCategoryId(), 5); // 5초 후
             scheduleAutoRematch(event.getUser2().getId(), event.getCategoryId(), 5);
+
         } catch (Exception e) {
             log.error("조인 실패 후처리 중 오류 발생 - callId : {}", event.getCallId(), e);
         }
