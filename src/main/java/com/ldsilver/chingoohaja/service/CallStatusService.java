@@ -88,6 +88,8 @@ public class CallStatusService {
         }
 
         Call activeCall = activeCalls.get(0);
-        return CallStatusResponse.from(activeCall, userId);
+        CallStatusResponse baseResponse = CallStatusResponse.from(activeCall, userId);
+
+        return baseResponse.withEvaluationInfo(false, false);
     }
 }
