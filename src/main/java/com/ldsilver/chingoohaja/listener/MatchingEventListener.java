@@ -70,6 +70,8 @@ public class MatchingEventListener {
             return;
         }
 
+        String channelName = null;
+        Set<Long> joinedUserIds = Collections.emptySet();
         try {
             // 1. Redis에서 매칭된 사용자들 제거
             RedisMatchingQueueService.RemoveUserResult removeResult =
@@ -95,9 +97,10 @@ public class MatchingEventListener {
             ChannelResponse channelResponse = callChannelService.createChannel(call);
             log.debug("Agora 채널 생성 완료 - callId: {}, channelName: {}",
                     event.getCallId(), channelResponse.channelName());
+            channelName = channelResponse.channelName();
 
             // 4. 매칭된 사용자들을 채널에 자동 참가시킴
-            Set<Long> joinedUserIds = joinUsersToChannel(event, channelResponse.channelName());
+            joinedUserIds = joinUsersToChannel(event, channelResponse.channelName());
 
             if (joinedUserIds.size() != 2) {
                 log.warn("두 사용자 채널 조인 미완료로 후속 처리 중단");
@@ -116,6 +119,18 @@ public class MatchingEventListener {
 
         } catch (Exception e) {
             log.error("매칭 성공 후처리 실패 - callId: {}", event.getCallId(), e);
+            try {
+                //조인 완료 상태였던 경우: 참가자 정리 후 채널 삭제
+                if (joinedUserIds != null && !joinedUserIds.isEmpty()) {
+                    cleanupPartiallyJoinedUsers(joinedUserIds, channelName);
+                }
+                if (channelName != null) {
+                    teardownChannelQuietly(channelName, event.getCallId());
+                }
+            } catch (Exception cleanupEx) {
+                log.warn("예외 발생 후 채널 / 참가자 정리 중 추가 예외 - callId: {}", event.getCallId());
+            }
+            handleJoinFailure(event);
         }
     }
 
