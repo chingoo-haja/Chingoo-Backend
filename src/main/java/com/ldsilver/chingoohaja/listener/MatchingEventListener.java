@@ -93,13 +93,13 @@ public class MatchingEventListener {
     private Set<Long> joinUsersToChannel(MatchingSuccessEvent event, String channelName) {
         Long user1Id = event.getUser1().getId();
         Long user2Id = event.getUser2().getId();
-        Set<Long> joinedUserIDs = new HashSet<>();
+        Set<Long> joinedUserIds = new HashSet<>(2);
 
         try {
             ChannelResponse user1JoinResult = callChannelService.joinChannel(channelName, user1Id);
             log.debug("User1 채널 참가 성공 - callId: {}, userId: {}, participants: {}",
                     event.getCallId(), user1Id, user1JoinResult.currentParticipants());
-            joinedUserIDs.add(user1Id);
+            joinedUserIds.add(user1Id);
         } catch (Exception e) {
             log.error("User1 채널 참가 실패 - callId: {}, userId: {}", event.getCallId(), user1Id, e);
         }
@@ -108,14 +108,14 @@ public class MatchingEventListener {
             ChannelResponse user2JoinResult = callChannelService.joinChannel(channelName, user2Id);
             log.debug("User2 채널 참가 성공 - callId: {}, userId: {}, participants: {}",
                     event.getCallId(), user2Id, user2JoinResult.currentParticipants());
-            joinedUserIDs.add(user2Id);
+            joinedUserIds.add(user2Id);
         } catch (Exception e) {
             log.error("User2 채널 참가 실패 - callId: {}, userId: {}", event.getCallId(), user2Id, e);
         }
 
         log.info("매칭된 사용자들 채널 자동 참가 처리 완료 - callId: {}, channelName: {}, 성공: {}/{}, joinedUsers: {}",
-                event.getCallId(), channelName, joinedUserIDs.size(), 2, joinedUserIDs);
-        return joinedUserIDs;
+                event.getCallId(), channelName, joinedUserIds.size(), 2, joinedUserIds);
+        return joinedUserIds;
     }
 
 
