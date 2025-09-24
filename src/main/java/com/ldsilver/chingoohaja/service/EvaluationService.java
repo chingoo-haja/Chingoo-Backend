@@ -150,7 +150,23 @@ public class EvaluationService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public boolean hasUserEvaluatedCall(Long userId, Long callId) {
+        try {
+            Call call = callRepository.findById(callId).orElse(null);
+            if (call == null) return false;
 
+            User evaluator = userRepository.findById(userId).orElse(null);
+            if (evaluator == null) return false;
+
+            User evaluated = call.getPartner(userId);
+            return hasAlreadyEvaluated(call, evaluator, evaluated);
+
+        } catch (Exception e) {
+            log.warn("평가 여부 확인 실패 - userId: {}, callId: {}", userId, callId, e);
+            return false;
+        }
+    }
 
 
     private boolean hasAlreadyEvaluated(Call call, User evaluator, User evaluated) {
