@@ -106,6 +106,44 @@ public class EvaluationService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public boolean canEvaluate(Long userId, Long callId) {
+        log.debug("평가 가능 여부 확인 - userId: {}, callId: {}", userId, callId);
+
+        try {
+            Call call = callRepository.findById(callId)
+                    .orElse(null);
+
+            if (call == null) {
+                return false;
+            }
+
+            // 통화 참가자가 아니면 평가 불가
+            if (!call.isParticipant(userId)) {
+                return false;
+            }
+
+            // 완료된 통화가 아니면 평가 불가
+            if (call.getCallStatus() != CallStatus.COMPLETED) {
+                return false;
+            }
+
+            // 이미 평가했으면 평가 불가
+            User evaluator = userRepository.findById(userId).orElse(null);
+            User evaluated = call.getPartner(userId);
+
+            if (evaluator == null || evaluated == null) {
+                return false;
+            }
+
+            return !hasAlreadyEvaluated(call, evaluator, evaluated);
+
+        } catch (Exception e) {
+            log.warn("평가 가능 여부 확인 중 오류 - userId: {}, callId: {}", userId, callId, e);
+            return false;
+        }
+    }
+
 
 
 
