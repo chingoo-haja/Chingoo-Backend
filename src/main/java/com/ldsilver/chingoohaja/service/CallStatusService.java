@@ -71,7 +71,10 @@ public class CallStatusService {
         log.info("통화 종료 완료 - callId: {}, userId: {}, duration: {}초",
                 callId, userId, updatedCall.getDurationSeconds());
 
-        return CallStatusResponse.from(updatedCall, userId);
+        CallStatusResponse baseResponse = CallStatusResponse.from(updatedCall, userId);
+
+        boolean canEvaluate = evaluationService.canEvaluate(userId, callId);
+        return baseResponse.withEvaluationInfo(canEvaluate, false);
     }
 
     @Transactional(readOnly = true)
