@@ -4,6 +4,7 @@ import com.ldsilver.chingoohaja.domain.user.CustomUserDetails;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.dto.evaluation.request.EvaluationRequest;
 import com.ldsilver.chingoohaja.dto.evaluation.response.EvaluationResponse;
+import com.ldsilver.chingoohaja.dto.evaluation.response.EvaluationStatsResponse;
 import com.ldsilver.chingoohaja.service.EvaluationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -41,5 +42,22 @@ public class EvaluationController {
                 userDetails.getUserId(), request);
 
         return ApiResponse.ok("평가가 완료되었습니다.", response);
+    }
+
+    @Operation(
+            summary = "내 평가 통계 조회",
+            description = "현재 사용자가 받은 평가 통계를 조회합니다. " +
+                    "이번 달 기준으로 긍정/부정 평가 수, 순위 백분율 등을 제공합니다."
+    )
+    @GetMapping("/me/stats")
+    public ApiResponse<EvaluationStatsResponse> getMyEvaluationStats(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        log.debug("내 평가 통계 조회 - userId: {}", userDetails.getUserId());
+
+        EvaluationStatsResponse response = evaluationService.getUserEvaluationStats(
+                userDetails.getUserId());
+
+        return ApiResponse.ok("평가 통계 조회 성공", response);
     }
 }
