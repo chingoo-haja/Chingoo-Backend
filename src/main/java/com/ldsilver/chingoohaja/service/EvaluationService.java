@@ -14,6 +14,7 @@ import com.ldsilver.chingoohaja.repository.EvaluationRepository;
 import com.ldsilver.chingoohaja.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,13 +59,17 @@ public class EvaluationService {
             throw new CustomException(ErrorCode.EVALUATION_ALREADY_EXISTS);
         }
 
-        Evaluation evaluation = Evaluation.of(call, evaluator, evaluated, request.feedbackType());
-        Evaluation savedEvaluation = evaluationRepository.save(evaluation);
+        try {
+            Evaluation evaluation = Evaluation.of(call, evaluator, evaluated, request.feedbackType());
+            Evaluation savedEvaluation = evaluationRepository.save(evaluation);
 
-        log.info("평가 제출 완료 - evaluationId: {}, evaluator: {}, evaluated: {}, type: {}",
-                savedEvaluation.getId(), evaluatorId, evaluated.getId(), request.feedbackType());
+            log.info("평가 제출 완료 - evaluationId: {}, evaluator: {}, evaluated: {}, type: {}",
+                    savedEvaluation.getId(), evaluatorId, evaluated.getId(), request.feedbackType());
 
-        return EvaluationResponse.from(savedEvaluation);
+            return EvaluationResponse.from(savedEvaluation);
+        } catch (DataIntegrityViolationException e) {
+            throw new CustomException(ErrorCode.EVALUATION_ALREADY_EXISTS);
+        }
     }
 
     @Transactional
