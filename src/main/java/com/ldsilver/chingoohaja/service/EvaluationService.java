@@ -8,6 +8,7 @@ import com.ldsilver.chingoohaja.domain.evaluation.Evaluation;
 import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.dto.evaluation.request.EvaluationRequest;
 import com.ldsilver.chingoohaja.dto.evaluation.response.EvaluationResponse;
+import com.ldsilver.chingoohaja.dto.evaluation.response.EvaluationStatsResponse;
 import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.repository.EvaluationRepository;
 import com.ldsilver.chingoohaja.repository.UserRepository;
@@ -15,6 +16,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.time.temporal.TemporalAdjusters;
 
 @Slf4j
 @Service
@@ -63,8 +67,73 @@ public class EvaluationService {
         return EvaluationResponse.from(savedEvaluation);
     }
 
+    @Transactional
+    public EvaluationStatsResponse getUserEvaluationStats(Long userId) {
+        log.debug("사용자 평가 통계 조회 - userId: {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        LocalDateTime monthStart = LocalDateTime.now().with(TemporalAdjusters.firstDayOfMonth()).withHour(0).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime monthEnd = LocalDateTime.now().with(TemporalAdjusters.lastDayOfMonth()).withHour(23).withMinute(59).withSecond(59);
+
+        var monthlyStats = evaluationRepository.getUserMonthlyStats(user, monthStart, monthEnd);
+        long positiveCount = 0;
+        long negativeCount = 0;
+        long totalCount = 0;
+
+        for (Object[] stat : monthlyStats) {
+            String feedbackType = (String) stat[0];
+            long count = ((Number) stat[1]).longValue();
+
+            if ("POSITIVE".equals(feedbackType)) {
+                positiveCount = count;
+            } else if ("NEGATIVE".equals(feedbackType)) {
+                negativeCount = count;
+            }
+            totalCount += count;
+        }
+
+        Double overallPositiveRate = evaluationRepository.getPositiveFeedbackPercentageByUser(user);
+        if (overallPositiveRate == null) {
+            return EvaluationStatsResponse.noEvaluations(userId);
+        }
+
+        Double rankingPercentile = calculateUserRankingPercentile(userId, overallPositiveRate);
+
+        return EvaluationStatsResponse.of(
+                userId, totalCount, positiveCount, negativeCount, rankingPercentile
+        );
+    }
+
+
+
+
     private boolean hasAlreadyEvaluated(Call call, User evaluator, User evaluated) {
         return evaluationRepository.findByCallAndEvaluatorAndEvaluated(call, evaluator, evaluated)
                 .isPresent();
+    }
+
+    private Double calculateUserRankingPercentile(Long userId, double userPositiveRate) {
+        try {
+            var allUserStats = evaluationRepository.getAllUsersPositiveRates();
+
+            if (allUserStats.isEmpty()) {
+                return null;
+            }
+
+            long lowerRatedUsers = allUserStats.stream()
+                    .mapToLong(stats -> {
+                        Double rate = (Double) stats[1];
+                        return (rate != null && rate < userPositiveRate) ? 1 : 0;
+                    })
+                    .sum();
+
+            return ((double) lowerRatedUsers / allUserStats.size()) * 100;
+
+        } catch (Exception e) {
+            log.warn("순위 백분율 계산 실패 - userId: {}", userId, e);
+            return null;
+        }
     }
 }
