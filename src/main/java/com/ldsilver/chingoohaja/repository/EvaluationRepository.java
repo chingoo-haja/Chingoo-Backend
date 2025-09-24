@@ -57,4 +57,28 @@ public interface EvaluationRepository extends JpaRepository<Evaluation, Long> {
                                        @Param("monthStart") LocalDateTime monthStart,
                                        @Param("monthEnd") LocalDateTime monthEnd);
 
+    // 모든 사용자의 긍정 평가율 조회 (순위 계산용)
+    @Query("SELECT e.evaluated.id, " +
+            "CASE WHEN COUNT(e) = 0 THEN 0.0 ELSE " +
+            "COUNT(CASE WHEN e.feedbackType = 'POSITIVE' THEN 1 END) * 100.0 / COUNT(e) END " +
+            "FROM Evaluation e " +
+            "GROUP BY e.evaluated.id " +
+            "HAVING COUNT(e) > 0 " +
+            "ORDER BY (COUNT(CASE WHEN e.feedbackType = 'POSITIVE' THEN 1 END) * 100.0 / COUNT(e)) DESC")
+    List<Object[]> getAllUsersPositiveRates();
+
+
+    // 이번 달 상위 10% 사용자 조회 (뱃지 지급용)
+    @Query("SELECT e.evaluated.id, " +
+            "COUNT(CASE WHEN e.feedbackType = 'POSITIVE' THEN 1 END) * 100.0 / COUNT(e) " +
+            "COUNT(e) as totalCount " +
+            "FROM Evaluation e " +
+            "WHERE e.createdAt >= :monthStart AND e.createdAt < :monthEnd " +
+            "GROUP BY e.evaluated.id " +
+            "HAVING COUNT(e) >= :minEvaluations " +
+            "ORDER BY (COUNT(CASE WHEN e.feedbackType = 'POSITIVE' THEN 1 END) * 100.0 / COUNT(e)) DESC")
+    List<Object[]> getTopPerformersOfMonth(@Param("monthStart") LocalDateTime monthStart,
+                                           @Param("monthEnd") LocalDateTime monthEnd,
+                                           @Param("minEvaluations") long minEvaluations);
+
 }
