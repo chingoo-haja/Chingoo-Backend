@@ -48,6 +48,25 @@ public class MatchingEventListener {
 
             // 사용자들에게 오류 알림 전송
             sendServiceErrorNotifications(event);
+
+            // Call 무효화 및 자동 재매칭
+            try {
+                Call call = callRepository.findById(event.getCallId()).orElse(null);
+                if (call != null) {
+                    if (call.getCallStatus() != CallStatus.COMPLETED
+                        && call.getCallStatus() != CallStatus.CANCELLED
+                        && call.getCallStatus() != CallStatus.FAILED) {
+                        call.cancelCall();;
+                        callRepository.save(call);
+                        log.info("통화 가능 비가용으로 Call 취소 - callId: {}", event.getCallId());
+                    }
+                }
+            } catch (Exception ex) {
+                log.warn("Call 취소 처리 중 오류 - callId: {}", event.getCallId(), ex);
+            }
+            scheduleAutoRematch(event.getUser1().getId(), event.getCategoryId(), 5);
+            scheduleAutoRematch(event.getUser2().getId(), event.getCategoryId(), 5);
+
             return;
         }
 
