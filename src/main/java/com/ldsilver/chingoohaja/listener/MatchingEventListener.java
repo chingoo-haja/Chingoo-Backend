@@ -5,11 +5,13 @@ import com.ldsilver.chingoohaja.dto.call.AgoraHealthStatus;
 import com.ldsilver.chingoohaja.dto.call.CallStartInfo;
 import com.ldsilver.chingoohaja.dto.call.response.BatchTokenResponse;
 import com.ldsilver.chingoohaja.dto.call.response.ChannelResponse;
+import com.ldsilver.chingoohaja.dto.matching.request.MatchingRequest;
 import com.ldsilver.chingoohaja.event.MatchingSuccessEvent;
 import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -18,6 +20,8 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
@@ -30,6 +34,9 @@ public class MatchingEventListener {
     private final CallChannelService callChannelService;
     private final AgoraTokenService agoraTokenService;
     private final AgoraService agoraService;
+
+    @Autowired
+    private MatchingService matchingService;
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
@@ -156,8 +163,8 @@ public class MatchingEventListener {
             webSocketEventService.sendMatchingCancelledNotification(
                     event.getUser2().getId(), "통화 연결에 실패했습니다. 잠시 후 다시 시도해주세요.");
 
-//            scheduleAutoRematch(event.getUser1().getId(), event.getCategoryId(), 5); // 5초 후
-//            scheduleAutoRematch(event.getUser2().getId(), event.getCategoryId(), 5);
+            scheduleAutoRematch(event.getUser1().getId(), event.getCategoryId(), 5); // 5초 후
+            scheduleAutoRematch(event.getUser2().getId(), event.getCategoryId(), 5);
         } catch (Exception e) {
             log.error("조인 실패 후처리 중 오류 발생 - callId : {}", event.getCallId(), e);
         }
@@ -239,5 +246,26 @@ public class MatchingEventListener {
         } catch (Exception e) {
             log.error("서비스 오류 알림 전송 실패", e);
         }
+    }
+
+    private void scheduleAutoRematch(Long userId, Long categoryId, int delaySeconds) {
+        log.info("자동 재매칭 스케줄링 - userId: {}, categoryId: {}, delay: {}초",
+                userId, categoryId, delaySeconds);
+
+        CompletableFuture
+                .delayedExecutor(delaySeconds, TimeUnit.SECONDS)
+                .execute(() -> {
+                    try {
+                        log.info("자동 재매칭 시도 - userId: {}, categoryId: {}", userId, categoryId);
+
+                        MatchingRequest request = new MatchingRequest(categoryId);
+                        matchingService.joinMatchingQueue(userId, request);
+
+                        log.info("자동 재매칭 큐 등록 완료 - userId: {}", userId);
+
+                    } catch (Exception e) {
+                        log.warn("자동 재매칭 실패 - userId: {}, reason: {}", userId, e.getMessage());
+                    }
+                });
     }
 }
