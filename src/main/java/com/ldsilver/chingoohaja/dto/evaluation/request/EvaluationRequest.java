@@ -1,10 +1,14 @@
 package com.ldsilver.chingoohaja.dto.evaluation.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.ldsilver.chingoohaja.common.exception.CustomException;
+import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.evaluation.enums.FeedbackType;
 import com.ldsilver.chingoohaja.validation.CommonValidationConstants;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+
+import java.util.Arrays;
 
 public record EvaluationRequest(
         @NotNull(message = "통화 ID는 필수입니다.")
@@ -25,7 +29,13 @@ public record EvaluationRequest(
     }
 
     public static EvaluationRequest of(Long callId, String feedbackType) {
-        FeedbackType type = FeedbackType.valueOf(feedbackType.toUpperCase());
+        if (feedbackType == null) {
+            throw new CustomException(ErrorCode.FEEDBACK_TYPE_NOT_NULL);
+        }
+        FeedbackType type = Arrays.stream(FeedbackType.values())
+                .filter(ft -> ft.name().equalsIgnoreCase(feedbackType))
+                .findFirst()
+                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_FEEDBACK_TYPE));
         return new EvaluationRequest(callId, type);
     }
 
