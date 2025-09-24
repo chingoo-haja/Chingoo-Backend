@@ -138,6 +138,9 @@ public class MatchingEventListener {
             // 성공한 사용자가 있다면 정리
             cleanupPartiallyJoinedUsers(joinedUserIds, channelName);
 
+            // 채널 자체 정리 시도
+            teardownChannelQuietly(channelName, event.getCallId());
+
             // 매칭 무효화 및 재매칭 처리
             handleJoinFailure(event);
 
@@ -169,6 +172,15 @@ public class MatchingEventListener {
             } catch (Exception e ){
                 log.error("부분 조인 실패지만 사용자 채널 정리 실패 - userId: {}", userId);
             }
+        }
+    }
+
+    private void teardownChannelQuietly(String channelName, Long callId) {
+        try {
+            callChannelService.deleteChannel(channelName);
+            log.info("채널 정리 완료 - callId: {}, channelName: {}", callId, channelName);
+        } catch (Exception e) {
+            log.warn("채널 정리 실패 - callId: {}, channelName: {}", callId, channelName, e);
         }
     }
 
