@@ -1,5 +1,6 @@
 package com.ldsilver.chingoohaja.repository;
 
+import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.evaluation.Evaluation;
 import com.ldsilver.chingoohaja.domain.user.User;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface EvaluationRepository extends JpaRepository<Evaluation, Long> {
@@ -33,5 +35,26 @@ public interface EvaluationRepository extends JpaRepository<Evaluation, Long> {
             "HAVING COUNT(e) >= :threshold " +
             "ORDER BY COUNT(e) DESC")
     List<Object[]> getUsersWithManyReports(@Param("threshold") long threshold);
+
+    // 중복 평가 검증용 - 특정 통화에서 특정 평가자가 특정 대상을 평가했는지 확인
+    Optional<Evaluation> findByCallAndEvaluatorAndEvaluated(Call call, User evaluator, User evaluated);
+
+    // 통화별 평가 조회
+    List<Evaluation> findByCallOrderByCreatedAtDesc(Call call);
+
+    // 사용자가 받은 평가 조회 (페이징 가능)
+    List<Evaluation> findByEvaluatedOrderByCreatedAtDesc(User evaluated);
+
+    // 사용자가 한 평가 조회 (페이징 가능)
+    List<Evaluation> findByEvaluatorOrderByCreatedAtDesc(User evaluator);
+
+    // 특정 사용자의 이번 달 평가 통계
+    @Query("SELECT e.feedbackType, COUNT(e) FROM Evaluation e " +
+            "WHERE e.evaluated = :user " +
+            "AND e.createdAt >= :monthStart AND e.createdAt < :monthEnd " +
+            "GROUP BY e.feedbackType")
+    List<Object[]> getUserMonthlyStats(@Param("user") User user,
+                                       @Param("monthStart") LocalDateTime monthStart,
+                                       @Param("monthEnd") LocalDateTime monthEnd);
 
 }
