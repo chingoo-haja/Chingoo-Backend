@@ -1,10 +1,12 @@
 package com.ldsilver.chingoohaja.listener;
 
 import com.ldsilver.chingoohaja.domain.call.Call;
+import com.ldsilver.chingoohaja.domain.call.enums.CallStatus;
 import com.ldsilver.chingoohaja.dto.call.AgoraHealthStatus;
 import com.ldsilver.chingoohaja.dto.call.CallStartInfo;
 import com.ldsilver.chingoohaja.dto.call.response.BatchTokenResponse;
 import com.ldsilver.chingoohaja.dto.call.response.ChannelResponse;
+import com.ldsilver.chingoohaja.dto.matching.request.MatchingRequest;
 import com.ldsilver.chingoohaja.event.MatchingSuccessEvent;
 import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.service.*;
@@ -14,6 +16,12 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
@@ -26,6 +34,7 @@ public class MatchingEventListener {
     private final CallChannelService callChannelService;
     private final AgoraTokenService agoraTokenService;
     private final AgoraService agoraService;
+    private final MatchingService matchingService;
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
@@ -39,9 +48,30 @@ public class MatchingEventListener {
 
             // 사용자들에게 오류 알림 전송
             sendServiceErrorNotifications(event);
+
+            // Call 무효화 및 자동 재매칭
+            try {
+                Call call = callRepository.findById(event.getCallId()).orElse(null);
+                if (call != null) {
+                    if (call.getCallStatus() != CallStatus.COMPLETED
+                        && call.getCallStatus() != CallStatus.CANCELLED
+                        && call.getCallStatus() != CallStatus.FAILED) {
+                        call.cancelCall();
+                        callRepository.save(call);
+                        log.info("통화 가능 비가용으로 Call 취소 - callId: {}", event.getCallId());
+                    }
+                }
+            } catch (Exception ex) {
+                log.warn("Call 취소 처리 중 오류 - callId: {}", event.getCallId(), ex);
+            }
+            scheduleAutoRematch(event.getUser1().getId(), event.getCategoryId(), 5);
+            scheduleAutoRematch(event.getUser2().getId(), event.getCategoryId(), 5);
+
             return;
         }
 
+        String channelName = null;
+        Set<Long> joinedUserIds = Collections.emptySet();
         try {
             // 1. Redis에서 매칭된 사용자들 제거
             RedisMatchingQueueService.RemoveUserResult removeResult =
@@ -67,26 +97,160 @@ public class MatchingEventListener {
             ChannelResponse channelResponse = callChannelService.createChannel(call);
             log.debug("Agora 채널 생성 완료 - callId: {}, channelName: {}",
                     event.getCallId(), channelResponse.channelName());
+            channelName = channelResponse.channelName();
 
-            // 4. 토큰 생성
+            // 4. 매칭된 사용자들을 채널에 자동 참가시킴
+            joinedUserIds = joinUsersToChannel(event, channelResponse.channelName());
+
+            if (joinedUserIds.size() != 2) {
+                log.warn("두 사용자 채널 조인 미완료로 후속 처리 중단");
+                return;
+            }
+
+            // 5. 토큰 생성
             BatchTokenResponse tokenResponse = agoraTokenService.generateTokenForMatching(call);
             log.debug("Agora 토큰 생성 완료 - callId: {}", event.getCallId());
 
-            // 5. WebSocket 매칭 성공 알림 전송
+            // 6. WebSocket 매칭 성공 알림 전송
             sendMatchingSuccessNotifications(event);
-            sendCallStartNotifications(event, channelResponse, tokenResponse);
+            sendCallStartNotifications(event, channelResponse, tokenResponse, joinedUserIds);
 
             log.info("매칭 성공 후처리 완료 - callId: {}", event.getCallId());
 
         } catch (Exception e) {
             log.error("매칭 성공 후처리 실패 - callId: {}", event.getCallId(), e);
+            try {
+                //조인 완료 상태였던 경우: 참가자 정리 후 채널 삭제
+                if (joinedUserIds != null && !joinedUserIds.isEmpty()) {
+                    cleanupPartiallyJoinedUsers(joinedUserIds, channelName);
+                }
+                if (channelName != null) {
+                    teardownChannelQuietly(channelName, event.getCallId());
+                }
+            } catch (Exception cleanupEx) {
+                log.warn("예외 발생 후 채널 / 참가자 정리 중 추가 예외 - callId: {}", event.getCallId());
+            }
+            handleJoinFailure(event);
+        }
+    }
+
+
+    private Set<Long> joinUsersToChannel(MatchingSuccessEvent event, String channelName) {
+        Long user1Id = event.getUser1().getId();
+        Long user2Id = event.getUser2().getId();
+        Set<Long> joinedUserIds = new HashSet<>(2);
+
+        boolean user1Success = attemptUserJoin(user1Id, channelName, event.getCallId());
+        boolean user2Success = attemptUserJoin(user2Id, channelName, event.getCallId());
+
+        if (user1Success) joinedUserIds.add(user1Id);
+        if (user2Success) joinedUserIds.add(user2Id);
+
+        if (joinedUserIds.size() < 2) {
+            log.warn("채널 조인 전체 실패 - callId: {}, 성공한 사용자 수: {}/2",
+                    event.getCallId(), joinedUserIds.size());
+
+            // 성공한 사용자가 있다면 정리
+            cleanupPartiallyJoinedUsers(joinedUserIds, channelName);
+
+            // 채널 자체 정리 시도
+            teardownChannelQuietly(channelName, event.getCallId());
+
+            // 매칭 무효화 및 재매칭 처리
+            handleJoinFailure(event);
+
+            return Collections.emptySet(); // 빈 Set 반환으로 알림 전송 방지
+        }
+
+        log.info("매칭된 사용자들 채널 조인 성공 - callId: {}, channelName: {}",
+                event.getCallId(), channelName);
+        return joinedUserIds;
+    }
+
+    private boolean attemptUserJoin(Long userId, String channelName, Long callId) {
+        try {
+            ChannelResponse response = callChannelService.joinChannel(channelName, userId);
+            log.debug("사용자 채널 조인 성공 - callId: {}, userId: {}, participants: {}",
+                    callId, userId, response.currentParticipants());
+            return true;
+        } catch (Exception e) {
+            log.error("사용자 채널 조인 실패 - callId: {}, userId: {}", callId, userId, e);
+            return false;
+        }
+    }
+
+    private void cleanupPartiallyJoinedUsers(Set<Long> joinedUserIds, String channelName) {
+        for (Long userId : joinedUserIds) {
+            try {
+                callChannelService.leaveChannel(channelName, userId);
+                log.info("부분 조인 실패로 인한 사용자 채널 정리 - userId: {}", userId);
+            } catch (Exception e ){
+                log.error("부분 조인 실패지만 사용자 채널 정리 실패 - userId: {}", userId);
+            }
+        }
+    }
+
+    private void teardownChannelQuietly(String channelName, Long callId) {
+        try {
+            callChannelService.deleteChannel(channelName);
+            log.info("채널 정리 완료 - callId: {}, channelName: {}", callId, channelName);
+        } catch (Exception e) {
+            log.warn("채널 정리 실패 - callId: {}, channelName: {}", callId, channelName, e);
+        }
+    }
+
+    private void handleJoinFailure(MatchingSuccessEvent event) {
+        try {
+            Call call = callRepository.findById(event.getCallId()).orElse(null);
+            if (call != null) {
+                if (call.getCallStatus() == CallStatus.COMPLETED ||
+                        call.getCallStatus() == CallStatus.CANCELLED ||
+                        call.getCallStatus() == CallStatus.FAILED) {
+                    log.warn("Call이 이미 종료 상태 - callId: {}, currentStatus: {}",
+                            event.getCallId(), call.getCallStatus());
+                    return; // 중복 처리 방지
+                }
+
+                try {
+                    // Call 엔티티의 기존 cancelCall() 메서드 사용
+                    call.cancelCall(); // CANCELLED 상태로 변경 + endAt 설정
+                    callRepository.save(call);
+
+                    log.info("채널 조인 실패로 인한 Call 상태 업데이트 완료 - callId: {}, status: CANCELLED",
+                            event.getCallId());
+                } catch (Exception saveEx) {
+                    log.error("Call 상태 저장 실패 - callId: {}", event.getCallId(), saveEx);
+                    // 저장 실패해도 사용자 알림은 계속 진행
+                }
+            } else {
+                log.warn("Call 조회 실패로 상태 업데이트 불가 - callId: {}", event.getCallId());
+            }
+
+            webSocketEventService.sendMatchingCancelledNotification(
+                    event.getUser1().getId(), "통화 연결에 실패했습니다. 잠시 후 다시 시도해주세요.");
+            webSocketEventService.sendMatchingCancelledNotification(
+                    event.getUser2().getId(), "통화 연결에 실패했습니다. 잠시 후 다시 시도해주세요.");
+
+            scheduleAutoRematch(event.getUser1().getId(), event.getCategoryId(), 5); // 5초 후
+            scheduleAutoRematch(event.getUser2().getId(), event.getCategoryId(), 5);
+
+        } catch (Exception e) {
+            log.error("조인 실패 후처리 중 오류 발생 - callId : {}", event.getCallId(), e);
         }
     }
 
 
     private void sendCallStartNotifications(MatchingSuccessEvent event,
                                             ChannelResponse channelResponse,
-                                            BatchTokenResponse tokenResponse) {
+                                            BatchTokenResponse tokenResponse,
+                                            Set<Long> joinedUserIds) {
+        if (joinedUserIds.size() != 2) {
+            log.warn("조인된 사용자 수가 부족하여 CallStart 알림 전송 생략 - callId: {}, joinedCount: {}",
+                    event.getCallId(), joinedUserIds.size());
+            return;
+        }
+
+        // 두 사용자 모두 조인 성공한 경우에만 알림 전송
         CallStartInfo user1CallInfo = new CallStartInfo(
                 event.getCallId(),
                 event.getUser2().getId(),
@@ -96,14 +260,6 @@ public class MatchingEventListener {
                 tokenResponse.user1Token().agoraUid(),
                 tokenResponse.user1Token().expiresAt()
         );
-
-        try {
-            webSocketEventService.sendCallStartNotification(
-                    event.getUser1().getId(), user1CallInfo
-            );
-        } catch (Exception e) {
-            log.error("통화 시작 알림 전송 실패(user1) - callId: {}", event.getCallId(), e);
-        }
 
         CallStartInfo user2CallInfo = new CallStartInfo(
                 event.getCallId(),
@@ -116,14 +272,17 @@ public class MatchingEventListener {
         );
 
         try {
-            webSocketEventService.sendCallStartNotification(
-                    event.getUser2().getId(), user2CallInfo
-            );
+            webSocketEventService.sendCallStartNotification(event.getUser1().getId(), user1CallInfo);
         } catch (Exception e) {
-            log.error("통화 시작 알림 전송 실패(user2) - callId: {}", event.getCallId(), e);
+            log.warn("통화 시작 알림 전송 실패(user1) - callId: {}, userId: {}", event.getCallId(), event.getUser1().getId(), e);
+        }
+        try {
+            webSocketEventService.sendCallStartNotification(event.getUser2().getId(), user2CallInfo);
+        } catch (Exception e) {
+            log.warn("통화 시작 알림 전송 실패(user2) - callId: {}, userId: {}", event.getCallId(), event.getUser2().getId(), e);
         }
 
-        log.debug("통화 시작 알림 전송 완료 - callId: {}, users: [{}, {}]",
+        log.info("통화 시작 알림 전송 완료 - callId: {}, users: [{}, {}]",
                 event.getCallId(), event.getUser1().getId(), event.getUser2().getId());
     }
 
@@ -161,5 +320,26 @@ public class MatchingEventListener {
         } catch (Exception e) {
             log.error("서비스 오류 알림 전송 실패", e);
         }
+    }
+
+    private void scheduleAutoRematch(Long userId, Long categoryId, int delaySeconds) {
+        log.info("자동 재매칭 스케줄링 - userId: {}, categoryId: {}, delay: {}초",
+                userId, categoryId, delaySeconds);
+
+        CompletableFuture
+                .delayedExecutor(delaySeconds, TimeUnit.SECONDS)
+                .execute(() -> {
+                    try {
+                        log.info("자동 재매칭 시도 - userId: {}, categoryId: {}", userId, categoryId);
+
+                        MatchingRequest request = new MatchingRequest(categoryId);
+                        matchingService.joinMatchingQueue(userId, request);
+
+                        log.info("자동 재매칭 큐 등록 완료 - userId: {}", userId);
+
+                    } catch (Exception e) {
+                        log.warn("자동 재매칭 실패 - userId: {}, reason: {}", userId, e.getMessage());
+                    }
+                });
     }
 }

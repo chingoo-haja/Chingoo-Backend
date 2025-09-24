@@ -76,13 +76,20 @@ public class CallChannelService {
                 .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
 
         if (!call.isParticipant(userId)) {
+            log.warn("채널 참가 권한 없음 - channelName: {}, userId: {}, participants: [{}, {}]",
+                    channelName, userId, call.getUser1().getId(), call.getUser2().getId());
             throw new CustomException(ErrorCode.CALL_NOT_PARTICIPANT);
         }
 
         // 상태 검증: 진행 가능한 상태만 입장 허용
         switch (call.getCallStatus()) {
-            case READY, IN_PROGRESS -> { /* OK */ }
-            default -> throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "입장 불가 상태: " + call.getCallStatus());
+            case READY, IN_PROGRESS -> {
+                log.debug("채널 참가 허용 - callStatus: {}", call.getCallStatus());
+            }
+            default -> {
+                log.warn("채널 참가 불가 상태 - channelName: {}, callStatus: {}", channelName, call.getCallStatus());
+                throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "입장 불가 상태: " + call.getCallStatus());
+            }
         }
 
         String channelKey = CHANNEL_PREFIX + channelName;
@@ -102,7 +109,27 @@ public class CallChannelService {
         if (result == null || result < 0) {
             switch (result == null ? -1 : result.intValue()) {
                 case -1 -> throw new CustomException(ErrorCode.CALL_NOT_FOUND, "채널을 찾을 수 없습니다: " + channelName);
-                case -2 -> throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "이미 다른 채널에 참가 중입니다");
+                case -2 -> {
+                    log.warn("사용자가 이미 다른 채널에 참가 중 - userId: {}, channelName: {}", userId, channelName);
+                    // 🔥 매칭 직후 상황에서는 이전 채널에서 자동으로 나가게 함
+                    try {
+                        cleanupUserPreviousChannel(userId);
+                        // 재시도
+                        Long retryResult = redisTemplate.execute(script,
+                                Arrays.asList(channelKey, participantsKey, userChannelKey),
+                                userId.toString(), channelName, String.valueOf(USER_CHANNEL_TTL_SECONDS), String.valueOf(currentTimeSeconds));
+
+                        if (retryResult != null && retryResult >= 0) {
+                            result = retryResult;
+                            log.info("이전 채널 정리 후 채널 참가 성공 - userId: {}, channelName: {}", userId, channelName);
+                        } else {
+                            throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "채널 참가 재시도 실패");
+                        }
+                    } catch (Exception cleanupException) {
+                        log.error("이전 채널 정리 실패 - userId: {}", userId, cleanupException);
+                        throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "이미 다른 채널에 참가 중입니다");
+                    }
+                }
                 case -3 -> throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "비활성화된 채널입니다: " + channelName);
                 case -4 -> throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "채널이 만료되었습니다: " + channelName);
                 case -5 -> throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "채널이 가득 찼습니다: " + channelName);
@@ -321,6 +348,32 @@ public class CallChannelService {
     }
 
 
+
+    /**
+     * 사용자의 이전 채널 참가 정보를 정리하는 메서드
+     */
+    private void cleanupUserPreviousChannel(Long userId) {
+        try {
+            String userChannelKey = USER_CHANNEL_PREFIX + userId;
+            String previousChannelName = getUserCurrentChannel(userId);
+
+            if (previousChannelName != null) {
+                log.debug("이전 채널에서 사용자 제거 - userId: {}, previousChannel: {}", userId, previousChannelName);
+
+                // 이전 채널의 참가자 목록에서 제거
+                String previousParticipantsKey = CHANNEL_PARTICIPANTS_PREFIX + previousChannelName;
+                redisTemplate.opsForSet().remove(previousParticipantsKey, String.valueOf(userId));
+            }
+
+            // 사용자 채널 매핑 삭제
+            redisTemplate.delete(userChannelKey);
+
+            log.debug("이전 채널 정리 완료 - userId: {}", userId);
+        } catch (Exception e) {
+            log.warn("이전 채널 정리 중 오류 - userId: {}", userId, e);
+            throw e;
+        }
+    }
 
 
     /**
