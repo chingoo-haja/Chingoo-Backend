@@ -56,7 +56,7 @@ public class MatchingEventListener {
                     if (call.getCallStatus() != CallStatus.COMPLETED
                         && call.getCallStatus() != CallStatus.CANCELLED
                         && call.getCallStatus() != CallStatus.FAILED) {
-                        call.cancelCall();;
+                        call.cancelCall();
                         callRepository.save(call);
                         log.info("통화 가능 비가용으로 Call 취소 - callId: {}", event.getCallId());
                     }
