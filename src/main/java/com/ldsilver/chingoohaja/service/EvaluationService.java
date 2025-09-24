@@ -5,6 +5,7 @@ import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.enums.CallStatus;
 import com.ldsilver.chingoohaja.domain.evaluation.Evaluation;
+import com.ldsilver.chingoohaja.domain.evaluation.enums.FeedbackType;
 import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.dto.evaluation.request.EvaluationRequest;
 import com.ldsilver.chingoohaja.dto.evaluation.response.EvaluationResponse;
@@ -88,12 +89,12 @@ public class EvaluationService {
         long totalCount = 0;
 
         for (Object[] stat : monthlyStats) {
-            String feedbackType = (String) stat[0];
+            FeedbackType feedbackType = (FeedbackType) stat[0];
             long count = ((Number) stat[1]).longValue();
 
-            if ("POSITIVE".equals(feedbackType)) {
+            if (feedbackType == FeedbackType.POSITIVE) {
                 positiveCount = count;
-            } else if ("NEGATIVE".equals(feedbackType)) {
+            } else if (feedbackType == FeedbackType.NEGATIVE) {
                 negativeCount = count;
             }
             totalCount += count;
