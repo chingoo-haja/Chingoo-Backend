@@ -227,12 +227,17 @@ public class MatchingEventListener {
 
         try {
             webSocketEventService.sendCallStartNotification(event.getUser1().getId(), user1CallInfo);
-            webSocketEventService.sendCallStartNotification(event.getUser2().getId(), user2CallInfo);
-            log.info("통화 시작 알림 전송 완료 - callId: {}, users: [{}, {}]",
-                    event.getCallId(), event.getUser1().getId(), event.getUser2().getId());
         } catch (Exception e) {
-            log.error("통화 시작 알림 전송 실패 - callId: {}", event.getCallId(), e);
+            log.warn("통화 시작 알림 전송 실패(user1) - callId: {}, userId: {}", event.getCallId(), event.getUser1().getId(), e);
         }
+        try {
+            webSocketEventService.sendCallStartNotification(event.getUser2().getId(), user2CallInfo);
+        } catch (Exception e) {
+            log.warn("통화 시작 알림 전송 실패(user2) - callId: {}, userId: {}", event.getCallId(), event.getUser2().getId(), e);
+        }
+
+        log.info("통화 시작 알림 전송 완료 - callId: {}, users: [{}, {}]",
+                event.getCallId(), event.getUser1().getId(), event.getUser2().getId());
     }
 
     private void sendMatchingSuccessNotifications(MatchingSuccessEvent event) {
