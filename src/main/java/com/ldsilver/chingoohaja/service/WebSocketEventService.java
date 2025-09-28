@@ -164,9 +164,15 @@ public class WebSocketEventService {
 
             log.info("=== {} 메시지 전송 완료 ===", messageType);
 
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("=== {} 메시지 전송 실패 (인터럽트) ===", messageType);
+            log.error("User: {}, Destination: {}, Error: {}", userIdStr, destination, e.getMessage(), e);
+            throw new IllegalStateException("메시지 전송 중 인터럽트 발생", e);
+        } catch (RuntimeException e) {
             log.error("=== {} 메시지 전송 실패 ===", messageType);
             log.error("User: {}, Destination: {}, Error: {}", userIdStr, destination, e.getMessage(), e);
+            throw e;
         }
     }
 }
