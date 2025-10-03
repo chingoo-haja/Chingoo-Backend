@@ -167,6 +167,11 @@ public class CallChannelService {
             return ChannelResponse.from(channelInfo);
         }
 
+        Call call = callRepository.findByAgoraChannelName(channelName).orElse(null);
+        if (call != null) {
+            updateCallSessionToLeft(call.getId(), userId);
+        }
+
         // 원자적 제거
         String participantsKey = CHANNEL_PARTICIPANTS_PREFIX + channelName;
         try {
@@ -353,6 +358,21 @@ public class CallChannelService {
         }
     }
 
+
+    private void updateCallSessionToLeft(Long callId, Long userId) {
+        try {
+            CallSession session = callSessionRepository.findByCallIdAndUserId(callId, userId)
+                    .orElse(null);
+
+            if (session != null && session.getSessionStatus() == SessionStatus.JOINED) {
+                session.leaveSession();
+                callSessionRepository.save(session);
+                log.debug("CallSession 상태 업데이트: JOINED -> LEFT - userId: {}", userId);
+            }
+        } catch (Exception e) {
+            log.warn("CallSession 상태 업데이트 실패 - callId: {}, userId: {}", callId, userId, e);
+        }
+    }
 
     private void updateCallSessionToJoined(Long callId, Long userId) {
         try {
