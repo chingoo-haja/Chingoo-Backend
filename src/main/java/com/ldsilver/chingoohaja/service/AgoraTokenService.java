@@ -3,11 +3,14 @@ package com.ldsilver.chingoohaja.service;
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.call.Call;
+import com.ldsilver.chingoohaja.domain.call.CallSession;
+import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.dto.call.request.TokenRequest;
 import com.ldsilver.chingoohaja.dto.call.response.BatchTokenResponse;
 import com.ldsilver.chingoohaja.dto.call.response.TokenResponse;
 import com.ldsilver.chingoohaja.infrastructure.agora.AgoraTokenGenerator;
 import com.ldsilver.chingoohaja.repository.CallRepository;
+import com.ldsilver.chingoohaja.repository.CallSessionRepository;
 import com.ldsilver.chingoohaja.repository.UserRepository;
 import com.ldsilver.chingoohaja.validation.CallValidationConstants;
 import io.agora.media.RtcTokenBuilder2;
@@ -26,6 +29,7 @@ public class AgoraTokenService {
     private final AgoraTokenGenerator agoraTokenGenerator;
     private final UserRepository userRepository;
     private final CallRepository callRepository;
+    private final CallSessionRepository callSessionRepository;
 
 
     /**
@@ -107,6 +111,9 @@ public class AgoraTokenService {
 
             LocalDateTime expireAt = LocalDateTime.now().plusSeconds(CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS);
 
+            createAndSaveCallSession(call, call.getUser1(), user1AgoraUid, user1Token);
+            createAndSaveCallSession(call, call.getUser2(), user2AgoraUid, user2Token);
+
             TokenResponse user1TokenResponse = TokenResponse.rtcOnly(
                     user1Token, channelName, user1AgoraUid, user1Id, CallValidationConstants.DEFAULT_ROLE, expireAt
             );
@@ -166,6 +173,12 @@ public class AgoraTokenService {
     }
 
 
+    private void createAndSaveCallSession(Call call, User user, Long agoraUid, String rtcToken) {
+        CallSession session = CallSession.from(call, user, agoraUid, rtcToken);
+        callSessionRepository.save(session);
+        log.debug("CallSession 생성 완료 - callId: {}, userId: {}, agoraUid: {}",
+                call.getId(), user.getId(), agoraUid);
+    }
 
     private String getOrCreateChannelName(Call call) {
         if (call.getAgoraChannelName() != null && !call.getAgoraChannelName().trim().isEmpty()) {
