@@ -3,10 +3,13 @@ package com.ldsilver.chingoohaja.service;
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.call.Call;
+import com.ldsilver.chingoohaja.domain.call.CallSession;
+import com.ldsilver.chingoohaja.domain.call.enums.SessionStatus;
 import com.ldsilver.chingoohaja.dto.call.CallChannelInfo;
 import com.ldsilver.chingoohaja.dto.call.response.ChannelResponse;
 import com.ldsilver.chingoohaja.infrastructure.redis.RedisMatchingConstants;
 import com.ldsilver.chingoohaja.repository.CallRepository;
+import com.ldsilver.chingoohaja.repository.CallSessionRepository;
 import com.ldsilver.chingoohaja.validation.CallValidationConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +41,7 @@ public class CallChannelService {
     private static final String CHANNEL_PARTICIPANTS_PREFIX = "call:participants:";
     private static final String USER_CHANNEL_PREFIX = "call:user_channel:";
     private static final long USER_CHANNEL_TTL_SECONDS = TimeUnit.HOURS.toSeconds(2);
+    private final CallSessionRepository callSessionRepository;
 
     @Transactional
     public ChannelResponse createChannel(Call call) {
@@ -136,6 +140,8 @@ public class CallChannelService {
                 default -> throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "채널 참가 실패");
             }
         }
+
+        updateCallSessionToJoined(call.getId(), userId);
 
         // 업데이트된 채널 정보 조회 및 반환
         CallChannelInfo updatedChannelInfo = getChannelInfo(channelName);
@@ -348,6 +354,20 @@ public class CallChannelService {
     }
 
 
+    private void updateCallSessionToJoined(Long callId, Long userId) {
+        try {
+            CallSession session = callSessionRepository.findByCallIdAndUserId(callId, userId)
+                    .orElse(null);
+
+            if (session != null && session.getSessionStatus() == SessionStatus.READY) {
+                session.joinSession();
+                callSessionRepository.save(session);
+                log.debug("CallSession 상태 업데이트: READY -> JOINED - userId: {}", userId);
+            }
+        } catch (Exception e) {
+            log.warn("CallSession 상태 업데이트 실패 - callId: {}, userId: {}", callId, userId, e);
+        }
+    }
 
     /**
      * 사용자의 이전 채널 참가 정보를 정리하는 메서드
