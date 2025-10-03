@@ -40,6 +40,10 @@ public class CallService {
             call.startCall();
             callRepository.save(call);
 
+            // ✅ 녹음 설정 로그 추가
+            log.info("녹음 자동 시작 설정: {}, 채널명: {}",
+                    recordingProperties.isAutoStart(), call.getAgoraChannelName());
+
             if (recordingProperties.isAutoStart() && call.getAgoraChannelName() != null) {
                 log.debug("통화 시작으로 인한 자동 녹음 시작 - callId: {}", callId);
 
