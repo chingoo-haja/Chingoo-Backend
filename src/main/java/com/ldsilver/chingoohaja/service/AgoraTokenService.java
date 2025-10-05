@@ -4,7 +4,6 @@ import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.CallSession;
-import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.dto.call.request.TokenRequest;
 import com.ldsilver.chingoohaja.dto.call.response.BatchTokenResponse;
 import com.ldsilver.chingoohaja.dto.call.response.TokenResponse;
@@ -30,7 +29,6 @@ public class AgoraTokenService {
     private final UserRepository userRepository;
     private final CallRepository callRepository;
     private final CallSessionRepository callSessionRepository;
-
 
     /**
      * - ✅ 매칭 완료 시: generateTokensForMatching() 사용 (배치 생성)
@@ -93,37 +91,40 @@ public class AgoraTokenService {
         Long user2Id = call.getUser2().getId();
 
         try {
-            Long user1AgoraUid = generateAgoraUid(user1Id);
-            String user1Token = agoraTokenGenerator.generateRtcToken(
-                    channelName,
-                    safeLongToInt(user1AgoraUid),
-                    RtcTokenBuilder2.Role.ROLE_PUBLISHER,
-                    CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS
-            );
+            CallSession user1Session = callSessionRepository
+                    .findActiveSessionByCallIdAndUserId(call.getId(), user1Id)
+                    .orElseThrow(() -> new CustomException(ErrorCode.CALL_SESSION_ERROR,
+                            "User1의 활성 세션을 찾을 수 없습니다."));
 
-            Long user2AgoraUid = generateAgoraUid(user2Id);
-            String user2Token = agoraTokenGenerator.generateRtcToken(
-                    channelName,
-                    safeLongToInt(user2AgoraUid),
-                    RtcTokenBuilder2.Role.ROLE_PUBLISHER,
-                    CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS
-            );
+            CallSession user2Session = callSessionRepository
+                    .findActiveSessionByCallIdAndUserId(call.getId(), user2Id)
+                    .orElseThrow(() -> new CustomException(ErrorCode.CALL_SESSION_ERROR,
+                            "User2의 활성 세션을 찾을 수 없습니다."));
 
-            LocalDateTime expireAt = LocalDateTime.now().plusSeconds(CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS);
+            LocalDateTime expireAt = LocalDateTime.now()
+                    .plusSeconds(CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS);
 
-            createAndSaveCallSession(call, call.getUser1(), user1AgoraUid, user1Token);
-            createAndSaveCallSession(call, call.getUser2(), user2AgoraUid, user2Token);
 
             TokenResponse user1TokenResponse = TokenResponse.rtcOnly(
-                    user1Token, channelName, user1AgoraUid, user1Id, CallValidationConstants.DEFAULT_ROLE, expireAt
+                    user1Session.getRtcToken(),
+                    channelName,
+                    user1Session.getAgoraUid(),
+                    user1Id,
+                    CallValidationConstants.DEFAULT_ROLE,
+                    expireAt
             );
 
             TokenResponse user2TokenResponse = TokenResponse.rtcOnly(
-                    user2Token, channelName, user2AgoraUid, user2Id, CallValidationConstants.DEFAULT_ROLE, expireAt
+                    user2Session.getRtcToken(),
+                    channelName,
+                    user2Session.getAgoraUid(),
+                    user2Id,
+                    CallValidationConstants.DEFAULT_ROLE,
+                    expireAt
             );
 
             log.info("매칭용 배치 Token 생성 완료 - callId: {}, channelName: {}, uids: [{}, {}]",
-                    call.getId(), channelName, user1AgoraUid, user2AgoraUid);
+                    call.getId(), channelName, user1Session.getAgoraUid(), user2Session.getAgoraUid());
 
             return new BatchTokenResponse(user1TokenResponse, user2TokenResponse);
         } catch (Exception e) {
@@ -172,13 +173,6 @@ public class AgoraTokenService {
 
     }
 
-
-    private void createAndSaveCallSession(Call call, User user, Long agoraUid, String rtcToken) {
-        CallSession session = CallSession.from(call, user, agoraUid, rtcToken);
-        callSessionRepository.save(session);
-        log.debug("CallSession 생성 완료 - callId: {}, userId: {}, agoraUid: {}",
-                call.getId(), user.getId(), agoraUid);
-    }
 
     private String getOrCreateChannelName(Call call) {
         if (call.getAgoraChannelName() != null && !call.getAgoraChannelName().trim().isEmpty()) {

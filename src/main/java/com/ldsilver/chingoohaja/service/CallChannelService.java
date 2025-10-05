@@ -5,12 +5,16 @@ import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.CallSession;
 import com.ldsilver.chingoohaja.domain.call.enums.SessionStatus;
+import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.dto.call.CallChannelInfo;
 import com.ldsilver.chingoohaja.dto.call.response.ChannelResponse;
+import com.ldsilver.chingoohaja.infrastructure.agora.AgoraTokenGenerator;
 import com.ldsilver.chingoohaja.infrastructure.redis.RedisMatchingConstants;
 import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.repository.CallSessionRepository;
+import com.ldsilver.chingoohaja.repository.UserRepository;
 import com.ldsilver.chingoohaja.validation.CallValidationConstants;
+import io.agora.media.RtcTokenBuilder2;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.Cursor;
@@ -42,6 +46,8 @@ public class CallChannelService {
     private static final String USER_CHANNEL_PREFIX = "call:user_channel:";
     private static final long USER_CHANNEL_TTL_SECONDS = TimeUnit.HOURS.toSeconds(2);
     private final CallSessionRepository callSessionRepository;
+    private final UserRepository userRepository;
+    private final AgoraTokenGenerator agoraTokenGenerator;
 
     @Transactional
     public ChannelResponse createChannel(Call call) {
@@ -96,6 +102,8 @@ public class CallChannelService {
             }
         }
 
+        CallSession session = getOrCreateCallSession(call, userId);
+
         String channelKey = CHANNEL_PREFIX + channelName;
         String participantsKey = CHANNEL_PARTICIPANTS_PREFIX + channelName;
         String userChannelKey = USER_CHANNEL_PREFIX + userId;
@@ -141,7 +149,17 @@ public class CallChannelService {
             }
         }
 
-        updateCallSessionToJoined(call.getId(), userId);
+        // ✅ Redis 참가 성공 후 세션 상태 업데이트
+        if (result != null && result >= 0) {
+            try {
+                session.joinSession();
+                callSessionRepository.save(session);
+                log.info("CallSession 상태 업데이트: READY -> JOINED - callId: {}, userId: {}",
+                        call.getId(), userId);
+            } catch (Exception e) {
+                log.error("CallSession 상태 업데이트 실패 - callId: {}, userId: {}", call.getId(), userId, e);
+            }
+        }
 
         // 업데이트된 채널 정보 조회 및 반환
         CallChannelInfo updatedChannelInfo = getChannelInfo(channelName);
@@ -361,33 +379,114 @@ public class CallChannelService {
 
     private void updateCallSessionToLeft(Long callId, Long userId) {
         try {
-            CallSession session = callSessionRepository.findByCallIdAndUserId(callId, userId)
-                    .orElse(null);
+            Optional<CallSession> sessionOpt = callSessionRepository
+                    .findActiveSessionByCallIdAndUserId(callId, userId);
 
-            if (session != null && session.getSessionStatus() == SessionStatus.JOINED) {
-                session.leaveSession();
-                callSessionRepository.save(session);
-                log.debug("CallSession 상태 업데이트: JOINED -> LEFT - userId: {}", userId);
+            if (sessionOpt.isPresent()) {
+                CallSession session = sessionOpt.get();
+
+                // JOINED 상태인 경우만 LEFT로 변경
+                if (session.getSessionStatus() == SessionStatus.JOINED) {
+                    session.leaveSession();
+                    callSessionRepository.save(session);
+                    log.info("CallSession 상태 업데이트: JOINED -> LEFT - callId: {}, userId: {}, sessionId: {}",
+                            callId, userId, session.getId());
+                } else {
+                    log.warn("CallSession이 JOINED 상태가 아님 - callId: {}, userId: {}, status: {}",
+                            callId, userId, session.getSessionStatus());
+                }
+            } else {
+                log.warn("활성 CallSession을 찾을 수 없음 - callId: {}, userId: {}", callId, userId);
+
+                // 디버깅: 모든 세션 출력
+                List<CallSession> allSessions = callSessionRepository
+                        .findByCallIdAndUserIdOrderByCreatedAtDesc(callId, userId);
+                log.info("해당 사용자의 모든 세션 ({}):", allSessions.size());
+                allSessions.forEach(s ->
+                        log.info("  - sessionId: {}, status: {}, createdAt: {}",
+                                s.getId(), s.getSessionStatus(), s.getCreatedAt())
+                );
             }
         } catch (Exception e) {
             log.warn("CallSession 상태 업데이트 실패 - callId: {}, userId: {}", callId, userId, e);
         }
     }
 
-    private void updateCallSessionToJoined(Long callId, Long userId) {
-        try {
-            CallSession session = callSessionRepository.findByCallIdAndUserId(callId, userId)
-                    .orElse(null);
 
-            if (session != null && session.getSessionStatus() == SessionStatus.READY) {
-                session.joinSession();
-                callSessionRepository.save(session);
-                log.debug("CallSession 상태 업데이트: READY -> JOINED - userId: {}", userId);
+
+    private CallSession getOrCreateCallSession(Call call, Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 기존 세션 조회 (READY 상태인 것만)
+        Optional<CallSession> existingSession = callSessionRepository
+                .findActiveSessionByCallIdAndUserId(call.getId(), userId);
+
+        if (existingSession.isPresent()) {
+            CallSession session = existingSession.get();
+
+            log.debug("기존 CallSession 재사용 - callId: {}, userId: {}", call.getId(), userId);
+            return session;
+        }
+
+        // 혹시 모를 동시성 문제를 위해 한 번 더 확인
+        List<CallSession> allSessions = callSessionRepository
+                .findByCallIdAndUserIdOrderByCreatedAtDesc(call.getId(), userId);
+
+        for (CallSession session : allSessions) {
+            if (session.getSessionStatus() == SessionStatus.READY ||
+                    session.getSessionStatus() == SessionStatus.JOINED) {
+                log.warn("동시성 체크에서 활성 세션 발견 - 재사용 - sessionId: {}", session.getId());
+                return session;
             }
-        } catch (Exception e) {
-            log.warn("CallSession 상태 업데이트 실패 - callId: {}, userId: {}", callId, userId, e);
+        }
+
+        // 새 세션 생성
+        Long agoraUid = generateAgoraUid(userId);
+        String rtcToken = generateRtcToken(call.getAgoraChannelName(), agoraUid);
+
+        CallSession newSession = CallSession.from(call, user, agoraUid, rtcToken);
+        callSessionRepository.save(newSession);
+
+        log.info("새로운 CallSession 생성 - callId: {}, userId: {}, agoraUid: {}",
+                call.getId(), userId, agoraUid);
+
+        return newSession;
+    }
+
+    private String generateRtcToken(String channelName, Long agoraUid) {
+        return agoraTokenGenerator.generateRtcToken(
+                channelName,
+                safeLongToInt(agoraUid),
+                RtcTokenBuilder2.Role.ROLE_PUBLISHER,
+                CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS
+        );
+    }
+
+    private Long generateAgoraUid(Long userId) {
+        if (userId == null || userId < 0) {
+            throw new CustomException(ErrorCode.AGORA_UID_INVALID);
+        }
+        if (userId <= CallValidationConstants.AGORA_MAX_UID) {
+            return userId;
+        } else {
+            throw new CustomException(ErrorCode.USER_ID_TOO_LARGE, userId);
         }
     }
+
+    private int safeLongToInt(Long longValue) {
+        if (longValue == null) {
+            return 0;
+        }
+        if (longValue < 0) {
+            throw new CustomException(ErrorCode.AGORA_UID_INVALID);
+        }
+        if (longValue > CallValidationConstants.AGORA_MAX_UID) {
+            throw new CustomException(ErrorCode.AGORA_UID_INVALID);
+        }
+        return (int) (longValue & 0xFFFF_FFFFL);
+    }
+
 
     /**
      * 사용자의 이전 채널 참가 정보를 정리하는 메서드

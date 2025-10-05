@@ -1,7 +1,6 @@
 package com.ldsilver.chingoohaja.listener;
 
 import com.ldsilver.chingoohaja.domain.call.Call;
-import com.ldsilver.chingoohaja.domain.call.CallSession;
 import com.ldsilver.chingoohaja.domain.call.enums.CallStatus;
 import com.ldsilver.chingoohaja.dto.call.AgoraHealthStatus;
 import com.ldsilver.chingoohaja.dto.call.CallStartInfo;
@@ -253,31 +252,31 @@ public class MatchingEventListener {
             return;
         }
 
-        try {
-            Call call = callRepository.findById(event.getCallId())
-                    .orElse(null);
-            if (call != null) {
-                CallSession session1 = CallSession.from(
-                        call,
-                        event.getUser1(),
-                        tokenResponse.user1Token().agoraUid(),
-                        tokenResponse.user1Token().rtcToken()
-                );
-                callSessionRepository.save(session1);
-
-                CallSession session2 = CallSession.from(
-                        call,
-                        event.getUser1(),
-                        tokenResponse.user2Token().agoraUid(),
-                        tokenResponse.user2Token().rtcToken()
-                );
-                callSessionRepository.save(session2);
-
-                log.info("✅ CallSession 생성 완료 - callId: {}", event.getCallId());
-            }
-        } catch (Exception e) {
-            log.error("CallSession 생성 실패 - callId: {}", event.getCallId(), e);
-        }
+//        try {
+//            Call call = callRepository.findById(event.getCallId())
+//                    .orElse(null);
+//            if (call != null) {
+//                CallSession session1 = CallSession.from(
+//                        call,
+//                        event.getUser1(),
+//                        tokenResponse.user1Token().agoraUid(),
+//                        tokenResponse.user1Token().rtcToken()
+//                );
+//                callSessionRepository.save(session1);
+//
+//                CallSession session2 = CallSession.from(
+//                        call,
+//                        event.getUser1(),
+//                        tokenResponse.user2Token().agoraUid(),
+//                        tokenResponse.user2Token().rtcToken()
+//                );
+//                callSessionRepository.save(session2);
+//
+//                log.info("✅ CallSession 생성 완료 - callId: {}", event.getCallId());
+//            }
+//        } catch (Exception e) {
+//            log.error("CallSession 생성 실패 - callId: {}", event.getCallId(), e);
+//        }
 
         // 두 사용자 모두 조인 성공한 경우에만 알림 전송
         CallStartInfo user1CallInfo = new CallStartInfo(
