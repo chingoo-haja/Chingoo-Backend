@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -52,20 +53,43 @@ public class AgoraTokenService {
 
         String channelName = getOrCreateChannelName(call);
 
-        Long agoraUid = generateAgoraUid(userId);
-
         try {
-            String rtcToken  = agoraTokenGenerator.generateRtcToken(
+            Optional<CallSession> existingSession = callSessionRepository
+                    .findActiveSessionByCallIdAndUserId(callId, userId);
+
+            if (existingSession.isPresent()) {
+                CallSession session = existingSession.get();
+
+
+                log.info("기존 세션의 Token 반환 - userId: {}, callId: {}, agoraUid: {}, expiresAt: {}",
+                        userId, callId, session.getAgoraUid(), session.getTokenExpiresAt());
+
+                return TokenResponse.rtcOnly(
+                        session.getRtcToken(),
+                        channelName,
+                        session.getAgoraUid(),
+                        userId,
+                        CallValidationConstants.DEFAULT_ROLE,
+                        session.getTokenExpiresAt()
+                );
+            }
+
+            // ✅ 2. 기존 세션이 없으면 새 토큰 생성
+            Long agoraUid = generateAgoraUid(userId);
+
+            String rtcToken = agoraTokenGenerator.generateRtcToken(
                     channelName,
                     safeLongToInt(agoraUid),
                     RtcTokenBuilder2.Role.ROLE_PUBLISHER,
                     CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS
             );
 
-            LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS);
+            // ✅ 토큰 생성 시각 기준으로 만료 시각 계산
+            LocalDateTime expiresAt = LocalDateTime.now()
+                    .plusSeconds(CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS);
 
-            log.info("통화용 Token 생성 완료 - userId: {}, callId: {}, agoraUid: {}",
-                    userId, callId, agoraUid);
+            log.info("새 Token 생성 완료 - userId: {}, callId: {}, agoraUid: {}, expiresAt: {}",
+                    userId, callId, agoraUid, expiresAt);
 
             return TokenResponse.rtcOnly(
                     rtcToken,
@@ -73,7 +97,7 @@ public class AgoraTokenService {
                     agoraUid,
                     userId,
                     CallValidationConstants.DEFAULT_ROLE,
-                    expiresAt
+                    expiresAt // ✅ 방금 생성한 시각 기준
             );
         } catch (Exception e) {
             log.error("통화용 Token 생성 실패 - userId: {}, callId: {}", userId, callId, e);
@@ -101,9 +125,6 @@ public class AgoraTokenService {
                     .orElseThrow(() -> new CustomException(ErrorCode.CALL_SESSION_ERROR,
                             "User2의 활성 세션을 찾을 수 없습니다."));
 
-            LocalDateTime expireAt = LocalDateTime.now()
-                    .plusSeconds(CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS);
-
 
             TokenResponse user1TokenResponse = TokenResponse.rtcOnly(
                     user1Session.getRtcToken(),
@@ -111,7 +132,7 @@ public class AgoraTokenService {
                     user1Session.getAgoraUid(),
                     user1Id,
                     CallValidationConstants.DEFAULT_ROLE,
-                    expireAt
+                    user1Session.getTokenExpiresAt()
             );
 
             TokenResponse user2TokenResponse = TokenResponse.rtcOnly(
@@ -120,7 +141,7 @@ public class AgoraTokenService {
                     user2Session.getAgoraUid(),
                     user2Id,
                     CallValidationConstants.DEFAULT_ROLE,
-                    expireAt
+                    user2Session.getTokenExpiresAt()
             );
 
             log.info("매칭용 배치 Token 생성 완료 - callId: {}, channelName: {}, uids: [{}, {}]",
