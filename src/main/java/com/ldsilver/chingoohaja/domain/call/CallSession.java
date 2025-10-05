@@ -162,7 +162,7 @@ public class CallSession extends BaseEntity {
     /**
      * 토큰 갱신
      */
-    public void refreshTokens(String newRtcToken, String newRtmToken) {
+    public void refreshTokens(String newRtcToken, String newRtmToken, LocalDateTime newTokenExpiresAt) {
         if (newRtcToken == null || newRtcToken.trim().isEmpty()) {
             throw new CustomException(ErrorCode.RTC_TOKEN_REQUIRED);
         }
@@ -172,6 +172,7 @@ public class CallSession extends BaseEntity {
         if (newRtmToken != null && !newRtmToken.trim().isEmpty()) {
             this.rtmToken = newRtmToken.trim();
         }
+        this.tokenExpiresAt = newTokenExpiresAt;
         if (this.sessionStatus == SessionStatus.EXPIRED) {
             this.sessionStatus = SessionStatus.READY;
             this.joinedAt = null;
