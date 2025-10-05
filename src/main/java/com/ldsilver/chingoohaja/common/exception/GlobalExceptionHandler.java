@@ -1,6 +1,7 @@
 package com.ldsilver.chingoohaja.common.exception;
 
 import com.ldsilver.chingoohaja.dto.common.ErrorResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -78,16 +79,44 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
     }
 
+    // NullPointerException 명시적 처리 추가
+    @ExceptionHandler(NullPointerException.class)
+    protected ResponseEntity<ErrorResponse> handleNullPointerException(
+            NullPointerException e,
+            HttpServletRequest request) {
+
+        log.error("NullPointerException - URI: {}, Method: {}, Message: {}",
+                request.getRequestURI(),
+                request.getMethod(),
+                e.getMessage(),
+                e);
+
+        // userDetails null로 인한 NPE 처리
+        if (e.getMessage() != null && e.getMessage().contains("CustomUserDetails")) {
+            log.error("인증 정보(userDetails) null로 인한 NPE");
+            final ErrorResponse response = ErrorResponse.of(ErrorCode.UNAUTHORIZED);
+            return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+        }
+
+        // 기타 NPE는 서버 오류로 처리
+        final ErrorResponse response = ErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR);
+        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
     /**
      * 일반적인 예외 처리 (최후 방어선)
      */
     @ExceptionHandler(Exception.class)
-    protected ResponseEntity<ErrorResponse> handleException(Exception e) {
-        if (e instanceof RuntimeException) {
-            log.error("Unhandled RuntimeException: {}", e.getMessage(), e);
-        } else {
-            log.error("Unhandled CheckedException: {}", e.getMessage(), e);
-        }
+    protected ResponseEntity<ErrorResponse> handleException(
+            Exception e,
+            HttpServletRequest request) {
+
+        log.error("Unhandled Exception - URI: {}, Method: {}, Type: {}, Message: {}",
+                request.getRequestURI(),
+                request.getMethod(),
+                e.getClass().getSimpleName(),
+                e.getMessage(),
+                e);
 
         final ErrorResponse response = ErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR);
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);

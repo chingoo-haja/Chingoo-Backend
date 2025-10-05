@@ -1,5 +1,7 @@
 package com.ldsilver.chingoohaja.controller;
 
+import com.ldsilver.chingoohaja.common.exception.CustomException;
+import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.user.CustomUserDetails;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.dto.evaluation.request.EvaluationRequest;
@@ -35,6 +37,11 @@ public class EvaluationController {
     public ApiResponse<EvaluationResponse> submitEvaluation(
             @Valid @RequestBody EvaluationRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        if (userDetails == null) {
+            log.error("인증되지 않은 평가 작성 시도 - callId: {}", request.callId());
+            throw new CustomException(ErrorCode.UNAUTHORIZED, "인증이 필요합니다.");
+        }
 
         log.debug("평가 제출 요청 - userId: {}, callId: {}, type: {}",
                 userDetails.getUserId(), request.callId(), request.feedbackType());
