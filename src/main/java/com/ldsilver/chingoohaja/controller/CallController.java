@@ -1,5 +1,7 @@
 package com.ldsilver.chingoohaja.controller;
 
+import com.ldsilver.chingoohaja.common.exception.CustomException;
+import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.user.CustomUserDetails;
 import com.ldsilver.chingoohaja.dto.call.response.CallStatusResponse;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
@@ -51,6 +53,11 @@ public class CallController {
             @Parameter(description = "통화 ID", example = "1")
             @PathVariable Long callId,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        if (userDetails == null) {
+            log.error("통화 종료 실패: 인증되지 않은 요청 - callId: {}", callId);
+            throw new CustomException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
+        }
 
         log.debug("통화 종료 요청 - callId: {}, userId: {}", callId, userDetails.getUserId());
 
