@@ -122,5 +122,4 @@ public interface CallSessionRepository extends JpaRepository<CallSession, Long> 
     Optional<CallSession> findActiveSessionByCallIdAndUserId(@Param("callId") Long callId,
                                                              @Param("userId") Long userId);
 
-    Long call(Call call);
 }
