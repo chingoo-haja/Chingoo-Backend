@@ -9,6 +9,7 @@ import com.ldsilver.chingoohaja.dto.call.response.ChannelResponse;
 import com.ldsilver.chingoohaja.dto.matching.request.MatchingRequest;
 import com.ldsilver.chingoohaja.event.MatchingSuccessEvent;
 import com.ldsilver.chingoohaja.repository.CallRepository;
+import com.ldsilver.chingoohaja.repository.CallSessionRepository;
 import com.ldsilver.chingoohaja.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,7 @@ public class MatchingEventListener {
     private final AgoraTokenService agoraTokenService;
     private final AgoraService agoraService;
     private final MatchingService matchingService;
+    private final CallSessionRepository callSessionRepository;
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
@@ -249,6 +251,32 @@ public class MatchingEventListener {
                     event.getCallId(), joinedUserIds.size());
             return;
         }
+
+//        try {
+//            Call call = callRepository.findById(event.getCallId())
+//                    .orElse(null);
+//            if (call != null) {
+//                CallSession session1 = CallSession.from(
+//                        call,
+//                        event.getUser1(),
+//                        tokenResponse.user1Token().agoraUid(),
+//                        tokenResponse.user1Token().rtcToken()
+//                );
+//                callSessionRepository.save(session1);
+//
+//                CallSession session2 = CallSession.from(
+//                        call,
+//                        event.getUser1(),
+//                        tokenResponse.user2Token().agoraUid(),
+//                        tokenResponse.user2Token().rtcToken()
+//                );
+//                callSessionRepository.save(session2);
+//
+//                log.info("✅ CallSession 생성 완료 - callId: {}", event.getCallId());
+//            }
+//        } catch (Exception e) {
+//            log.error("CallSession 생성 실패 - callId: {}", event.getCallId(), e);
+//        }
 
         // 두 사용자 모두 조인 성공한 경우에만 알림 전송
         CallStartInfo user1CallInfo = new CallStartInfo(

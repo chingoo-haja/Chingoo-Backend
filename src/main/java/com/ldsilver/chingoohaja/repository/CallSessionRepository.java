@@ -107,4 +107,19 @@ public interface CallSessionRepository extends JpaRepository<CallSession, Long> 
     @Modifying(clearAutomatically = true)
     @Transactional
     void deleteByCall(Call call);
+
+    // 기존 메서드를 더 구체적으로 수정
+    @Query("SELECT cs FROM CallSession cs WHERE cs.call.id = :callId AND cs.user.id = :userId " +
+            "ORDER BY cs.createdAt DESC")
+    List<CallSession> findByCallIdAndUserIdOrderByCreatedAtDesc(@Param("callId") Long callId,
+                                                                @Param("userId") Long userId);
+
+    // 가장 최근의 활성 세션만 조회
+    @Query("SELECT cs FROM CallSession cs WHERE cs.call.id = :callId AND cs.user.id = :userId " +
+            "AND cs.sessionStatus IN (com.ldsilver.chingoohaja.domain.call.enums.SessionStatus.READY, " +
+            "com.ldsilver.chingoohaja.domain.call.enums.SessionStatus.JOINED) " +
+            "ORDER BY cs.createdAt DESC")
+    Optional<CallSession> findActiveSessionByCallIdAndUserId(@Param("callId") Long callId,
+                                                             @Param("userId") Long userId);
+
 }

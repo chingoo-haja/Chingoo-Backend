@@ -69,8 +69,14 @@ public class AgoraRecordingService {
         return CompletableFuture.runAsync(() -> {
             try {
                 Call call = callRepository.findById(callId).orElse(null);
-                if (call == null || !call.isInProgress()) {
-                    log.warn("녹음 시작 실패: 통화가 없거나 진행 중이 아님 - callId: {}", callId);
+                if (call == null) {
+                    log.error("녹음 시작 실패: Call을 찾을 수 없음 - callId: {}", callId);
+                    return;
+                }
+
+                if (!call.isInProgress()) {
+                    log.warn("녹음 시작 실패: 통화가 진행 중이 아님 - callId: {}, status: {}",
+                            callId, call.getCallStatus());
                     return;
                 }
 

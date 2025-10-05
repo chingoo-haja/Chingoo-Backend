@@ -41,7 +41,7 @@ public class RecordingProperties {
     /**
      * 자동 녹음 시작 (통화 시작 시)
      */
-    private boolean autoStart = false;
+    private boolean autoStart = true;
 
     /**
      * 자동 녹음 중지 (통화 종료 시)

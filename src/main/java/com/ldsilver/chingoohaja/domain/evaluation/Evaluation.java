@@ -10,7 +10,15 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "evaluations")
+@Table(
+        name = "evaluations",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_evaluation_call_evaluator",
+                        columnNames = {"call_id", "evaluator_id"}
+                )
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Evaluation extends BaseEntity {
@@ -18,7 +26,7 @@ public class Evaluation extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "call_id", nullable = false)
     private Call call;
 

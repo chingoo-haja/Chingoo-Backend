@@ -5,6 +5,7 @@ import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.call.enums.SessionStatus;
 import com.ldsilver.chingoohaja.domain.common.BaseEntity;
 import com.ldsilver.chingoohaja.domain.user.User;
+import com.ldsilver.chingoohaja.validation.CallValidationConstants;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.AccessLevel;
@@ -67,13 +68,16 @@ public class CallSession extends BaseEntity {
     @DecimalMax(value = "100.0", inclusive = true)
     private Double packetLossRate;
 
+    private LocalDateTime tokenExpiresAt;
+
     public static CallSession of(
             Call call,
             User user,
             Long agoraUid,
             String rtcToken,
             String rtmToken,
-            SessionStatus sessionStatus
+            SessionStatus sessionStatus,
+            LocalDateTime tokenExpiresAt
     ) {
         validateParams(call, user, agoraUid, rtcToken);
 
@@ -84,11 +88,14 @@ public class CallSession extends BaseEntity {
         session.rtcToken = rtcToken.trim();
         session.rtmToken = (rtmToken != null && !rtmToken.trim().isEmpty()) ? rtmToken.trim() : null;
         session.sessionStatus = (sessionStatus != null) ? sessionStatus : SessionStatus.READY;
+        session.tokenExpiresAt = tokenExpiresAt;
         return session;
     }
 
     public static CallSession from(Call call, User user, Long agoraUid, String rtcToken) {
-        return of(call, user, agoraUid, rtcToken, null, SessionStatus.READY);
+        LocalDateTime expiredAt = LocalDateTime.now()
+                .plusSeconds(CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS);
+        return of(call, user, agoraUid, rtcToken, null, SessionStatus.READY, expiredAt);
     }
 
     private static void validateParams(Call call, User user, Long agoraUid, String rtcToken) {
@@ -155,7 +162,7 @@ public class CallSession extends BaseEntity {
     /**
      * 토큰 갱신
      */
-    public void refreshTokens(String newRtcToken, String newRtmToken) {
+    public void refreshTokens(String newRtcToken, String newRtmToken, LocalDateTime newTokenExpiresAt) {
         if (newRtcToken == null || newRtcToken.trim().isEmpty()) {
             throw new CustomException(ErrorCode.RTC_TOKEN_REQUIRED);
         }
@@ -165,6 +172,7 @@ public class CallSession extends BaseEntity {
         if (newRtmToken != null && !newRtmToken.trim().isEmpty()) {
             this.rtmToken = newRtmToken.trim();
         }
+        this.tokenExpiresAt = newTokenExpiresAt;
         if (this.sessionStatus == SessionStatus.EXPIRED) {
             this.sessionStatus = SessionStatus.READY;
             this.joinedAt = null;
