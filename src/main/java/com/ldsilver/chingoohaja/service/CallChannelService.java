@@ -445,11 +445,16 @@ public class CallChannelService {
         Long agoraUid = generateAgoraUid(userId);
         String rtcToken = generateRtcToken(call.getAgoraChannelName(), agoraUid);
 
-        CallSession newSession = CallSession.from(call, user, agoraUid, rtcToken);
+        // 만료 시각 계산
+        LocalDateTime tokenExpiresAt = LocalDateTime.now()
+                .plusSeconds(CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS);
+
+        CallSession newSession = CallSession.of(
+                call, user, agoraUid, rtcToken, null, SessionStatus.READY, tokenExpiresAt);
         callSessionRepository.save(newSession);
 
-        log.info("새로운 CallSession 생성 - callId: {}, userId: {}, agoraUid: {}",
-                call.getId(), userId, agoraUid);
+        log.info("새로운 CallSession 생성 - callId: {}, userId: {}, agoraUid: {}, expiresAt: {}",
+                call.getId(), userId, agoraUid, tokenExpiresAt);
 
         return newSession;
     }
