@@ -127,6 +127,9 @@ public class AgoraTokenService {
                     call.getId(), channelName, user1Session.getAgoraUid(), user2Session.getAgoraUid());
 
             return new BatchTokenResponse(user1TokenResponse, user2TokenResponse);
+        } catch (CustomException e) {
+            log.error("매칭용 배치 Token 생성 실패 - callId: {}", call.getId(), e);
+            throw e;
         } catch (Exception e) {
             log.error("매칭용 배치 Token 생성 실패 - callId: {}", call.getId(), e);
             throw new CustomException(ErrorCode.CALL_SESSION_ERROR);
