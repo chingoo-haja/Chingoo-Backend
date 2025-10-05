@@ -33,6 +33,11 @@ public class EvaluationService {
 
     @Transactional
     public EvaluationResponse submitEvaluation(Long evaluatorId, EvaluationRequest request) {
+        if (evaluatorId == null) {
+            log.error("평가자 ID가 null입니다.");
+            throw new CustomException(ErrorCode.UNAUTHORIZED);
+        }
+
         log.debug("평가 제출 시작 - evaluatorId: {}, callId: {}, feedbackType: {}",
                 evaluatorId, request.callId(), request.feedbackType());
 
@@ -51,6 +56,11 @@ public class EvaluationService {
         }
 
         User evaluated = call.getPartner(evaluatorId);
+        if (evaluated == null) {
+            log.error("평가 대상 사용자를 찾을 수 없음 - evaluatorId: {}, callId: {}",
+                    evaluatorId, request.callId());
+            throw new CustomException(ErrorCode.USER_NOT_FOUND);
+        }
 
         if (evaluator.getId().equals(evaluated.getId())){
             throw new CustomException(ErrorCode.SELF_EVALUATION_NOT_ALLOWED);

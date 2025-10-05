@@ -53,6 +53,11 @@ public class CallStatusService {
     public CallStatusResponse endCall(Long callId, Long userId) {
         log.debug("통화 종료 - callId: {}, userId: {}", callId, userId);
 
+        if (userId == null) {
+            log.error("통화 종료 실패: userId가 null입니다.");
+            throw new CustomException(ErrorCode.UNAUTHORIZED, "인증 정보가 없습니다.");
+        }
+
         Call call = callRepository.findById(callId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
 
