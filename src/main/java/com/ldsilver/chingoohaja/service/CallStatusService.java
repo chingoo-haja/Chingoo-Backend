@@ -13,6 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+/**
+ * CallStatusService: 채널 참가/퇴장 시 세션 상태 관리
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
