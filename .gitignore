@@ -41,3 +41,4 @@ out/
 /src/main/resources/firebase-service-account.json
 
 docker/.env
+.env

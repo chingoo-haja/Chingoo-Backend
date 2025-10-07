@@ -57,6 +57,10 @@ dependencies {
 
 	// https://mvnrepository.com/artifact/io.agora/authentication
 	implementation("io.agora:authentication:2.1.3")
+
+	// https://mvnrepository.com/artifact/me.paulschwarz/spring-dotenv
+	implementation("me.paulschwarz:spring-dotenv:4.0.0")
+
 }
 
 tasks.named('test') {
