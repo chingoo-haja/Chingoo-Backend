@@ -1,0 +1,82 @@
+spring:
+  profiles:
+    active: ${ACTIVE_MODE}
+  sql:
+    init:
+      encoding: UTF-8
+      continue-on-error: false
+  jpa:
+    hibernate:
+      ddl-auto: none
+    defer-datasource-initialization: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+
+ws:
+  allowed-origins:
+    - "http://localhost:3000"     # React 개발서버
+    - "http://localhost:3001"     # React Native 개발서버
+    - "https://chingoo-frontend.vercel.app"   # 운영 도메인
+
+# JWT 설정
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    access-token-expiration: 3600000  # 1시간 : 3600000
+    refresh-token-expiration: 2592000000  # 30일
+  oauth:
+    kakao:
+      client-id: ${KAKAO_CLIENT_ID}
+      client-secret: ${KAKAO_CLIENT_SECRET}
+      redirect-uri: "http://localhost:3000/oauth/callback"
+    google:
+      client-id: ${GOOGLE_CLIENT_ID}
+      client-secret: ${GOOGLE_CLIENT_SECRET}
+      redirect-uri: "http://localhost:3000/oauth/callback"
+  cors:
+    allowed-origins:
+      - http://localhost:3000
+      - http://localhost:5173
+      - "http://localhost:3001"
+      - "http://127.0.0.1:3000"
+      - https://chingoo-frontend.vercel.app
+  firebase:
+    service-account-path: ${FIREBASE_SERVICE_ACCOUNT_PATH}
+    storage-bucket: ${FIREBASE_STORAGE_BUCKET}
+  agora:
+    app-id: ${AGORA_APP_ID}
+    app-certificate: ${AGORA_APP_CERTIFICATE} # Secondary Certificate
+    customer-id: ${AGORA_CUSTOMER_ID}
+    customer-secret: ${AGORA_CUSTOMER_SECRET}
+    token-expiration-in-seconds: 3600 #1시간
+    rest-api-base-url: https://api.agora.io
+    recording-region: AP
+    recording-storage-vendor: "1"
+
+  recording:
+    max-idle-time: 30          # 30초 무음 시 자동 중지
+    audio-profile: 0           # 0: 최저 비용, 1: 중간, 2: 고음질
+    audio-only: true           # 오디오만 녹음 (비용 절약)
+    auto-start: true          # 통화 시작 시 자동 녹음 시작
+    auto-stop: true            # 통화 종료 시 자동 녹음 중지
+    file-name-prefix: "call_recording"
+    file-formats: # 녹음 파일 포맷
+      - "hls"
+    cleanup:
+      enabled: true
+      orphan-cleanup-delay: 600000      # 고아 녹음 정리: 10분
+      long-running-check-delay: 3600000 # 장시간 녹음 체크: 1시간
+      long-running-threshold-hours: 2   # 장시간 녹음 임계값: 2시간
+      retry-failed-delay: 1800000       # 실패한 녹음 재시도: 30분
+
+# 세션 관련 설정 (쿠키와는 별개지만 보안상 설정)
+server:
+  servlet:
+    session:
+      tracking-modes: cookie
+      cookie:
+        http-only: true
+        secure: ${app.cookie.secure:true}
+        same-site: ${app.cookie.same-site:lax}
+

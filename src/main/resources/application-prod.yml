@@ -1,0 +1,52 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+  application:
+    name: "chingoo-haja"
+  datasource:
+    url: ${MYSQL_URL}
+    username: ${MYSQL_USERNAME}
+    password: ${MYSQL_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none # 운영에서는 절대 스키마 변경 안함
+    defer-datasource-initialization: true
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        dialect: org.hibernate.dialect.MySQLDialect
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+  sql:
+    init:
+      mode: always
+      data-locations: classpath:sql/category.sql
+      continue-on-error: false
+
+# 운영 환경 JWT 설정
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    access-token-expiration: 3600000  # 1시간
+    refresh-token-expiration: 2592000000  # 30일
+  cors:
+    allowed-origins:
+      - https://chingoo-frontend.vercel.app
+  cookie:
+    secure: true # HTTPS 필수
+    same-site: Strict # 더 엄격한 보안
+    max-age: 2592000 # 30일
+  matching:
+    scheduler:
+      enabled: true
+      matching-delay: 5000      # 5초 - 빠른 매칭
+      cleanup-delay: 60000      # 1분 - 자주 정리
+      expired-time: 600         # 10분
+      log-level: WARN           # 중요한 로그만
+      manual-trigger-enabled: false  # 보안상 비활성화

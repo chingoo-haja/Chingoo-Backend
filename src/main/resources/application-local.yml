@@ -1,0 +1,59 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:mysql://localhost:3306/chingoo_local_db
+    username: chingoo_local_user
+    password: chingoo_local_password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop #로컬에서만 매번 새로 생성
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  sql:
+    init:
+      mode: always
+      continue-on-error: false
+      encoding: UTF-8
+      data-locations: classpath:sql/category.sql
+
+
+# JWT 로컬 환경 설정 (개발용 짧은 만료시간)
+app:
+  jwt:
+    access-token-expiration: 60000  # 30분: 1800000
+    refresh-token-expiration: 604800000  # 7일
+  oauth:
+    kakao:
+      redirect-uri: "http://localhost:3000/oauth/callback"
+    google:
+      redirect-uri: "http://localhost:3000/oauth/callback"
+  cookie:
+    secure: false # HTTP에서도 쿠키 전송 허용
+    same-site: Lax
+    max-age: 2592000 # 30일
+  matching:
+    scheduler:
+      enabled: true  # 로컬에서는 스케줄러 비활성화
+      matching-delay: 60000   # 2분 (활성화시)
+      cleanup-delay: 600000   # 10분
+      expired-time: 1200      # 20분
+      manual-trigger-enabled: true  # 수동 실행 API 활성화
+      log-level: DEBUG         # 로그 레벨을 WARN으로 설정
+
+logging:
+  level:
+    com.ldsilver.chingoohaja: DEBUG
+    org.hibernate.SQL: DEBUG

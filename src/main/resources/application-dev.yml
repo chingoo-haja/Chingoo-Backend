@@ -1,0 +1,39 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+  jpa:
+    hibernate:
+      ddl-auto: update # 기존 테이블 구조 유지하면서 업데이트만
+    defer-datasource-initialization: true
+    show-sql: false
+
+  sql:
+    init:
+      mode: always
+      encoding: UTF-8
+      data-locations: classpath:sql/category.sql
+      continue-on-error: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: redispassword
+
+app:
+  cookie:
+    secure: true # HTTPS 필요
+    same-site: Lax
+    max-age: 2592000 # 30일
+  cors:
+    allowed-origins:
+      - "https://dev-frontend.yourdomain.com"
+  matching:
+    scheduler:
+      enabled: true  # 로컬에서는 스케줄러 비활성화
+      matching-delay: 15000   # 15초
+      cleanup-delay: 300000   # 5분
+      expired-time: 600      # 10분
+      manual-trigger-enabled: true  # 수동 실행 API 활성화
+      log-level: DEBUG
