@@ -63,18 +63,26 @@ public class CorsConfig {
     public CorsConfigurationSource prodCorsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(Arrays.asList(
+        configuration.setAllowedOriginPatterns(Arrays.asList(
                 "https://chingoo-frontend.vercel.app",
+                "https://www.chingoo-frontend.vercel.app",
                 "http://localhost:3000"
         ));
 
         configuration.setAllowedMethods(Arrays.asList(
-                "GET", "POST", "PUT", "DELETE", "OPTIONS"
+                "GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"
         ));
 
         configuration.setAllowedHeaders(Arrays.asList(
                 "Authorization",
-                "Content-Type"
+                "Content-Type",
+                "X-Requested-With",
+                "Accept",
+                "Origin",
+                "Access-Control-Request-Method",
+                "Access-Control-Request-Headers",
+                "Cache-Control",
+                "Pragma"
         ));
 
         configuration.setExposedHeaders(Arrays.asList(
