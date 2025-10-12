@@ -14,7 +14,7 @@ import java.util.List;
 @Configuration
 public class CorsConfig {
 
-    @Value("@{app.cors.allowed-origins:}")
+    @Value("${app.cors.allowed-origins:}")
     private List<String> allowedOrigins;
 
     @Bean("corsConfigurationSource")
@@ -64,7 +64,8 @@ public class CorsConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOrigins(Arrays.asList(
-                "https://chingoo-frontend.vercel.app"
+                "https://chingoo-frontend.vercel.app",
+                "http://localhost:3000"
         ));
 
         configuration.setAllowedMethods(Arrays.asList(
