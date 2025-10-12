@@ -14,12 +14,12 @@ import java.util.List;
 @Configuration
 public class CorsConfig {
 
-    @Value("${app.cors.allowed-origins:}")
+    @Value("@{app.cors.allowed-origins:}")
     private List<String> allowedOrigins;
 
-    @Bean
+    @Bean("corsConfigurationSource")
     @Profile({"local", "dev"})
-    public CorsConfigurationSource corsConfigurationSource() {
+    public CorsConfigurationSource devCorsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOriginPatterns(Arrays.asList(
@@ -58,7 +58,7 @@ public class CorsConfig {
 
     }
 
-    @Bean
+    @Bean("corsConfigurationSource")
     @Profile("prod")
     public CorsConfigurationSource prodCorsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
@@ -94,7 +94,7 @@ public class CorsConfig {
     }
 
     // 기본/테스트 등(local/dev/prod가 아닌) 프로필용 fallback
-    @Bean
+    @Bean("corsConfigurationSource")
     @Profile("!local & !dev & !prod")
     public CorsConfigurationSource defaultCorsConfigurationSource() {
         return new UrlBasedCorsConfigurationSource(); // 등록된 매핑 없음 → CORS 비활성 동작

@@ -11,7 +11,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: none # 운영에서는 절대 스키마 변경 안함
+      ddl-auto: update # 운영에서는 절대 스키마 변경 안함
     defer-datasource-initialization: true
     show-sql: false
     properties:
@@ -23,11 +23,13 @@ spring:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT}
       password: ${REDIS_PASSWORD}
+      ssl:
+        enabled: true
   sql:
     init:
       mode: always
       data-locations: classpath:sql/category.sql
-      continue-on-error: false
+      continue-on-error: true
 
 # 운영 환경 JWT 설정
 app:
