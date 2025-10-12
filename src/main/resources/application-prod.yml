@@ -12,7 +12,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate # 운영에서는 절대 스키마 변경 안함
-    defer-datasource-initialization: true
+    defer-datasource-initialization: false
     show-sql: false
     properties:
       hibernate:
@@ -25,6 +25,15 @@ spring:
       password: ${REDIS_PASSWORD}
       ssl:
         enabled: true
+      timeout: 10000ms  # 10초
+      connect-timeout: 10000ms  # 10초
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+          max-wait: 5000ms
+        shutdown-timeout: 2000ms
   sql:
     init:
       mode: never
@@ -40,9 +49,11 @@ app:
   cors:
     allowed-origins:
       - https://chingoo-frontend.vercel.app
+      - https://www.chingoo-frontend.vercel.app
+      - http://localhost:3000
   cookie:
-    secure: true # HTTPS 필수
-    same-site: Strict # 더 엄격한 보안
+    secure: false # HTTPS 필수
+    same-site: Lax # 더 엄격한 보안
     max-age: 2592000 # 30일
   matching:
     scheduler:
@@ -52,3 +63,9 @@ app:
       expired-time: 600         # 10분
       log-level: WARN           # 중요한 로그만
       manual-trigger-enabled: false  # 보안상 비활성화
+
+logging:
+  level:
+    root: INFO
+    com.ldsilver.chingoohaja: INFO
+    io.lettuce.core: DEBUG  # ✅ Redis 로그 디버깅
