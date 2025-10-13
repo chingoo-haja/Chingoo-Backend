@@ -46,6 +46,15 @@ app:
     secret: ${JWT_SECRET}
     access-token-expiration: 3600000  # 1시간
     refresh-token-expiration: 2592000000  # 30일
+  oauth:
+    kakao:
+      client-id: ${KAKAO_CLIENT_ID}
+      client-secret: ${KAKAO_CLIENT_SECRET}
+      redirect-uri: "https://chingoo-frontend.vercel.app/oauth/callback"
+    google:
+      client-id: ${GOOGLE_CLIENT_ID}
+      client-secret: ${GOOGLE_CLIENT_SECRET}
+      redirect-uri: "https://chingoo-frontend.vercel.app/oauth/callback"
   cors:
     allowed-origins:
       - https://chingoo-frontend.vercel.app
