@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ldsilver.chingoohaja.common.util.EmailMaskingUtils;
 import com.ldsilver.chingoohaja.domain.user.User;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public record UserMeResponse(
@@ -17,6 +18,7 @@ public record UserMeResponse(
         @JsonProperty("is_profile_complete") boolean isProfileComplete,
         @JsonProperty("display_name") String displayName,
         @JsonProperty("age") Integer age,
+        @JsonProperty("birth") LocalDate birth,
         @JsonProperty("gender") String gender,
         @JsonProperty("created_at") LocalDateTime createdAt,
         @JsonProperty("updated_at") LocalDateTime updatedAt
@@ -33,6 +35,7 @@ public record UserMeResponse(
                 user.isProfileComplete(),
                 user.getDisplayName(),
                 user.getAge(),
+                user.getBirth(),
                 user.getGender() != null ? user.getGender().name() : null,
                 user.getCreatedAt(),
                 user.getUpdatedAt()
