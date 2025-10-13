@@ -30,28 +30,13 @@ public class TokenCacheService {
         String userTokenKey = USER_TOKEN_PREFIX + userId;
 
         try {
-            List<Object> results = redisTemplate.execute(new SessionCallback<List<Object>>() {
-                @Override
-                public List<Object> execute(RedisOperations operations) throws DataAccessException {
-                    operations.multi();
-
-                    RedisOperations<String, Object> stringOps = (RedisOperations<String, Object>) operations;
-
-                    stringOps.opsForValue().set(tokenKey, userId, expiration);
-                    stringOps.opsForSet().add(userTokenKey, tokenKey);
-                    stringOps.expire(userTokenKey, expiration);
-
-                    return operations.exec();
-                }
-            });
-
-            if (results == null || results.size() != 3) {
-                throw new RuntimeException("Redis 트랜잭션 실행 실패");
-            }
+            redisTemplate.opsForValue().set(tokenKey, userId, expiration);
+            redisTemplate.opsForSet().add(userTokenKey, tokenKey);
+            redisTemplate.expire(userTokenKey, expiration);
             log.debug("Refresh Token 캐시 저장 완료 - userId: {}, expiration: {}", userId, expiration);
         } catch (Exception e) {
             log.error("Refresh Token 캐시 저장 실패 - userId: {}", userId, e);
-            cleanupPartialData(tokenKey, userTokenKey);
+            //cleanupPartialData(tokenKey, userTokenKey);
             throw e;
         }
     }

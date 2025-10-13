@@ -14,7 +14,7 @@ import java.util.List;
 @Configuration
 public class CorsConfig {
 
-    @Value("@{app.cors.allowed-origins:}")
+    @Value("${app.cors.allowed-origins:}")
     private List<String> allowedOrigins;
 
     @Bean("corsConfigurationSource")
@@ -52,7 +52,7 @@ public class CorsConfig {
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", configuration);
+        source.registerCorsConfiguration("/**", configuration);
 
         return source;
 
@@ -65,18 +65,22 @@ public class CorsConfig {
 
         if (allowedOrigins != null && !allowedOrigins.isEmpty()) {
             configuration.setAllowedOriginPatterns(allowedOrigins);
-        } else {
-            // 도메인이 설정되지 않았을 때 안전한 기본값 또는 에러 처리
-            throw new IllegalStateException("Production CORS origins not configured!");
         }
 
         configuration.setAllowedMethods(Arrays.asList(
-                "GET", "POST", "PUT", "DELETE", "OPTIONS"
+                "GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"
         ));
 
         configuration.setAllowedHeaders(Arrays.asList(
                 "Authorization",
-                "Content-Type"
+                "Content-Type",
+                "X-Requested-With",
+                "Accept",
+                "Origin",
+                "Access-Control-Request-Method",
+                "Access-Control-Request-Headers",
+                "Cache-Control",
+                "Pragma"
         ));
 
         configuration.setExposedHeaders(Arrays.asList(
@@ -88,7 +92,7 @@ public class CorsConfig {
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", configuration);
+        source.registerCorsConfiguration("/**", configuration);
 
         return source;
     }

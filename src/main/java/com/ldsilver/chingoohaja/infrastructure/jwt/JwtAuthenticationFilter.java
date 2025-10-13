@@ -31,6 +31,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         try{
+            String requestURI = request.getRequestURI();
+            if (requestURI.startsWith("/ws")) {
+                log.debug("WebSocket 요청 - 인증 필터 건너뜀: {}", requestURI);
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             String token = extractTokenFromRequest(request);
 
             if (token != null) {
