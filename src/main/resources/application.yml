@@ -18,6 +18,7 @@ ws:
     - "http://localhost:3000"     # React 개발서버
     - "http://localhost:3001"     # React Native 개발서버
     - "https://chingoo-frontend.vercel.app"   # 운영 도메인
+    - "https://chingoohaja.app"
 
 # JWT 설정
 app:
