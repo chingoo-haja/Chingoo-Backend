@@ -63,8 +63,8 @@ app:
       - https://www.chingoohaja.app
       - http://localhost:3000
   cookie:
-    secure: false # HTTPS 필수
-    same-site: Lax # 더 엄격한 보안
+    secure: true # HTTPS 필수
+    same-site: None # 더 엄격한 보안
     max-age: 2592000 # 30일
   matching:
     scheduler:
@@ -79,4 +79,4 @@ logging:
   level:
     root: INFO
     com.ldsilver.chingoohaja: INFO
-    io.lettuce.core: DEBUG  # ✅ Redis 로그 디버깅
+    io.lettuce.core: INFO  # ✅ Redis 로그 디버깅
