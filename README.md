@@ -222,6 +222,17 @@ end
     class ATS,WSE,Redis,DB infra
 ```
 
+### Agora 통화 구현 상태
+#### 백엔드 역할:
+- 채널 생성 및 관리
+- RTC Token 생성
+- 사용자별 토큰 제공
+
+#### 프론트엔드 역할:
+- 실제 Agora SDK를 이용한 음성 통화 연결
+- 마이크/스핕 제어
+- 오디오 트랙 송수신
+
 ## 매칭부터 통화까지 전체 플로우
 ```mermaid
 sequenceDiagram
