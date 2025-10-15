@@ -178,4 +178,20 @@ public interface CallRepository extends JpaRepository<Call, Long> {
             @Param("endDate") LocalDateTime endDate
     );
 
+
+    /**
+     * 특정 기간 동안 사용자의 특정 상태 통화 조회 (페이징)
+     */
+    @Query("SELECT c FROM Call c WHERE (c.user1 = :user OR c.user2 = :user) " +
+            "AND c.callStatus = :status " +
+            "AND c.createdAt BETWEEN :startDate AND :endDate " +
+            "ORDER BY c.createdAt DESC")
+    Page<Call> findByUserAndStatusAndDateBetween(
+            @Param("user") User user,
+            @Param("status") CallStatus status,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            Pageable pageable
+    );
+
 }

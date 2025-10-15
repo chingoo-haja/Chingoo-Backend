@@ -6,9 +6,11 @@ import com.ldsilver.chingoohaja.domain.user.CustomUserDetails;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.dto.user.request.ProfileImageUploadRequest;
 import com.ldsilver.chingoohaja.dto.user.request.ProfileUpdateRequest;
+import com.ldsilver.chingoohaja.dto.user.response.CallHistoryResponse;
 import com.ldsilver.chingoohaja.dto.user.response.ProfileImageUploadResponse;
 import com.ldsilver.chingoohaja.dto.user.response.ProfileResponse;
 import com.ldsilver.chingoohaja.dto.user.response.UserActivityStatsResponse;
+import com.ldsilver.chingoohaja.service.CallHistoryService;
 import com.ldsilver.chingoohaja.service.UserActivityStatsService;
 import com.ldsilver.chingoohaja.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,6 +35,7 @@ public class UserController {
 
     private final UserService userService;
     private final UserActivityStatsService userActivityStatsService;
+    private final CallHistoryService callHistoryService;
 
     @Operation(
             summary = "내 프로필 조회",
@@ -106,5 +109,32 @@ public class UserController {
                 userDetails.getUserId(), period);
 
         return ApiResponse.ok("활동 통계 조회 성공", stats);
+    }
+
+    @GetMapping("/me/call-history")
+    @Operation(
+            summary = "내 통화 이력 조회",
+            description = "사용자의 완료된 통화 이력을 페이징하여 조회합니다. " +
+                    "period 파라미터로 조회 기간을 필터링할 수 있습니다."
+    )
+    public ApiResponse<CallHistoryResponse> getMyCallHistory(
+            @Parameter(description = "페이지 번호 (1부터 시작)", example = "1")
+            @RequestParam(defaultValue = "1") int page,
+
+            @Parameter(description = "페이지당 항목 수", example = "20")
+            @RequestParam(defaultValue = "20") int limit,
+
+            @Parameter(description = "조회 기간 (week | month | quarter | all)", example = "week")
+            @RequestParam(defaultValue = "all") String period,
+
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        log.debug("통화 이력 조회 - userId: {}, page: {}, limit: {}, period: {}",
+                userDetails.getUserId(), page, limit, period);
+
+        CallHistoryResponse history = callHistoryService.getCallHistory(
+                userDetails.getUserId(), page, limit, period);
+
+        return ApiResponse.ok("통화 이력 조회 성공", history);
     }
 }
