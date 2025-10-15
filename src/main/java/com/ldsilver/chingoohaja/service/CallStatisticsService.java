@@ -66,7 +66,7 @@ public class CallStatisticsService {
         Throwable cause = e.getCause();
         if (cause instanceof ConstraintViolationException violationException) {
             String constraintName = violationException.getConstraintName();
-            return constraintName != null && constraintName.contains("call_statistics");
+            return "23000".equals(violationException.getSQLState());
         }
         return false;
     }
