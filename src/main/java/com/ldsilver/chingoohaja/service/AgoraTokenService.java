@@ -6,6 +6,7 @@ import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.CallSession;
 import com.ldsilver.chingoohaja.dto.call.request.TokenRequest;
 import com.ldsilver.chingoohaja.dto.call.response.BatchTokenResponse;
+import com.ldsilver.chingoohaja.dto.call.response.TokenRenewResponse;
 import com.ldsilver.chingoohaja.dto.call.response.TokenResponse;
 import com.ldsilver.chingoohaja.infrastructure.agora.AgoraTokenGenerator;
 import com.ldsilver.chingoohaja.repository.CallRepository;
@@ -195,6 +196,68 @@ public class AgoraTokenService {
             throw new CustomException(ErrorCode.CALL_SESSION_ERROR);
         }
 
+    }
+
+    @Transactional
+    public TokenRenewResponse renewRtcToken(Long userId, Long callId) {
+        log.debug("RTC Token 갱신 시작 - userId: {}, callId: {}", userId, callId);
+
+        // 1. Call 조회 및 권한 검증
+        Call call = callRepository.findById(callId)
+                .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
+
+        if (!call.isParticipant(userId)) {
+            log.warn("Token 갱신 권한 없음 - userId: {}, callId: {}", userId, callId);
+            throw new CustomException(ErrorCode.CALL_NOT_PARTICIPANT);
+        }
+
+        // 2. 통화 상태 확인 (진행 중인 통화만 갱신 가능)
+        if (!call.isInProgress()) {
+            log.warn("진행 중이지 않은 통화의 토큰 갱신 시도 - callId: {}, status: {}",
+                    callId, call.getCallStatus());
+            throw new CustomException(ErrorCode.CALL_NOT_IN_PROGRESS);
+        }
+
+        // 3. 활성 CallSession 조회
+        CallSession session = callSessionRepository
+                .findActiveSessionByCallIdAndUserId(callId, userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.CALL_SESSION_ERROR,
+                        "활성 세션을 찾을 수 없습니다."));
+
+        // 4. 채널명 확인
+        String channelName = call.getAgoraChannelName();
+        if (channelName == null || channelName.trim().isEmpty()) {
+            log.error("채널명이 없음 - callId: {}", callId);
+            throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "채널 정보가 없습니다.");
+        }
+
+        // 5. 기존 Agora UID 사용 (변경하면 안 됨!)
+        Long agoraUid = session.getAgoraUid();
+        if (agoraUid == null) {
+            log.error("Agora UID가 없음 - sessionId: {}", session.getId());
+            throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "세션 UID 정보가 없습니다.");
+        }
+
+        // 6. 새로운 RTC Token 생성
+        String newRtcToken = agoraTokenGenerator.generateRtcToken(
+                channelName,
+                safeLongToInt(agoraUid),
+                RtcTokenBuilder2.Role.ROLE_PUBLISHER,
+                CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS // 1시간
+        );
+
+        // 7. 새로운 만료 시각 계산
+        LocalDateTime newExpiresAt = LocalDateTime.now()
+                .plusSeconds(CallValidationConstants.DEFAULT_TTL_SECONDS_ONE_HOURS);
+
+        // 8. CallSession 업데이트
+        session.renewToken(newRtcToken, newExpiresAt);
+        callSessionRepository.save(session);
+
+        log.info("RTC Token 갱신 완료 - userId: {}, callId: {}, sessionId: {}, newExpiresAt: {}",
+                userId, callId, session.getId(), newExpiresAt);
+
+        return TokenRenewResponse.of(newRtcToken, newExpiresAt);
     }
 
 

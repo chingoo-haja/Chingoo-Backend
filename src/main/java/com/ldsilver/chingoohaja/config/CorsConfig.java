@@ -66,7 +66,8 @@ public class CorsConfig {
         configuration.setAllowedOriginPatterns(Arrays.asList(
                 "https://chingoo-frontend.vercel.app",
                 "https://www.chingoo-frontend.vercel.app",
-                "http://localhost:3000"
+                "https://chingoohaja.app",
+                "https://www.chingoohaja.app"
         ));
 
         configuration.setAllowedMethods(Arrays.asList(

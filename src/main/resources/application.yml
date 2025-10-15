@@ -18,6 +18,7 @@ ws:
     - "http://localhost:3000"     # React 개발서버
     - "http://localhost:3001"     # React Native 개발서버
     - "https://chingoo-frontend.vercel.app"   # 운영 도메인
+    - "https://chingoohaja.app"
 
 # JWT 설정
 app:
@@ -41,6 +42,7 @@ app:
       - "http://localhost:3001"
       - "http://127.0.0.1:3000"
       - https://chingoo-frontend.vercel.app
+      - https://chingoohaja.app
   firebase:
     service-account-path: ${FIREBASE_SERVICE_ACCOUNT_PATH}
     storage-bucket: ${FIREBASE_STORAGE_BUCKET}

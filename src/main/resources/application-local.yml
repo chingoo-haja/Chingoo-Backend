@@ -33,7 +33,7 @@ spring:
 # JWT 로컬 환경 설정 (개발용 짧은 만료시간)
 app:
   jwt:
-    access-token-expiration: 60000  # 30분: 1800000
+    access-token-expiration: 1800000  # 30분: 1800000
     refresh-token-expiration: 604800000  # 7일
   oauth:
     kakao:
