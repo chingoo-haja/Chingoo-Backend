@@ -63,11 +63,11 @@ public class CallStatisticsService {
         callStatisticsRepository.save(statistics);
 
         log.info("통화 통계 저장 완료 - userId: {}, callId: {}, duration: {}초, " +
-                        "totalData: {:.2f}MB, avgNetworkQuality: {}",
+                        "totalData: {}MB, avgNetworkQuality: {}",
                 userId,
                 callId,
                 request.duration(),
-                request.getTotalDataUsageMB(),
+                String.format("%.2f", request.getTotalDataUsageMB()),
                 request.getNetworkQualityDescription());
     }
 
