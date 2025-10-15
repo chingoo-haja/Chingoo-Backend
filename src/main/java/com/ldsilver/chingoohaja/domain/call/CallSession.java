@@ -165,13 +165,13 @@ public class CallSession extends BaseEntity {
      */
     public void renewToken(String newRtcToken, LocalDateTime newExpiresAt) {
         if (newRtcToken == null || newRtcToken.trim().isEmpty()) {
-            throw new IllegalArgumentException("새로운 RTC Token은 필수입니다.");
+            throw new CustomException(ErrorCode.RTC_TOKEN_REQUIRED);
         }
         if (newExpiresAt == null) {
-            throw new IllegalArgumentException("토큰 만료 시각은 필수입니다.");
+            throw new CustomException(ErrorCode.EXPIRED_TIME_NOT_FOUND);
         }
         if (newExpiresAt.isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("토큰 만료 시각은 현재 시각 이후여야 합니다.");
+            throw new CustomException(ErrorCode.BAD_EXPIRED_TIME);
         }
 
         this.rtcToken = newRtcToken;

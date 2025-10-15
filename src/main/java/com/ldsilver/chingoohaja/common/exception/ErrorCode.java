@@ -121,6 +121,8 @@ public enum ErrorCode {
     AGORA_REQUEST_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "L034", "Agora API 호출에 실패했습니다."),
     RECORDING_START_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "L035", "Recording 시작에 실패했습니다."),
     RECORDING_STOP_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "L036", "Recording 중지 응답을 받지 못했습니다."),
+    EXPIRED_TIME_NOT_FOUND(HttpStatus.BAD_REQUEST, "L037", "토큰 만료 시각은 필수입니다."),
+    BAD_EXPIRED_TIME(HttpStatus.BAD_REQUEST, "L038", "토큰 만료 시각은 현재 시각 이후여야 합니다."),
 
 
     // 카테고리 관련 에러
