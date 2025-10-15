@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "call_statistics",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"call_id", "user_id"}),
         indexes = {
                 @Index(name = "idx_call_statistics_call_id", columnList = "call_id"),
                 @Index(name = "idx_call_statistics_user_id", columnList = "user_id"),

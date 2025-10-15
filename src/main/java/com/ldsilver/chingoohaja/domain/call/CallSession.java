@@ -170,7 +170,7 @@ public class CallSession extends BaseEntity {
         if (newExpiresAt == null) {
             throw new CustomException(ErrorCode.EXPIRED_TIME_NOT_FOUND);
         }
-        if (newExpiresAt.isBefore(LocalDateTime.now())) {
+        if (!newExpiresAt.isAfter(LocalDateTime.now())) {
             throw new CustomException(ErrorCode.BAD_EXPIRED_TIME);
         }
 

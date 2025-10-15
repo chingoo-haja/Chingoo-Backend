@@ -11,10 +11,9 @@ import com.ldsilver.chingoohaja.repository.CallStatisticsRepository;
 import com.ldsilver.chingoohaja.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Optional;
 
 @Slf4j
 @Service
@@ -28,7 +27,7 @@ public class CallStatisticsService {
     /**
      * 통화 통계 저장
      * - 프론트엔드에서 전송한 Agora 통계를 DB에 저장
-     * - 중복 저장 방지 (이미 저장된 경우 업데이트)
+     * - 중복 저장 방지 (이미 저장된 경우 무시)
      */
     @Transactional
     public void saveCallStatistics(Long userId, Long callId, CallStatisticsRequest request) {
@@ -47,28 +46,15 @@ public class CallStatisticsService {
             throw new CustomException(ErrorCode.CALL_NOT_PARTICIPANT);
         }
 
-        // 3. 중복 체크 (이미 통계가 저장된 경우)
-        Optional<CallStatistics> existingStats = callStatisticsRepository
-                .findByCallIdAndUserId(callId, userId);
-
-        if (existingStats.isPresent()) {
-            log.info("이미 저장된 통화 통계 - userId: {}, callId: {} (업데이트하지 않음)",
-                    userId, callId);
-            // 이미 저장된 경우 중복 저장하지 않음
-            return;
+        // 3. 통계 저장
+        try {
+            CallStatistics statistics = CallStatistics.from(call, user, request);
+            callStatisticsRepository.save(statistics);
+            log.info("통화 통계 저장 완료 - userId: {}, callId: {}, duration: {}초", userId, callId, request.duration());
+        } catch (DataIntegrityViolationException e) {
+            log.info("이미 저장된 통화 통계 - userId: {}, callId: {}", userId, callId);
         }
 
-        // 4. 통계 저장
-        CallStatistics statistics = CallStatistics.from(call, user, request);
-        callStatisticsRepository.save(statistics);
-
-        log.info("통화 통계 저장 완료 - userId: {}, callId: {}, duration: {}초, " +
-                        "totalData: {}MB, avgNetworkQuality: {}",
-                userId,
-                callId,
-                request.duration(),
-                String.format("%.2f", request.getTotalDataUsageMB()),
-                request.getNetworkQualityDescription());
     }
 
     /**
@@ -104,10 +90,11 @@ public class CallStatisticsService {
             Double averageNetworkQuality
     ) {
         public double getTotalDataUsageMB() {
-            return totalDataUsageBytes / (1024.0 * 1024.0);
+            return totalDataUsageBytes != null ? totalDataUsageBytes / (1024.0 * 1024.0) : 0.0;
         }
 
         public String getNetworkQualityDescription() {
+            if (averageNetworkQuality == null) return "UNKNOWN";
             if (averageNetworkQuality <= 1.5) return "EXCELLENT";
             if (averageNetworkQuality <= 2.5) return "GOOD";
             if (averageNetworkQuality <= 3.5) return "POOR";
