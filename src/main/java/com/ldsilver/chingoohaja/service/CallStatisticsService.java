@@ -11,6 +11,7 @@ import com.ldsilver.chingoohaja.repository.CallStatisticsRepository;
 import com.ldsilver.chingoohaja.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,9 +53,22 @@ public class CallStatisticsService {
             callStatisticsRepository.save(statistics);
             log.info("통화 통계 저장 완료 - userId: {}, callId: {}, duration: {}초", userId, callId, request.duration());
         } catch (DataIntegrityViolationException e) {
-            log.info("이미 저장된 통화 통계 - userId: {}, callId: {}", userId, callId);
+            if (isDuplicateStatistics(e)) {
+                log.info("이미 저장된 통화 통계 - userId: {}, callId: {}", userId, callId);
+                return;
+            }
+            throw e;
         }
 
+    }
+
+    private boolean isDuplicateStatistics(DataIntegrityViolationException e) {
+        Throwable cause = e.getCause();
+        if (cause instanceof ConstraintViolationException violationException) {
+            String constraintName = violationException.getConstraintName();
+            return constraintName != null && constraintName.contains("call_statistics");
+        }
+        return false;
     }
 
     /**
