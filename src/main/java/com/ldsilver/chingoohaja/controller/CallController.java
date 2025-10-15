@@ -4,6 +4,7 @@ import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.user.CustomUserDetails;
 import com.ldsilver.chingoohaja.dto.call.response.CallStatusResponse;
+import com.ldsilver.chingoohaja.dto.call.response.TokenRenewResponse;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.service.AgoraTokenService;
 import com.ldsilver.chingoohaja.service.CallStatusService;
@@ -13,6 +14,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -77,6 +79,28 @@ public class CallController {
 
         CallStatusResponse response = callStatusService.getActiveCallByUserId(userDetails.getUserId());
         return ApiResponse.ok("활성 통화 조회 성공", response);
+    }
+
+    @PostMapping("/{callId}/renew-token")
+    @Operation(
+            summary = "RTC Token 갱신",
+            description = "통화 중 RTC Token이 만료되기 전에 새로운 토큰을 발급받습니다. " +
+                    "Agora SDK의 'token-privilege-will-expire' 이벤트 발생 시 호출해야 합니다."
+    )
+    public ResponseEntity<ApiResponse<TokenRenewResponse>> renewToken(
+            @Parameter(description = "통화 ID", required = true)
+            @PathVariable Long callId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        log.debug("RTC Token 갱신 요청 - userId: {}, callId: {}",
+                userDetails.getUserId(), callId);
+
+        TokenRenewResponse response = agoraTokenService.renewRtcToken(
+                userDetails.getUserId(),
+                callId
+        );
+
+        return ResponseEntity.ok(ApiResponse.ok("RTC Token 갱신 성공",response));
     }
 
 }

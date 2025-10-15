@@ -160,24 +160,22 @@ public class CallSession extends BaseEntity {
     }
 
     /**
-     * 토큰 갱신
+     * RTC Token 갱신
+     * - 통화 중 토큰 만료를 대비하여 새로운 토큰으로 갱신
      */
-    public void refreshTokens(String newRtcToken, String newRtmToken, LocalDateTime newTokenExpiresAt) {
+    public void renewToken(String newRtcToken, LocalDateTime newExpiresAt) {
         if (newRtcToken == null || newRtcToken.trim().isEmpty()) {
-            throw new CustomException(ErrorCode.RTC_TOKEN_REQUIRED);
+            throw new IllegalArgumentException("새로운 RTC Token은 필수입니다.");
+        }
+        if (newExpiresAt == null) {
+            throw new IllegalArgumentException("토큰 만료 시각은 필수입니다.");
+        }
+        if (newExpiresAt.isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("토큰 만료 시각은 현재 시각 이후여야 합니다.");
         }
 
-        String rtc = newRtcToken.trim();
-        this.rtcToken = rtc;
-        if (newRtmToken != null && !newRtmToken.trim().isEmpty()) {
-            this.rtmToken = newRtmToken.trim();
-        }
-        this.tokenExpiresAt = newTokenExpiresAt;
-        if (this.sessionStatus == SessionStatus.EXPIRED) {
-            this.sessionStatus = SessionStatus.READY;
-            this.joinedAt = null;
-            this.leftAt = null;
-        }
+        this.rtcToken = newRtcToken;
+        this.tokenExpiresAt = newExpiresAt;
     }
 
     private void validateQualityParams(int quality, int bitrate, double packetLoss) {
