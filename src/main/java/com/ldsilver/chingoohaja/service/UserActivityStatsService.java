@@ -2,6 +2,7 @@ package com.ldsilver.chingoohaja.service;
 
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
+import com.ldsilver.chingoohaja.domain.call.enums.CallStatus;
 import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.dto.user.response.UserActivityStatsResponse;
 import com.ldsilver.chingoohaja.repository.CallRepository;
@@ -36,8 +37,7 @@ public class UserActivityStatsService {
         UserActivityStatsResponse.WeeklyStats weeklyStats = getWeeklyStats(user);
 
         // 분기 통계 (period가 "quarter"인 경우에만 계산, 아니면 기본값)
-        UserActivityStatsResponse.QuarterlyStats quarterlyStats =
-                "quarter".equalsIgnoreCase(period) ? getQuarterlyStats(user) : getEmptyQuarterlyStats();
+        UserActivityStatsResponse.QuarterlyStats quarterlyStats = getQuarterlyStats(user);
 
         // 추가 통계
         UserActivityStatsResponse.AdditionalStats additionalStats = getAdditionalStats(user);
@@ -55,12 +55,13 @@ public class UserActivityStatsService {
         LocalDateTime startDateTime = startDate.atStartOfDay();
         LocalDateTime endDateTime = endDate.atTime(23, 59, 59);
 
-        // 통화 횟수
-        long callCount = callRepository.countCompletedCallsByUser(user,
-                com.ldsilver.chingoohaja.domain.call.enums.CallStatus.COMPLETED);
+        // ✅ 주간 기간 내 완료된 통화 횟수
+        long callCount = callRepository.countByUserAndStatusAndDateBetween(
+                user, CallStatus.COMPLETED, startDateTime, endDateTime);
 
-        // 총 통화 시간 (초)
-        long totalDurationSeconds = callRepository.sumDurationByUser(user);
+        // ✅ 주간 기간 내 총 통화 시간 (초)
+        long totalDurationSeconds = callRepository.sumDurationByUserAndDateBetween(
+                user, startDateTime, endDateTime);
         int totalDurationMinutes = (int) (totalDurationSeconds / 60);
 
         return new UserActivityStatsResponse.WeeklyStats(
@@ -80,12 +81,13 @@ public class UserActivityStatsService {
         LocalDateTime startDateTime = startDate.atStartOfDay();
         LocalDateTime endDateTime = endDate.atTime(23, 59, 59);
 
-        // 통화 횟수 (분기 전체)
-        long callCount = callRepository.countCompletedCallsByUser(user,
-                com.ldsilver.chingoohaja.domain.call.enums.CallStatus.COMPLETED);
+        // ✅ 분기 기간 내 완료된 통화 횟수
+        long callCount = callRepository.countByUserAndStatusAndDateBetween(
+                user, CallStatus.COMPLETED, startDateTime, endDateTime);
 
-        // 총 통화 시간 (초)
-        long totalDurationSeconds = callRepository.sumDurationByUser(user);
+        // ✅ 분기 기간 내 총 통화 시간 (초)
+        long totalDurationSeconds = callRepository.sumDurationByUserAndDateBetween(
+                user, startDateTime, endDateTime);
         int totalDurationMinutes = (int) (totalDurationSeconds / 60);
 
         return new UserActivityStatsResponse.QuarterlyStats(
@@ -109,20 +111,20 @@ public class UserActivityStatsService {
     }
 
     private UserActivityStatsResponse.AdditionalStats getAdditionalStats(User user) {
-        // 평균 통화 시간
+        // 평균 통화 시간 (전체 기간)
         Double averageDuration = callStatisticsRepository.getAverageDurationByUserId(user.getId());
         int averageCallDurationMinutes = averageDuration != null ?
                 (int) (averageDuration / 60) : 0;
 
-        // 가장 많이 사용한 카테고리
+        // 가장 많이 사용한 카테고리 (전체 기간)
         UserActivityStatsResponse.MostUsedCategory mostUsedCategory = getMostUsedCategory(user);
 
-        // 총 데이터 사용량 (MB)
+        // 총 데이터 사용량 (MB) (전체 기간)
         Long totalDataUsageBytes = callStatisticsRepository.getTotalDataUsageByUserId(user.getId());
         double totalDataUsageMB = totalDataUsageBytes != null ?
                 totalDataUsageBytes / (1024.0 * 1024.0) : 0.0;
 
-        // 평균 네트워크 품질
+        // 평균 네트워크 품질 (전체 기간)
         Double averageNetworkQuality = callStatisticsRepository.getAverageNetworkQualityByUserId(user.getId());
         double networkQuality = averageNetworkQuality != null ? averageNetworkQuality : 0.0;
 

@@ -151,4 +151,31 @@ public interface CallRepository extends JpaRepository<Call, Long> {
     List<Object[]> getChannelUsageStats(@Param("startDate") LocalDateTime startDate,
                                         @Param("endDate") LocalDateTime endDate);
 
+
+    /**
+     * 특정 기간 동안 사용자의 특정 상태 통화 수 조회
+     */
+    @Query("SELECT COUNT(c) FROM Call c WHERE (c.user1 = :user OR c.user2 = :user) " +
+            "AND c.callStatus = :status " +
+            "AND c.createdAt BETWEEN :startDate AND :endDate")
+    long countByUserAndStatusAndDateBetween(
+            @Param("user") User user,
+            @Param("status") CallStatus status,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    /**
+     * 특정 기간 동안 사용자의 총 통화 시간 (초)
+     */
+    @Query("SELECT COALESCE(SUM(c.durationSeconds), 0) FROM Call c " +
+            "WHERE (c.user1 = :user OR c.user2 = :user) " +
+            "AND c.callStatus = com.ldsilver.chingoohaja.domain.call.enums.CallStatus.COMPLETED " +
+            "AND c.createdAt BETWEEN :startDate AND :endDate")
+    long sumDurationByUserAndDateBetween(
+            @Param("user") User user,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
 }
