@@ -64,21 +64,7 @@ public interface CallSessionRepository extends JpaRepository<CallSession, Long> 
             "GROUP BY cs.user_id",
             nativeQuery = true)
     List<Object[]> getUserSessionStats();
-    /**
-     * 일별 세션 통계
-     */
-    @Query("SELECT function('date', cs.joinedAt), COUNT(cs), AVG(cs.connectionQuality) " +
-            "FROM CallSession cs WHERE cs.joinedAt BETWEEN :startDate AND :endDate " +
-            "GROUP BY function('date', cs.joinedAt) ORDER BY function('date', cs.joinedAt)")
-    List<Object[]> getDailySessionStats(@Param("startDate") LocalDateTime startDate,
-                                        @Param("endDate") LocalDateTime endDate);
 
-    /**
-     * 연결 품질별 세션 분포
-     */
-    @Query("SELECT cs.connectionQuality, COUNT(cs) FROM CallSession cs " +
-            "WHERE cs.connectionQuality IS NOT NULL GROUP BY cs.connectionQuality ORDER BY cs.connectionQuality")
-    List<Object[]> getConnectionQualityDistribution();
 
     // ========== 업데이트 쿼리 ==========
 

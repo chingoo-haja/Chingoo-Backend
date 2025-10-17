@@ -11,8 +11,6 @@ import java.util.Optional;
 
 @Repository
 public interface CallRecordingRepository extends JpaRepository<CallRecording, Long> {
-    // 통화별 녹음 파일 조회
-    Optional<CallRecording> findByCall(Call call);
 
     // 녹음 상태별 조회
     List<CallRecording> findByRecordingStatus(RecordingStatus status);
