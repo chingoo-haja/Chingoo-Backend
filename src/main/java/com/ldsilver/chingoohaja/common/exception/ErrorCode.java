@@ -131,6 +131,8 @@ public enum ErrorCode {
     CATEGORY_ALREADY_EXISTS(HttpStatus.CONFLICT, "T003", "이미 존재하는 카테고리 이름입니다."),
     CATEGORY_IN_USE(HttpStatus.CONFLICT, "T004", "사용 중인 카테고리는 삭제할 수 없습니다."),
     INVALID_CATEGORY_TYPE(HttpStatus.BAD_REQUEST, "T005", "유효하지 않은 카테고리 타입입니다."),
+    DUPLICATE_REQUEST(HttpStatus.CONFLICT, "DUPLICATE_REQUEST", "이미 동일한 요청이 존재합니다."),
+
 
     // 평가 관련 에러
     EVALUATION_ALREADY_EXISTS(HttpStatus.CONFLICT, "E001", "이미 평가를 완료했습니다."),
