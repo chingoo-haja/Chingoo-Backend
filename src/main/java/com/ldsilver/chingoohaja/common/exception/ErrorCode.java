@@ -123,6 +123,7 @@ public enum ErrorCode {
     RECORDING_STOP_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "L036", "Recording 중지 응답을 받지 못했습니다."),
     EXPIRED_TIME_NOT_FOUND(HttpStatus.BAD_REQUEST, "L037", "토큰 만료 시각은 필수입니다."),
     BAD_EXPIRED_TIME(HttpStatus.BAD_REQUEST, "L038", "토큰 만료 시각은 현재 시각 이후여야 합니다."),
+    RECORDING_ALREADY_STOPPED(HttpStatus.CONFLICT, "L039", "이미 녹음이 중지되었습니다."),
 
 
     // 카테고리 관련 에러

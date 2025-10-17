@@ -16,4 +16,8 @@ public interface CallRecordingRepository extends JpaRepository<CallRecording, Lo
 
     // 녹음 상태별 조회
     List<CallRecording> findByRecordingStatus(RecordingStatus status);
+
+    Optional<CallRecording> findByCallId(Long callId);
+
+    Long call(Call call);
 }
