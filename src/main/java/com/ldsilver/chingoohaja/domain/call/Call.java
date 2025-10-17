@@ -58,23 +58,6 @@ public class Call extends BaseEntity {
     @Size(max = 64, message = "Agora 채널명은 64자를 초과할 수 없습니다.")
     private String agoraChannelName;
 
-    @Column(length = 100)
-    @Size(max = 100, message = "Agora Resource ID는 100자를 초과할 수 없습니다.")
-    private String agoraResourceId;
-
-    @Column(length = 100)
-    @Size(max = 100, message = "Agora SID는 100자를 초과할 수 없습니다.")
-    private String agoraSid;
-
-    @Column(length = 2048)
-    @Size(max = 2048, message = "녹음 파일 URL은 2048자를 초과할 수 없습니다.")
-    private String recordingFileUrl;
-
-    private LocalDateTime recordingStartedAt;
-
-    private LocalDateTime recordingEndedAt;
-
-    private Integer recordingDurationSeconds;
 
     public static Call of(
             User user1,
@@ -125,36 +108,6 @@ public class Call extends BaseEntity {
         this.agoraChannelName = channelName;
     }
 
-    public void startCloudRecording(String resourceId, String sid) {
-        validateRecordingParams(resourceId, sid);
-
-        if (this.callStatus != CallStatus.IN_PROGRESS) {
-            throw new CustomException(ErrorCode.CALL_NOT_IN_PROGRESS);
-        }
-        if (this.recordingStartedAt != null && this.recordingEndedAt == null) {
-            throw new CustomException(ErrorCode.RECORDING_ALREADY_STARTED);
-        }
-
-        this.agoraResourceId = resourceId;
-        this.agoraSid = sid;
-        this.recordingStartedAt = LocalDateTime.now();
-    }
-
-    public void stopCloudRecording(String recordingFileUrl) {
-        if (this.recordingStartedAt == null) {
-            throw new CustomException(ErrorCode.RECORDING_NOT_STARTED);
-        }
-
-        this.recordingFileUrl = recordingFileUrl;
-        this.recordingEndedAt = LocalDateTime.now();
-
-        if (this.recordingStartedAt != null) {
-            this.recordingDurationSeconds = (int) java.time.Duration.between(
-                    this.recordingStartedAt,
-                    this.recordingEndedAt
-            ).getSeconds();
-        }
-    }
 
     public void endCall() {
         if (this.callStatus == CallStatus.IN_PROGRESS) {
@@ -231,14 +184,6 @@ public class Call extends BaseEntity {
 
     public boolean isCompleted() {
         return callStatus == CallStatus.COMPLETED;
-    }
-
-    public boolean isRecordingActive() {
-        return recordingStartedAt != null && recordingEndedAt == null;
-    }
-
-    public boolean hasRecordingFile() {
-        return recordingFileUrl != null && !recordingFileUrl.trim().isEmpty();
     }
 
 }
