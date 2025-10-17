@@ -7,9 +7,9 @@ SELECT name, is_active, category_type, created_at, updated_at
 FROM (
          SELECT '취미' as name, true as is_active, 'RANDOM' as category_type, NOW() as created_at, NOW() as updated_at
          UNION ALL SELECT '자녀', true, 'RANDOM', NOW(), NOW()
-         UNION ALL SELECT '요리', true, 'RANDOM', NOW(), NOW()
+         UNION ALL SELECT '배우자', true, 'RANDOM', NOW(), NOW()
          UNION ALL SELECT '추억', true, 'RANDOM', NOW(), NOW()
-         UNION ALL SELECT '음악', true, 'RANDOM', NOW(), NOW()
+         UNION ALL SELECT '스트레스', true, 'RANDOM', NOW(), NOW()
          UNION ALL SELECT '여행', true, 'RANDOM', NOW(), NOW()
          UNION ALL SELECT '운동', true, 'RANDOM', NOW(), NOW()
          UNION ALL SELECT '책', true, 'RANDOM', NOW(), NOW()
@@ -17,6 +17,8 @@ FROM (
          UNION ALL SELECT '반려동물', true, 'RANDOM', NOW(), NOW()
          UNION ALL SELECT '건강', true, 'RANDOM', NOW(), NOW()
          UNION ALL SELECT '일상', true, 'RANDOM', NOW(), NOW()
+         UNION ALL SELECT '음악', true, 'RANDOM', NOW(), NOW()
+         UNION ALL SELECT '요리', true, 'RANDOM', NOW(), NOW()
      ) AS new_categories
 WHERE NOT EXISTS (
     SELECT 1 FROM categories
