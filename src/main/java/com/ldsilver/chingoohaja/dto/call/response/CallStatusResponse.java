@@ -21,10 +21,6 @@ public record CallStatusResponse(
         @JsonProperty("start_at") LocalDateTime startAt,
         @JsonProperty("end_at") LocalDateTime endAt,
         @JsonProperty("duration_seconds") Integer durationSeconds,
-        @JsonProperty("is_recording_active") boolean isRecordingActive,
-        @JsonProperty("recording_started_at") LocalDateTime recordingStartedAt,
-        @JsonProperty("recording_ended_at") LocalDateTime recordingEndedAt,
-        @JsonProperty("recording_duration_seconds") Integer recordingDurationSeconds,
         @JsonProperty("created_at") LocalDateTime createdAt,
         @JsonProperty("can_evaluate") Boolean canEvaluate,
         @JsonProperty("has_evaluated") Boolean hasEvaluated
@@ -54,12 +50,8 @@ public record CallStatusResponse(
                 call.getStartAt(),
                 call.getEndAt(),
                 call.getDurationSeconds(),
-                call.isRecordingActive(),
-                call.getRecordingStartedAt(),
-                call.getRecordingEndedAt(),
-                call.getRecordingDurationSeconds(),
                 call.getCreatedAt(),
-                null,
+                null,  // 평가 정보는 나중에 설정
                 null
         );
     }
@@ -67,12 +59,10 @@ public record CallStatusResponse(
     public CallStatusResponse withEvaluationInfo(boolean canEvaluate, boolean hasEvaluated) {
         return new CallStatusResponse(
                 callId, callStatus, callType, categoryName, partnerNickname, partnerId,
-                agoraChannelName, startAt, endAt, durationSeconds, isRecordingActive,
-                recordingStartedAt, recordingEndedAt, recordingDurationSeconds, createdAt,
+                agoraChannelName, startAt, endAt, durationSeconds, createdAt,
                 canEvaluate, hasEvaluated
         );
     }
-
 
     public boolean isActive() {
         return callStatus == CallStatus.READY || callStatus == CallStatus.IN_PROGRESS;
@@ -84,9 +74,5 @@ public record CallStatusResponse(
 
     public boolean canEnd() {
         return callStatus == CallStatus.READY || callStatus == CallStatus.IN_PROGRESS;
-    }
-
-    public boolean hasRecording() {
-        return recordingStartedAt != null;
     }
 }
