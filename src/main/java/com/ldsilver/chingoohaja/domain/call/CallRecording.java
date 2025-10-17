@@ -7,6 +7,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "call_recordings")
 @Getter
@@ -19,6 +21,12 @@ public class CallRecording extends BaseEntity {
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "call_id", nullable = false)
     private Call call;
+
+    @Column(length = 100)
+    private String agoraResourceId;
+
+    @Column(length = 100)
+    private String agoraSid;
 
     @Column(nullable = false)
     private String filePath;
@@ -33,22 +41,40 @@ public class CallRecording extends BaseEntity {
     @Column(nullable = false)
     private RecordingStatus recordingStatus;
 
-    public static CallRecording of(
-            Call call,
-            String filePath,
-            Long fileSize,
-            String fileFormat,
-            RecordingStatus recordingStatus) {
-        CallRecording callRecording = new CallRecording();
-        callRecording.call = call;
-        callRecording.filePath = filePath;
-        callRecording.fileSize = fileSize;
-        callRecording.fileFormat = fileFormat;
-        callRecording.recordingStatus = recordingStatus;
-        return callRecording;
+    // 녹음 시간
+    private LocalDateTime recordingStartedAt;
+
+    private LocalDateTime recordingEndedAt;
+
+    private Integer recordingDurationSeconds;
+
+    public static CallRecording create(Call call, String resourceId, String sid) {
+        CallRecording recording = new CallRecording();
+        recording.call = call;
+        recording.agoraResourceId = resourceId;
+        recording.agoraSid = sid;
+        recording.recordingStatus = RecordingStatus.PROCESSING;
+        recording.recordingStartedAt = LocalDateTime.now();
+        return recording;
     }
 
-    public static CallRecording from(Call call, String filePath, Long fileSize, String fileFormat) {
-        return of(call, filePath, fileSize, fileFormat, RecordingStatus.PROCESSING);
+    public void complete(String filePath, Long fileSize, String fileFormat) {
+        this.filePath = filePath;
+        this.fileSize = fileSize;
+        this.fileFormat = fileFormat;
+        this.recordingStatus = RecordingStatus.COMPLETED;
+        this.recordingEndedAt = LocalDateTime.now();
+
+        if (this.recordingStartedAt != null) {
+            long seconds = java.time.Duration
+                    .between(recordingStartedAt, recordingEndedAt)
+                    .getSeconds();
+            this.recordingDurationSeconds = (int) Math.max(0, seconds);
+        }
+    }
+
+    public void fail() {
+        this.recordingStatus = RecordingStatus.FAILED;
+        this.recordingEndedAt = LocalDateTime.now();
     }
 }
