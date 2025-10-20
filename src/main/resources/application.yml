@@ -20,7 +20,6 @@ ws:
     - "https://chingoo-frontend.vercel.app"   # 운영 도메인
     - "https://chingoohaja.app"
 
-# JWT 설정
 app:
   jwt:
     secret: ${JWT_SECRET}
@@ -55,6 +54,10 @@ app:
     rest-api-base-url: https://api.agora.io
     recording-region: AP
     recording-storage-vendor: "1"
+    use-custom-storage: false
+    recording-storage-bucket: ${AGORA_STORAGE_BUCKET}
+    recording-storage-access-key: ${AGORA_STORAGE_ACCESS_KEY}
+    recording-storage-secret-key: ${AGORA_STORAGE_SECRET_KEY}
 
   recording:
     max-idle-time: 30          # 30초 무음 시 자동 중지
