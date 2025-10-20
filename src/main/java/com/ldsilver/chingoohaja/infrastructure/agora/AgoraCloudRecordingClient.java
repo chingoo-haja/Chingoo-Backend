@@ -19,6 +19,8 @@ import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -39,15 +41,21 @@ public class AgoraCloudRecordingClient {
             return Mono.error(new CustomException(ErrorCode.OAUTH_CONFIG_ERROR));
         }
 
-        Map<String, Object> clientRequest = Map.of(
-                "resourceExpiredHour", 24
+        Map<String, Object> requestBody = Map.of(
+                "cname", channelName,
+                "uid", CallValidationConstants.RECORDING_API_UID,
+                "clientRequest", Map.of(
+                        "resourceExpiredHour", 24,
+                        "scene", 0
+                )
         );
 
         return webClient.post()
-                .uri("/v1/apps/{appid}/cloud_recording/acquire", agoraProperties.getAppId())
+                .uri("/v1/apps/{appid}/cloud_recording/acquire",
+                        agoraProperties.getAppId())
                 .header(HttpHeaders.AUTHORIZATION, createBasicAuthHeader())
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .bodyValue(Map.of("cname", channelName, "uid", "0", "clientRequest", clientRequest))
+                .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(Map.class)
                 .map(response -> {
@@ -58,6 +66,7 @@ public class AgoraCloudRecordingClient {
                     log.debug("Resource 획득 성공 - resourceId: {}", maskSensitiveData(resourceId));
                     return resourceId;
                 })
+                .doOnError(error -> log.error("❌ Resource 획득 실패", error))
                 .onErrorMap(WebClientResponseException.class, this::mapWebClientException);
     }
 
@@ -70,34 +79,37 @@ public class AgoraCloudRecordingClient {
             return Mono.error(new CustomException(ErrorCode.OAUTH_CONFIG_ERROR));
         }
 
-        Map<String, Object> storageConfig = Map.of(
-                "vendor", 1, // AWS S3
-                "region", agoraProperties.getRecordingRegion(),
-                "bucket", agoraProperties.getRecordingStorageBucket(),
-                "accessKey", agoraProperties.getRecordingStorageAccessKey(),
-                "secretKey", agoraProperties.getRecordingStorageSecretKey(),
-                "fileNamePrefix", new String[]{"recordings", "call_" + request.callId()}
-        );
 
-        Map<String, Object> recordingConfig = Map.of(
-                "maxIdleTime", request.maxIdleTime(),
-                "streamTypes", 0, // 0 = 오디오만 (비디오 완전 차단)
-                "channelType", 0, // 0 = 통신 모드
-                "subscribeAudioUids", new String[]{"#allstream#"}, // 모든 오디오 구독
-                "subscribeVideoUids", new String[]{}, // 비디오 구독 완전 차단
-                "subscribeUidGroup", 0,
-                "audioProfile", request.audioProfile() // 오디오 품질 설정
-        );
+        Map<String, Object> recordingConfig = new HashMap<>();
+        recordingConfig.put("maxIdleTime", request.maxIdleTime());
+        recordingConfig.put("streamTypes", 0); // 0 = audio only
+        recordingConfig.put("channelType", 0); // 0 = communication
+        recordingConfig.put("audioProfile", request.audioProfile());
+        recordingConfig.put("subscribeAudioUids", List.of("#allstream#"));
+        recordingConfig.put("subscribeVideoUids", List.of());
+        recordingConfig.put("subscribeUidGroup", 0);
 
         Map<String, Object> recordingFileConfig = Map.of(
-                "avFileType", new String[]{"hls"}
+                "avFileType", List.of("hls")
         );
 
-        Map<String, Object> clientRequest = Map.of(
-                "token", generateRecordingToken(channelName),
-                "recordingConfig", recordingConfig,
-                "recordingFileConfig", recordingFileConfig,
-                "storageConfig", storageConfig
+        Map<String, Object> clientRequest = new HashMap<>();
+        clientRequest.put("token", generateRecordingToken(channelName));
+        clientRequest.put("recordingConfig", recordingConfig);
+        clientRequest.put("recordingFileConfig", recordingFileConfig);
+
+        // storageConfig는 커스텀 스토리지 사용 시만 추가
+        if (agoraProperties.isCustomStorageConfigured()) {
+            clientRequest.put("storageConfig", createStorageConfig(request));
+            log.debug("📦 커스텀 스토리지 사용");
+        } else {
+            log.debug("📦 Agora 기본 스토리지 사용");
+        }
+
+        Map<String, Object> requestBody = Map.of(
+                "cname", channelName,
+                "uid", CallValidationConstants.RECORDING_API_UID, // "0"
+                "clientRequest", clientRequest
         );
 
         return webClient.post()
@@ -105,7 +117,7 @@ public class AgoraCloudRecordingClient {
                         agoraProperties.getAppId(), resourceId)
                 .header(HttpHeaders.AUTHORIZATION, createBasicAuthHeader())
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .bodyValue(Map.of("cname", channelName, "uid", "0", "clientRequest", clientRequest))
+                .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(Map.class)
                 .map(response -> {
@@ -113,8 +125,17 @@ public class AgoraCloudRecordingClient {
                     if (sid == null || sid.trim().isEmpty()) {
                         throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "SID를 획득할 수 없습니다.");
                     }
-                    log.debug("Recording 시작 성공 - sid: {}", maskSensitiveData(sid));
+                    log.info("Recording 시작 성공 - sid: {}", maskSensitiveData(sid));
                     return sid;
+                })
+                .doOnError(error -> {
+                    if (error instanceof WebClientResponseException webEx) {
+                        log.error("❌ Recording 시작 실패 - Status: {}, Body: {}",
+                                webEx.getStatusCode(),
+                                webEx.getResponseBodyAsString());
+                    } else {
+                        log.error("❌ Recording 시작 실패", error);
+                    }
                 })
                 .onErrorMap(WebClientResponseException.class, this::mapWebClientException);
     }
@@ -123,12 +144,18 @@ public class AgoraCloudRecordingClient {
         log.debug("Agora Cloud Recording 중지 - resourceId: {}, sid: {}, channel: {}",
                 maskSensitiveData(resourceId), maskSensitiveData(sid), channelName);
 
+        Map<String, Object> requestBody = Map.of(
+                "cname", channelName,
+                "uid", CallValidationConstants.RECORDING_API_UID, // "0"
+                "clientRequest", Map.of()
+        );
+
         return webClient.post()
                 .uri("/v1/apps/{appid}/cloud_recording/resourceid/{resourceid}/sid/{sid}/mode/mix/stop",
                         agoraProperties.getAppId(), resourceId, sid)
                 .header(HttpHeaders.AUTHORIZATION, createBasicAuthHeader())
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .bodyValue(Map.of("cname", channelName, "uid", "0", "clientRequest", Map.of()))
+                .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                 .defaultIfEmpty(Map.of())
@@ -149,6 +176,7 @@ public class AgoraCloudRecordingClient {
                 .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                 .doOnSuccess(response -> log.debug("Recording 상태 조회 성공 - resourceId: {}",
                         maskSensitiveData(resourceId)))
+                .doOnError(error -> log.error("❌ Recording 상태 조회 실패", error))
                 .onErrorMap(WebClientResponseException.class, this::mapWebClientException);
     }
 
@@ -157,9 +185,20 @@ public class AgoraCloudRecordingClient {
     private String generateRecordingToken(String channelName) {
         return agoraTokenGenerator.generateRtcToken(
                 channelName,
-                CallValidationConstants.RECORDING_UID_INT,
+                CallValidationConstants.RECORDING_BOT_UID,
                 RtcTokenBuilder2.Role.ROLE_PUBLISHER,
                 CallValidationConstants.RECORDING_TOKEN_TTL_SECONDS
+        );
+    }
+
+    private Map<String, Object> createStorageConfig(RecordingRequest request) {
+        return Map.of(
+                "vendor", Integer.parseInt(agoraProperties.getRecordingStorageVendor()),
+                "region", agoraProperties.getRecordingRegion(),
+                "bucket", agoraProperties.getRecordingStorageBucket(),
+                "accessKey", agoraProperties.getRecordingStorageAccessKey(),
+                "secretKey", agoraProperties.getRecordingStorageSecretKey(),
+                "fileNamePrefix", List.of("recordings", "call_" + request.callId())
         );
     }
 

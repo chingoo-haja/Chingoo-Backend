@@ -46,7 +46,7 @@ public class CallService {
                 .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
 
         try {
-            call.startCall();
+            call.startCall(); //상태 변경
             callRepository.save(call);
 
             // ✅ 녹음 설정 로그 추가

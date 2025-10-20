@@ -13,6 +13,7 @@ public class CallValidationConstants {
     public static final int DEFAULT_TTL_SECONDS_ONE_HOURS = 3600; // 1시간
     public static final String DEFAULT_ROLE = "PUBLISHER";
     public final long AGORA_MAX_UID = 4_294_967_295L;
-    public static final int RECORDING_TOKEN_TTL_SECONDS = 7200;
-    public static final int RECORDING_UID_INT = 1;
+    public static final int RECORDING_TOKEN_TTL_SECONDS = 86400;
+    public static final String RECORDING_API_UID = "0";
+    public static final int RECORDING_BOT_UID = 1;
 }
