@@ -27,6 +27,10 @@ public record CallHistoryResponse(
         public static CallHistoryItem from(Call call, Long currentUserId, CallStatistics statistics) {
             User partner = call.getPartner(currentUserId);
 
+            var category = call.getCategory();
+            Long categoryId = (category != null) ? category.getId() : null;
+            String categoryName = (category != null) ? category.getName() : null;
+
             Integer durationSeconds = call.getDurationSeconds();
             int durationMinutes = durationSeconds != null ? durationSeconds / 60 : 0;
 
@@ -45,8 +49,8 @@ public record CallHistoryResponse(
                     call.getId(),
                     partner.getId(),
                     partner.getNickname(),
-                    call.getCategory().getId(),
-                    call.getCategory().getName(),
+                    categoryId,
+                    categoryName,
                     call.getStartAt(),
                     call.getEndAt(),
                     durationMinutes,
