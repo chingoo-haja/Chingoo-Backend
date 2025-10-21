@@ -58,16 +58,6 @@ public class CallSession extends BaseEntity {
 
     private LocalDateTime leftAt;
 
-    @Min(1) @Max(6)
-    private Integer connectionQuality; // 1-6 (1: Excellent, 6: Down)
-
-    @Min(0)
-    private Integer audioBitrate;
-
-    @DecimalMin(value = "0.0", inclusive = true)
-    @DecimalMax(value = "100.0", inclusive = true)
-    private Double packetLossRate;
-
     private LocalDateTime tokenExpiresAt;
 
     public static CallSession of(
@@ -143,20 +133,6 @@ public class CallSession extends BaseEntity {
         } else {
             throw new CustomException(ErrorCode.SESSION_NOT_JOINED);
         }
-    }
-
-    /**
-     * 연결 품질 업데이트
-     */
-    public void updateConnectionQuality(int quality, int bitrate, double packetLoss) {
-        if (!isActive()) {
-            throw new CustomException(ErrorCode.SESSION_NOT_JOINED);
-        }
-        validateQualityParams(quality, bitrate, packetLoss);
-
-        this.connectionQuality = quality;
-        this.audioBitrate = bitrate;
-        this.packetLossRate = packetLoss;
     }
 
     /**

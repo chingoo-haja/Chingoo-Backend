@@ -12,6 +12,7 @@ import com.ldsilver.chingoohaja.dto.call.response.RecordingResponse;
 import com.ldsilver.chingoohaja.infrastructure.agora.AgoraCloudRecordingClient;
 import com.ldsilver.chingoohaja.repository.CallRecordingRepository;
 import com.ldsilver.chingoohaja.repository.CallRepository;
+import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -30,7 +31,6 @@ public class AgoraRecordingService {
     private final AgoraCloudRecordingClient cloudRecordingClient;
     private final CallRepository callRepository;
     private final CallRecordingRepository callRecordingRepository;
-    private final FirebaseStorageService firebaseStorageService;
     private final RecordingProperties recordingProperties;
     private final AgoraService agoraService;
 
@@ -52,7 +52,7 @@ public class AgoraRecordingService {
         if (!call.isInProgress()) {
             throw new CustomException(ErrorCode.CALL_NOT_IN_PROGRESS);
         }
-        if (call.isRecordingActive()) {
+        if (callRecordingRepository.findByCallId(request.callId()).isPresent()) {
             throw new CustomException(ErrorCode.RECORDING_ALREADY_STARTED);
         }
 
@@ -94,8 +94,8 @@ public class AgoraRecordingService {
                     throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "Recording 시작 실패");
                 }
 
-                call.startCloudRecording(resourceId, sid);
-                callRepository.save(call);
+                CallRecording recording = CallRecording.create(call, resourceId, sid);
+                callRecordingRepository.save(recording);
 
                 log.debug("비동기 녹음 시작 완료 - callId: {}, resourceId: {}, sid: {}", callId, maskId(resourceId), maskId(sid));
             } catch (Exception e) {
@@ -111,12 +111,16 @@ public class AgoraRecordingService {
 
         Call call = callRepository.findById(callId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
-        if (!call.isRecordingActive()) {
-            throw new CustomException(ErrorCode.RECORDING_NOT_STARTED);
+
+        CallRecording recording = callRecordingRepository.findByCallId(callId)
+                .orElseThrow(() -> new CustomException(ErrorCode.RECORDING_NOT_STARTED));
+
+        if (recording.getRecordingStatus() != RecordingStatus.PROCESSING) {
+            throw new CustomException(ErrorCode.RECORDING_ALREADY_STOPPED);
         }
 
-        String resourceId = call.getAgoraResourceId();
-        String sid = call.getAgoraSid();
+        String resourceId = recording.getAgoraResourceId();
+        String sid = recording.getAgoraSid();
         String channelName = call.getAgoraChannelName();
 
         try {
@@ -133,34 +137,50 @@ public class AgoraRecordingService {
 
             String finalFileUrl = downloadAndStoreRecordingFile(fileUrl, callId);
 
-            call.stopCloudRecording(finalFileUrl);
-            callRepository.save(call);
+            recording.complete(finalFileUrl, fileSize, "hls");
+            try {
+                callRecordingRepository.save(recording);
+            } catch (OptimisticLockException e) {
+                log.warn("Recording이 이미 다른 요청에 의해 중지됨 - callId: {}", callId);
+                throw new CustomException(ErrorCode.RECORDING_ALREADY_STOPPED);
+            }
 
-            CallRecording callRecording = CallRecording.of(
-                    call, finalFileUrl, fileSize, "hls", RecordingStatus.COMPLETED
-            );
-            callRecordingRepository.save(callRecording);
 
             log.info("Cloud Recording 중지 성공 - callId: {}, fileUrl: {}",
                     callId, finalFileUrl != null ? "saved" : "none");
 
             return RecordingResponse.stopped(
                     resourceId, sid, callId, channelName, finalFileUrl, fileSize,
-                    call.getRecordingStartedAt(), call.getRecordingDurationSeconds()
+                    recording.getRecordingStartedAt(), recording.getRecordingDurationSeconds()
             );
+        } catch (CustomException e) {
+            // CustomException은 그대로 전파
+            if (e.getErrorCode() == ErrorCode.RECORDING_ALREADY_STOPPED) {
+                throw e;
+            }
+
+            // 다른 CustomException은 fail 처리
+            try {
+                recording.fail();
+                callRecordingRepository.save(recording);
+            } catch (OptimisticLockException lockEx) {
+                log.warn("Recording 실패 상태 저장 시 낙관적 락 실패 - callId: {}", callId);
+            } catch (Exception saveEx) {
+                log.error("Recording 실패 상태 저장 실패 - callId: {}", callId, saveEx);
+            }
+            throw e;
         } catch (Exception e) {
             log.error("Cloud Recording 중지 실패 - callId: {}", callId, e);
 
             try {
-                call.stopCloudRecording(null);
-                callRepository.save(call);
+                recording.fail();
+                callRecordingRepository.save(recording);
+            } catch (OptimisticLockException lockEx) {
+                log.warn("Recording 실패 상태 저장 시 낙관적 락 실패 - callId: {}", callId);
             } catch (Exception saveEx) {
                 log.error("Recording 실패 상태 저장 실패 - callId: {}", callId, saveEx);
             }
 
-            if (e instanceof  CustomException) {
-                throw e;
-            }
             throw new CustomException(ErrorCode.RECORDING_STOP_FAILED);
         }
     }
@@ -170,40 +190,41 @@ public class AgoraRecordingService {
         log.debug("Recording 상태 조회 - callId: {}", callId);
 
         Call call = callRepository.findById(callId)
-                .orElseThrow(() -> new CustomException(ErrorCode.RECORDING_NOT_STARTED));
+                .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
 
-        if (call.getAgoraResourceId() == null || call.getAgoraSid() == null) {
-            throw new CustomException(ErrorCode.RECORDING_NOT_STARTED);
-        }
+        CallRecording recording = callRecordingRepository.findByCallId(callId)
+                .orElseThrow(() -> new CustomException(ErrorCode.RECORDING_NOT_STARTED));
 
         try {
             Map<String, Object> queryResponse = cloudRecordingClient.queryRecording(
-                    call.getAgoraResourceId(), call.getAgoraSid()
+                    recording.getAgoraResourceId(), recording.getAgoraSid()
             ).block();
 
             if (queryResponse == null) {
-                return RecordingResponse.failed(call.getAgoraResourceId(), call.getAgoraSid(),
-                        callId, call.getAgoraChannelName());
+                return RecordingResponse.failed(
+                        recording.getAgoraResourceId(),
+                        recording.getAgoraSid(),
+                        callId,
+                        call.getAgoraChannelName());
             }
 
             RecordingStatus status = extractRecordingStatus(queryResponse);
-            String fileUrl = call.hasRecordingFile() ? call.getRecordingFileUrl() : null;
 
             return new RecordingResponse(
-                    call.getAgoraResourceId(),
-                    call.getAgoraSid(),
+                    recording.getAgoraResourceId(),
+                    recording.getAgoraSid(),
                     callId,
                     call.getAgoraChannelName(),
                     status,
-                    fileUrl,
-                    null,
-                    call.getRecordingStartedAt(),
-                    call.getRecordingEndedAt(),
-                    call.getRecordingDurationSeconds()
+                    recording.getFilePath(),
+                    recording.getFileSize(),
+                    recording.getRecordingStartedAt(),
+                    recording.getRecordingEndedAt(),
+                    recording.getRecordingDurationSeconds()
             );
         } catch (Exception e) {
             log.error("Recording 상태 조회 실패 - callId: {}", callId, e);
-            return RecordingResponse.failed(call.getAgoraResourceId(), call.getAgoraSid(),
+            return RecordingResponse.failed(recording.getAgoraResourceId(), recording.getAgoraSid(),
                     callId, call.getAgoraChannelName());
         }
     }
@@ -215,8 +236,7 @@ public class AgoraRecordingService {
 
         return CompletableFuture.runAsync(() -> {
             try {
-                Call call = callRepository.findById(callId).orElse(null);
-                if (call != null && call.isRecordingActive()) {
+                if (callRecordingRepository.findByCallId(callId).isPresent()) {
                     stopRecording(callId);
                     log.info("통화 종료로 인한 자동 Recording 중지 완료 - callId: {}", callId);
                 }
@@ -230,33 +250,31 @@ public class AgoraRecordingService {
     public List<RecordingResponse> getActiveRecordings() {
         log.debug("활성 Recording 목록 조회");
 
-        List<Call> recordingCalls = callRepository.findRecordingCalls();
+        List<CallRecording> recordings = callRecordingRepository.findByRecordingStatus(RecordingStatus.PROCESSING);
 
-        return recordingCalls.stream()
-                .map(call -> new RecordingResponse(
-                        call.getAgoraResourceId(),
-                        call.getAgoraSid(),
-                        call.getId(),
-                        call.getAgoraChannelName(),
+        return recordings.stream()
+                .map(recording -> new RecordingResponse(
+                        recording.getAgoraResourceId(),
+                        recording.getAgoraSid(),
+                        recording.getCall().getId(),
+                        recording.getCall().getAgoraChannelName(),
                         RecordingStatus.PROCESSING,
-                        call.getRecordingFileUrl(),
-                        null,
-                        call.getRecordingStartedAt(),
-                        call.getRecordingEndedAt(),
-                        call.getRecordingDurationSeconds()
+                        recording.getFilePath(),
+                        recording.getFileSize(),
+                        recording.getRecordingStartedAt(),
+                        recording.getRecordingEndedAt(),
+                        recording.getRecordingDurationSeconds()
                 ))
                 .toList();
     }
 
 
-
     private void updateCallRecordingFailureStatus(Long callId) {
         try {
-            Call call = callRepository.findById(callId).orElse(null);
-            if (call != null) {
-                call.stopCloudRecording(null);
-                callRepository.save(call);
-            }
+            callRecordingRepository.findByCallId(callId).ifPresent(recording -> {
+                recording.fail();
+                callRecordingRepository.save(recording);
+            });
         } catch (Exception e) {
             log.error("Recording 실패 상태 업데이트 실패 - callId: {}", callId, e);
         }

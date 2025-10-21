@@ -1,6 +1,7 @@
 package com.ldsilver.chingoohaja.repository;
 
 import com.ldsilver.chingoohaja.domain.call.CallStatistics;
+import com.ldsilver.chingoohaja.domain.user.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -76,4 +77,8 @@ public interface CallStatisticsRepository extends JpaRepository<CallStatistics, 
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate
     );
+
+    List<CallStatistics> findByCallIdInAndUserId(List<Long> callIds, Long userId);
+
+    Long user(User user);
 }
