@@ -28,13 +28,10 @@ public class CallRecording extends BaseEntity {
     @Column(length = 100)
     private String agoraSid;
 
-    @Column(nullable = false)
     private String filePath;
 
-    @Column(nullable = false)
     private Long fileSize;
 
-    @Column(nullable = false)
     private String fileFormat;
 
     @Enumerated(EnumType.STRING)
@@ -47,6 +44,9 @@ public class CallRecording extends BaseEntity {
     private LocalDateTime recordingEndedAt;
 
     private Integer recordingDurationSeconds;
+
+    @Version
+    private Long version;
 
     public static CallRecording create(Call call, String resourceId, String sid) {
         CallRecording recording = new CallRecording();

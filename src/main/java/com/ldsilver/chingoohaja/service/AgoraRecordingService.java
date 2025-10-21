@@ -12,6 +12,7 @@ import com.ldsilver.chingoohaja.dto.call.response.RecordingResponse;
 import com.ldsilver.chingoohaja.infrastructure.agora.AgoraCloudRecordingClient;
 import com.ldsilver.chingoohaja.repository.CallRecordingRepository;
 import com.ldsilver.chingoohaja.repository.CallRepository;
+import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -137,7 +138,12 @@ public class AgoraRecordingService {
             String finalFileUrl = downloadAndStoreRecordingFile(fileUrl, callId);
 
             recording.complete(finalFileUrl, fileSize, "hls");
-            callRecordingRepository.save(recording);
+            try {
+                callRecordingRepository.save(recording);
+            } catch (OptimisticLockException e) {
+                log.warn("Recording이 이미 다른 요청에 의해 중지됨 - callId: {}", callId);
+                throw new CustomException(ErrorCode.RECORDING_ALREADY_STOPPED);
+            }
 
 
             log.info("Cloud Recording 중지 성공 - callId: {}, fileUrl: {}",
@@ -147,19 +153,34 @@ public class AgoraRecordingService {
                     resourceId, sid, callId, channelName, finalFileUrl, fileSize,
                     recording.getRecordingStartedAt(), recording.getRecordingDurationSeconds()
             );
+        } catch (CustomException e) {
+            // CustomException은 그대로 전파
+            if (e.getErrorCode() == ErrorCode.RECORDING_ALREADY_STOPPED) {
+                throw e;
+            }
+
+            // 다른 CustomException은 fail 처리
+            try {
+                recording.fail();
+                callRecordingRepository.save(recording);
+            } catch (OptimisticLockException lockEx) {
+                log.warn("Recording 실패 상태 저장 시 낙관적 락 실패 - callId: {}", callId);
+            } catch (Exception saveEx) {
+                log.error("Recording 실패 상태 저장 실패 - callId: {}", callId, saveEx);
+            }
+            throw e;
         } catch (Exception e) {
             log.error("Cloud Recording 중지 실패 - callId: {}", callId, e);
 
             try {
                 recording.fail();
                 callRecordingRepository.save(recording);
+            } catch (OptimisticLockException lockEx) {
+                log.warn("Recording 실패 상태 저장 시 낙관적 락 실패 - callId: {}", callId);
             } catch (Exception saveEx) {
                 log.error("Recording 실패 상태 저장 실패 - callId: {}", callId, saveEx);
             }
 
-            if (e instanceof  CustomException) {
-                throw e;
-            }
             throw new CustomException(ErrorCode.RECORDING_STOP_FAILED);
         }
     }
