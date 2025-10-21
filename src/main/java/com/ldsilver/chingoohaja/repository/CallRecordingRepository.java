@@ -1,6 +1,5 @@
 package com.ldsilver.chingoohaja.repository;
 
-import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.CallRecording;
 import com.ldsilver.chingoohaja.domain.call.enums.RecordingStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,6 +15,4 @@ public interface CallRecordingRepository extends JpaRepository<CallRecording, Lo
     List<CallRecording> findByRecordingStatus(RecordingStatus status);
 
     Optional<CallRecording> findByCallId(Long callId);
-
-    Long call(Call call);
 }

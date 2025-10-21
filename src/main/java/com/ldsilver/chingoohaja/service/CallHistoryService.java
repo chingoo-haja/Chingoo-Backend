@@ -21,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -100,11 +99,7 @@ public class CallHistoryService {
                 .collect(Collectors.toList());
 
         // 일괄 조회
-        List<CallStatistics> statisticsList = new ArrayList<>();
-        for (Long callId : callIds) {
-            callStatisticsRepository.findByCallIdAndUserId(callId, userId)
-                    .ifPresent(statisticsList::add);
-        }
+        List<CallStatistics> statisticsList = callStatisticsRepository.findByCallIdInAndUserId(callIds, userId);
 
         return statisticsList.stream()
                 .collect(Collectors.toMap(
