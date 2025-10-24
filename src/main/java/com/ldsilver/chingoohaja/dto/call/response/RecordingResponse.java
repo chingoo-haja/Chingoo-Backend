@@ -66,9 +66,7 @@ public record RecordingResponse(
         );
     }
 
-    public static RecordingResponse from(CallRecording recording) {
-        Call call = recording.getCall();
-
+    public static RecordingResponse from(CallRecording recording, Call call) {
         return new RecordingResponse(
                 recording.getAgoraResourceId(),
                 recording.getAgoraSid(),

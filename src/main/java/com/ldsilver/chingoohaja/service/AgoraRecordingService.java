@@ -115,7 +115,8 @@ public class AgoraRecordingService {
                 .orElseThrow(() -> new CustomException(ErrorCode.RECORDING_NOT_STARTED));
 
         if (recording.getRecordingStatus() != RecordingStatus.PROCESSING) {
-            throw new CustomException(ErrorCode.RECORDING_ALREADY_STOPPED);
+            log.warn("이미 종료된 녹음 - callId: {}, status: {}", callId, recording.getRecordingStatus());
+            return RecordingResponse.from(recording, call);
         }
 
         String resourceId = recording.getAgoraResourceId();
@@ -133,68 +134,47 @@ public class AgoraRecordingService {
 
                 // 완료 상태로 처리 (실패가 아님!)
                 recording.complete(null, null, "hls");
-                callRecordingRepository.save(recording);
+                callRecordingRepository.saveAndFlush(recording);
 
-                return RecordingResponse.from(recording);
+                return RecordingResponse.from(recording, call);
             }
 
             if (stopResponse == null || stopResponse.isEmpty()) {
                 log.warn("녹음 중지 응답이 비어있음 - callId: {}", callId);
                 recording.complete(null, null, "hls");
-                callRecordingRepository.save(recording);
-                return RecordingResponse.from(recording);
+                callRecordingRepository.saveAndFlush(recording);
+                return RecordingResponse.from(recording, call);
             }
 
 
             String fileUrl = extractFileUrl(stopResponse);
             Long fileSize = extractFileSize(stopResponse);
-
             String finalFileUrl = downloadAndStoreRecordingFile(fileUrl, callId);
 
             recording.complete(finalFileUrl, fileSize, "hls");
-            try {
-                callRecordingRepository.save(recording);
-            } catch (OptimisticLockException e) {
-                log.warn("Recording이 이미 다른 요청에 의해 중지됨 - callId: {}", callId);
-                throw new CustomException(ErrorCode.RECORDING_ALREADY_STOPPED);
-            }
+            callRecordingRepository.saveAndFlush(recording);
 
-
-            log.info("Cloud Recording 중지 성공 - callId: {}, fileUrl: {}",
-                    callId, finalFileUrl != null ? "saved" : "none");
+            log.info("✅ Cloud Recording 중지 성공 - callId: {}", callId);
 
             return RecordingResponse.stopped(
                     resourceId, sid, callId, channelName, finalFileUrl, fileSize,
                     recording.getRecordingStartedAt(), recording.getRecordingDurationSeconds()
             );
+
         } catch (CustomException e) {
-            // CustomException은 그대로 전파
-            if (e.getErrorCode() == ErrorCode.RECORDING_ALREADY_STOPPED) {
-                throw e;
+            if (e.getErrorCode() == ErrorCode.RECORDING_RESOURCE_NOT_FOUND) {
+                log.warn("녹음 리소스 없음 - callId: {}", callId);
+                recording.complete(null, null, "hls");
+                callRecordingRepository.saveAndFlush(recording);
+                return RecordingResponse.from(recording, call);
             }
 
-            // 다른 CustomException은 fail 처리
-            try {
-                recording.fail();
-                callRecordingRepository.save(recording);
-            } catch (OptimisticLockException lockEx) {
-                log.warn("Recording 실패 상태 저장 시 낙관적 락 실패 - callId: {}", callId);
-            } catch (Exception saveEx) {
-                log.error("Recording 실패 상태 저장 실패 - callId: {}", callId, saveEx);
-            }
+            handleRecordingFailure(recording, callId);
             throw e;
+
         } catch (Exception e) {
-            log.error("Cloud Recording 중지 실패 - callId: {}", callId, e);
-
-            try {
-                recording.fail();
-                callRecordingRepository.save(recording);
-            } catch (OptimisticLockException lockEx) {
-                log.warn("Recording 실패 상태 저장 시 낙관적 락 실패 - callId: {}", callId);
-            } catch (Exception saveEx) {
-                log.error("Recording 실패 상태 저장 실패 - callId: {}", callId, saveEx);
-            }
-
+            log.error("❌ Cloud Recording 중지 실패 - callId: {}", callId, e);
+            handleRecordingFailure(recording, callId);
             throw new CustomException(ErrorCode.RECORDING_STOP_FAILED);
         }
     }
@@ -282,6 +262,19 @@ public class AgoraRecordingService {
                 .toList();
     }
 
+
+
+    private void handleRecordingFailure(CallRecording recording, Long callId) {
+        try {
+            recording.fail();
+            callRecordingRepository.saveAndFlush(recording);  // ✅ flush 추가
+        } catch (OptimisticLockException lockEx) {
+            log.warn("⚠️ Recording 실패 상태 저장 시 낙관적 락 실패 (무시) - callId: {}", callId);
+            // ✅ 이미 다른 트랜잭션에서 처리됨 - 무시
+        } catch (Exception saveEx) {
+            log.error("Recording 실패 상태 저장 실패 - callId: {}", callId, saveEx);
+        }
+    }
 
     private void updateCallRecordingFailureStatus(Long callId) {
         try {
