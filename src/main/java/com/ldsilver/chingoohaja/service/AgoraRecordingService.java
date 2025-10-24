@@ -111,7 +111,7 @@ public class AgoraRecordingService {
         Call call = callRepository.findById(callId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
 
-        CallRecording recording = callRecordingRepository.findByCallId(callId)
+        CallRecording recording = callRecordingRepository.findByCallIdWithCall(callId)
                 .orElseThrow(() -> new CustomException(ErrorCode.RECORDING_NOT_STARTED));
 
         if (recording.getRecordingStatus() != RecordingStatus.PROCESSING) {
@@ -128,14 +128,45 @@ public class AgoraRecordingService {
                     resourceId, sid, channelName
             ).block();
 
+            // ✅ 404 에러일 때 Query API로 파일 정보 조회
             if (stopResponse != null && stopResponse.containsKey("code")
                     && Integer.valueOf(404).equals(stopResponse.get("code"))) {
-                log.warn("녹음이 자동 종료되었거나 시작되지 않음 - callId: {}", callId);
+                log.warn("⚠️ Stop 실패 (404) - Query API로 파일 정보 조회 시도. callId: {}", callId);
 
-                // 완료 상태로 처리 (실패가 아님!)
+                try {
+                    // ✅ Query API 호출
+                    Map<String, Object> queryResponse = cloudRecordingClient.queryRecording(
+                            resourceId, sid
+                    ).block();
+
+                    log.info("🔍 Query API 응답: {}", queryResponse);
+
+                    if (queryResponse != null) {
+                        String fileUrl = extractFileUrl(queryResponse);
+                        Long fileSize = extractFileSize(queryResponse);
+
+                        log.info("📁 파일 정보 - fileUrl: {}, fileSize: {}", fileUrl, fileSize);
+
+                        if (fileUrl != null && !fileUrl.isEmpty()) {
+                            String finalFileUrl = downloadAndStoreRecordingFile(fileUrl, callId);
+                            recording.complete(finalFileUrl, fileSize, "hls");
+                            callRecordingRepository.saveAndFlush(recording);
+
+                            log.info("✅ Query API로 파일 정보 획득 성공 - callId: {}", callId);
+                            return RecordingResponse.from(recording, call);
+                        } else {
+                            log.warn("⚠️ Query 응답에 파일 정보 없음 - callId: {}", callId);
+                        }
+                    }
+                } catch (Exception queryEx) {
+                    log.error("❌ Query API 호출 실패 - callId: {}", callId, queryEx);
+                }
+
+                // Query에서도 파일 정보 없으면 완료 처리 (file_path=null)
                 recording.complete(null, null, "hls");
                 callRecordingRepository.saveAndFlush(recording);
 
+                log.warn("⚠️ 파일 정보 없이 완료 처리 - callId: {}", callId);
                 return RecordingResponse.from(recording, call);
             }
 
@@ -146,6 +177,8 @@ public class AgoraRecordingService {
                 return RecordingResponse.from(recording, call);
             }
 
+            // 정상 응답 처리
+            log.info("🔍 Stop Response: {}", stopResponse);
 
             String fileUrl = extractFileUrl(stopResponse);
             Long fileSize = extractFileSize(stopResponse);
@@ -306,30 +339,68 @@ public class AgoraRecordingService {
         }
     }
 
-    private String extractFileUrl(Map<String, Object> stopResponse) {
+    private String extractFileUrl(Map<String, Object> response) {
+        log.info("=" .repeat(80));
+        log.info("🔍 파일 URL 추출 시작");
+        log.info("=" .repeat(80));
+        log.info("전체 응답: {}", response);
+
         try {
             @SuppressWarnings("unchecked")
-            Map<String, Object> serverResponse = (Map<String, Object>) stopResponse.get("serverResponse");
+            Map<String, Object> serverResponse = (Map<String, Object>) response.get("serverResponse");
 
-            if (serverResponse != null) {
-                @SuppressWarnings("unchecked")
-                List<Map<String, Object>> fileList = (List<Map<String, Object>>) serverResponse.get("fileList");
-
-                if (fileList != null && !fileList.isEmpty()) {
-                    Map<String, Object> firstFile = fileList.get(0);
-                    return (String) firstFile.get("fileName");
-                }
+            if (serverResponse == null) {
+                log.warn("⚠️ serverResponse가 null");
+                log.info("=" .repeat(80));
+                return null;
             }
+
+            log.info("📦 serverResponse: {}", serverResponse);
+
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> fileList = (List<Map<String, Object>>) serverResponse.get("fileList");
+
+            if (fileList == null) {
+                log.warn("⚠️ fileList가 null");
+                log.info("=" .repeat(80));
+                return null;
+            }
+
+            if (fileList.isEmpty()) {
+                log.warn("⚠️ fileList가 비어있음");
+                log.info("=" .repeat(80));
+                return null;
+            }
+
+            log.info("✅ fileList 발견! 개수: {}", fileList.size());
+
+            for (int i = 0; i < fileList.size(); i++) {
+                Map<String, Object> file = fileList.get(i);
+                log.info("  📁 파일 [{}]: {}", i, file);
+            }
+
+            Map<String, Object> firstFile = fileList.get(0);
+            String fileName = (String) firstFile.get("fileName");
+
+            log.info("=" .repeat(80));
+            log.info("✅ 추출된 fileName: {}", fileName);
+            log.info("=" .repeat(80));
+
+            return fileName;
+
         } catch (Exception e) {
-            log.warn("Recording 파일 URL 추출 실패", e);
+            log.error("=" .repeat(80));
+            log.error("❌ 파일 URL 추출 실패", e);
+            log.error("=" .repeat(80));
         }
+
         return null;
     }
 
-    private Long extractFileSize(Map<String, Object> stopResponse) {
+    private Long extractFileSize(Map<String, Object> response) {
         try {
             @SuppressWarnings("unchecked")
-            Map<String, Object> serverResponse = (Map<String, Object>) stopResponse.get("serverResponse");
+            Map<String, Object> serverResponse = (Map<String, Object>) response.get("serverResponse");
 
             if (serverResponse != null) {
                 @SuppressWarnings("unchecked")
@@ -338,11 +409,16 @@ public class AgoraRecordingService {
                 if (fileList != null && !fileList.isEmpty()) {
                     Map<String, Object> firstFile = fileList.get(0);
                     Object fileSize = firstFile.get("fileSize");
-                    return fileSize instanceof Number ? ((Number) fileSize).longValue() : null;
+
+                    if (fileSize instanceof Number) {
+                        long size = ((Number) fileSize).longValue();
+                        log.info("📊 파일 크기: {} bytes", size);
+                        return size;
+                    }
                 }
             }
         } catch (Exception e) {
-            log.warn("Recording 파일 크기 추출 실패", e);
+            log.warn("파일 크기 추출 실패", e);
         }
         return null;
     }

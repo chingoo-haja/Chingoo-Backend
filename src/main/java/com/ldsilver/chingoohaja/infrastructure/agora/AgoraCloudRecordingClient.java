@@ -86,6 +86,10 @@ public class AgoraCloudRecordingClient {
         log.debug("오디오 전용 Agora Cloud Recording 시작 - resourceId: {}, channel: {}",
                 maskSensitiveData(resourceId), channelName);
 
+        log.info("=" .repeat(80));
+        log.info("🎙️ 녹음 시작 요청 - FULL LOG");
+        log.info("=" .repeat(80));
+
         if (!agoraProperties.isCloudRecordingConfigured()) {
             log.error("Agora Cloud Recording이 설정되지 않았습니다.");
             return Mono.error(new CustomException(ErrorCode.OAUTH_CONFIG_ERROR));
@@ -109,7 +113,9 @@ public class AgoraCloudRecordingClient {
         clientRequest.put("token", generateRecordingToken(channelName));
         clientRequest.put("recordingConfig", recordingConfig);
         clientRequest.put("recordingFileConfig", recordingFileConfig);
-        clientRequest.put("storageConfig", createStorageConfig(request));
+
+        Map<String, Object> storageConfig = createStorageConfig(request);
+        clientRequest.put("storageConfig", storageConfig);
 
 
         Map<String, Object> requestBody = Map.of(
@@ -117,6 +123,26 @@ public class AgoraCloudRecordingClient {
                 "uid", CallValidationConstants.RECORDING_API_UID, // "0"
                 "clientRequest", clientRequest
         );
+
+        // ✅ 전체 요청 본문 로그 (민감 정보는 마스킹)
+        log.info("📤 요청 URL: /v1/apps/{}/cloud_recording/resourceid/{}/mode/mix/start",
+                maskSensitiveData(agoraProperties.getAppId()), maskSensitiveData(resourceId));
+        log.info("📦 요청 본문:");
+        log.info("  cname: {}", channelName);
+        log.info("  uid: {}", CallValidationConstants.RECORDING_API_UID);
+        log.info("  clientRequest:");
+        log.info("    token: {}***", clientRequest.get("token").toString().substring(0, 20));
+        log.info("    recordingConfig: {}", recordingConfig);
+        log.info("    recordingFileConfig: {}", recordingFileConfig);
+        log.info("    storageConfig:");
+        log.info("      vendor: {}", storageConfig.get("vendor"));
+        log.info("      region: {}", storageConfig.get("region"));
+        log.info("      bucket: {}", storageConfig.get("bucket"));
+        log.info("      accessKey: {}***", storageConfig.get("accessKey").toString().substring(0, 10));
+        log.info("      secretKey: ***");
+        log.info("=" .repeat(80));
+
+
 
         return webClient.post()
                 .uri("/v1/apps/{appid}/cloud_recording/resourceid/{resourceid}/mode/mix/start",
@@ -209,6 +235,20 @@ public class AgoraCloudRecordingClient {
     private Map<String, Object> createStorageConfig(RecordingRequest request) {
         int vendorCode = Integer.parseInt(agoraProperties.getRecordingStorageVendor());
         String regionStr = agoraProperties.getRecordingRegion();
+        String bucket = agoraProperties.getRecordingStorageBucket();
+        String accessKey = agoraProperties.getRecordingStorageAccessKey();
+        String secretKey = agoraProperties.getRecordingStorageSecretKey();
+
+        // ✅ 검증
+        if (bucket == null || bucket.isEmpty()) {
+            throw new IllegalStateException("Storage bucket이 설정되지 않았습니다!");
+        }
+        if (accessKey == null || accessKey.isEmpty()) {
+            throw new IllegalStateException("Storage accessKey가 설정되지 않았습니다!");
+        }
+        if (secretKey == null || secretKey.isEmpty()) {
+            throw new IllegalStateException("Storage secretKey가 설정되지 않았습니다!");
+        }
 
         Map<String, Object> config = new HashMap<>();
         config.put("vendor", vendorCode);
@@ -217,12 +257,11 @@ public class AgoraCloudRecordingClient {
         if (vendorCode == 6) {
             // "0", "us", "US" 같은 값들은 그대로 문자열로
             if ("0".equals(regionStr) || "US".equalsIgnoreCase(regionStr)) {
-                config.put("region", "us"); // 소문자 "us"
+                config.put("region", 0); // 소문자 "us"
             } else {
                 config.put("region", regionStr);
             }
         } else {
-            // 다른 vendor는 숫자로
             try {
                 config.put("region", Integer.parseInt(regionStr));
             } catch (NumberFormatException e) {
@@ -230,9 +269,9 @@ public class AgoraCloudRecordingClient {
             }
         }
 
-        config.put("bucket", agoraProperties.getRecordingStorageBucket());
-        config.put("accessKey", agoraProperties.getRecordingStorageAccessKey());
-        config.put("secretKey", agoraProperties.getRecordingStorageSecretKey());
+        config.put("bucket", bucket);
+        config.put("accessKey", accessKey);
+        config.put("secretKey", secretKey);
 
         log.info("📦 StorageConfig - vendor: {}, region: '{}', bucket: {}",
                 vendorCode, config.get("region"), agoraProperties.getRecordingStorageBucket());
