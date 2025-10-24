@@ -213,9 +213,6 @@ end
     RMQS --> Redis
     
     %% 스타일링
-    classDef matching fill:#e1f5fe
-    classDef call fill:#f3e5f5
-    classDef infra fill:#e8f5e8
     
     class MS,MSS,RMQS matching
     class CS,CCS,ARS call
