@@ -43,7 +43,7 @@ public class AgoraProperties {
     // Cloud Recording 설정
     private String recordingRegion = "AP"; // Asia Pacific
     private boolean useCustomStorage = false; // 커스텀 저장소 사용 여부
-    private String recordingStorageVendor = "1"; // AWS S3
+    private String recordingStorageVendor = "6"; // GCS
     private String recordingStorageBucket;
     private String recordingStorageAccessKey;
     private String recordingStorageSecretKey;

@@ -1,6 +1,8 @@
 package com.ldsilver.chingoohaja.dto.call.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.ldsilver.chingoohaja.domain.call.Call;
+import com.ldsilver.chingoohaja.domain.call.CallRecording;
 import com.ldsilver.chingoohaja.domain.call.enums.RecordingStatus;
 
 import java.time.LocalDateTime;
@@ -61,6 +63,23 @@ public record RecordingResponse(
                 LocalDateTime.now(),
                 LocalDateTime.now(),
                 null
+        );
+    }
+
+    public static RecordingResponse from(CallRecording recording) {
+        Call call = recording.getCall();
+
+        return new RecordingResponse(
+                recording.getAgoraResourceId(),
+                recording.getAgoraSid(),
+                call.getId(),
+                call.getAgoraChannelName(),
+                recording.getRecordingStatus(),
+                recording.getFilePath(),
+                recording.getFileSize(),
+                recording.getRecordingStartedAt(),
+                recording.getRecordingEndedAt(),
+                recording.getRecordingDurationSeconds()
         );
     }
 

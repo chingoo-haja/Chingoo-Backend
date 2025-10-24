@@ -1,5 +1,6 @@
 package com.ldsilver.chingoohaja.listener;
 
+import com.ldsilver.chingoohaja.config.RecordingProperties;
 import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.enums.CallStatus;
 import com.ldsilver.chingoohaja.dto.call.AgoraHealthStatus;
@@ -7,12 +8,14 @@ import com.ldsilver.chingoohaja.dto.call.CallStartInfo;
 import com.ldsilver.chingoohaja.dto.call.response.BatchTokenResponse;
 import com.ldsilver.chingoohaja.dto.call.response.ChannelResponse;
 import com.ldsilver.chingoohaja.dto.matching.request.MatchingRequest;
+import com.ldsilver.chingoohaja.event.CallStartedEvent;
 import com.ldsilver.chingoohaja.event.MatchingSuccessEvent;
 import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.repository.CallSessionRepository;
 import com.ldsilver.chingoohaja.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -37,6 +40,8 @@ public class MatchingEventListener {
     private final AgoraService agoraService;
     private final MatchingService matchingService;
     private final CallSessionRepository callSessionRepository;
+    private final RecordingProperties recordingProperties;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
@@ -101,6 +106,12 @@ public class MatchingEventListener {
                     event.getCallId(), channelResponse.channelName());
             channelName = channelResponse.channelName();
 
+            // 3-1. Call 엔티티에 채널 이름 저장
+            call.setAgoraChannelInfo(channelName);
+            callRepository.save(call);
+            log.info("Call에 채널 정보 저장 완료 - callId: {}, channelName: {}",
+                    event.getCallId(), channelName);
+
             // 4. 매칭된 사용자들을 채널에 자동 참가시킴
             joinedUserIds = joinUsersToChannel(event, channelResponse.channelName());
 
@@ -112,6 +123,18 @@ public class MatchingEventListener {
             // 5. 토큰 생성
             BatchTokenResponse tokenResponse = agoraTokenService.generateTokenForMatching(call);
             log.debug("Agora 토큰 생성 완료 - callId: {}", event.getCallId());
+
+            // 녹음 시작 이벤트 발행
+            if (recordingProperties.isAutoStart()) {
+                eventPublisher.publishEvent(new CallStartedEvent(
+                        call.getId(),
+                        channelName
+                ));
+                log.info("CallStartedEvent 발행 완료 - callId: {}, channelName: {}",
+                        call.getId(), channelName);
+            } else {
+                log.info("자동 녹음 비활성화 - CallStartedEvent 발행 실패");
+            }
 
             // 6. WebSocket 매칭 성공 알림 전송
             sendMatchingSuccessNotifications(event);

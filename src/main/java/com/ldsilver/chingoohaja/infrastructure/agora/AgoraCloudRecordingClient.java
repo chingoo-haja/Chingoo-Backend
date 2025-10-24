@@ -6,7 +6,6 @@ import com.ldsilver.chingoohaja.config.AgoraProperties;
 import com.ldsilver.chingoohaja.dto.call.request.RecordingRequest;
 import com.ldsilver.chingoohaja.validation.CallValidationConstants;
 import io.agora.media.RtcTokenBuilder2;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
@@ -25,13 +24,26 @@ import java.util.Map;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class AgoraCloudRecordingClient {
 
     @Qualifier("agoraWebClient")
     private final WebClient webClient;
     private final AgoraProperties agoraProperties;
     private final AgoraTokenGenerator agoraTokenGenerator;
+
+    public AgoraCloudRecordingClient(
+            @Qualifier("agoraWebClient") WebClient webClient,
+            AgoraProperties agoraProperties,
+            AgoraTokenGenerator agoraTokenGenerator
+    ) {
+        this.webClient = webClient;
+        this.agoraProperties = agoraProperties;
+        this.agoraTokenGenerator = agoraTokenGenerator;
+
+        log.info("🔧 AgoraCloudRecordingClient 생성자 호출");
+        log.info("  - WebClient hashCode: {}", System.identityHashCode(webClient));
+    }
+
 
     public Mono<String> acquireResource(String channelName) {
         log.debug("Agora Cloud Recording Resource 획득 시작 - channel: {}", channelName);
@@ -97,14 +109,8 @@ public class AgoraCloudRecordingClient {
         clientRequest.put("token", generateRecordingToken(channelName));
         clientRequest.put("recordingConfig", recordingConfig);
         clientRequest.put("recordingFileConfig", recordingFileConfig);
+        clientRequest.put("storageConfig", createStorageConfig(request));
 
-        // storageConfig는 커스텀 스토리지 사용 시만 추가
-        if (agoraProperties.isCustomStorageConfigured()) {
-            clientRequest.put("storageConfig", createStorageConfig(request));
-            log.debug("📦 커스텀 스토리지 사용");
-        } else {
-            log.debug("📦 Agora 기본 스토리지 사용");
-        }
 
         Map<String, Object> requestBody = Map.of(
                 "cname", channelName,
@@ -161,6 +167,15 @@ public class AgoraCloudRecordingClient {
                 .defaultIfEmpty(Map.of())
                 .doOnSuccess(response -> log.debug("Recording 중지 성공 - resourceId: {}",
                         maskSensitiveData(resourceId)))
+                .onErrorResume(WebClientResponseException.NotFound.class, ex -> {
+                    log.warn("⚠️ Recording worker를 찾을 수 없음 (404) - resourceId: {}, reason: 자동 종료되었거나 아직 시작 안 됨",
+                            maskSensitiveData(resourceId));
+                    return Mono.just(Map.of(
+                            "code", 404,
+                            "reason", "already_stopped_or_not_started",
+                            "resourceId", resourceId
+                    ));
+                })
                 .onErrorMap(WebClientResponseException.class, this::mapWebClientException);
     }
 
@@ -192,14 +207,37 @@ public class AgoraCloudRecordingClient {
     }
 
     private Map<String, Object> createStorageConfig(RecordingRequest request) {
-        return Map.of(
-                "vendor", Integer.parseInt(agoraProperties.getRecordingStorageVendor()),
-                "region", agoraProperties.getRecordingRegion(),
-                "bucket", agoraProperties.getRecordingStorageBucket(),
-                "accessKey", agoraProperties.getRecordingStorageAccessKey(),
-                "secretKey", agoraProperties.getRecordingStorageSecretKey(),
-                "fileNamePrefix", List.of("recordings", "call_" + request.callId())
-        );
+        int vendorCode = Integer.parseInt(agoraProperties.getRecordingStorageVendor());
+        String regionStr = agoraProperties.getRecordingRegion();
+
+        Map<String, Object> config = new HashMap<>();
+        config.put("vendor", vendorCode);
+
+        // ✅ GCS Multi-region 처리
+        if (vendorCode == 6) {
+            // "0", "us", "US" 같은 값들은 그대로 문자열로
+            if ("0".equals(regionStr) || "US".equalsIgnoreCase(regionStr)) {
+                config.put("region", "us"); // 소문자 "us"
+            } else {
+                config.put("region", regionStr);
+            }
+        } else {
+            // 다른 vendor는 숫자로
+            try {
+                config.put("region", Integer.parseInt(regionStr));
+            } catch (NumberFormatException e) {
+                config.put("region", 0);
+            }
+        }
+
+        config.put("bucket", agoraProperties.getRecordingStorageBucket());
+        config.put("accessKey", agoraProperties.getRecordingStorageAccessKey());
+        config.put("secretKey", agoraProperties.getRecordingStorageSecretKey());
+
+        log.info("📦 StorageConfig - vendor: {}, region: '{}', bucket: {}",
+                vendorCode, config.get("region"), agoraProperties.getRecordingStorageBucket());
+
+        return config;
     }
 
     private String createBasicAuthHeader() {

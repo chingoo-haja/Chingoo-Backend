@@ -6,7 +6,6 @@ import com.ldsilver.chingoohaja.config.RecordingProperties;
 import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.CallRecording;
 import com.ldsilver.chingoohaja.domain.call.enums.RecordingStatus;
-import com.ldsilver.chingoohaja.dto.call.AgoraHealthStatus;
 import com.ldsilver.chingoohaja.dto.call.request.RecordingRequest;
 import com.ldsilver.chingoohaja.dto.call.response.RecordingResponse;
 import com.ldsilver.chingoohaja.infrastructure.agora.AgoraCloudRecordingClient;
@@ -39,12 +38,12 @@ public class AgoraRecordingService {
         log.debug("Cloud Recording 시작 - callId: {}, channel: {}",
                 request.callId(), request.channelName());
 
-        AgoraHealthStatus agoraStatus = agoraService.checkHealth();
-        if (!agoraStatus.canUseCloudRecording()) {
-            log.error("Cloud Recording을 사용할 수 없는 상태 - {}", agoraStatus.statusMessage());
-            throw new CustomException(ErrorCode.AGORA_REQUEST_FAILED,
-                    "녹음 서비스가 현재 사용 불가능합니다: " + agoraStatus.statusMessage());
-        }
+//        AgoraHealthStatus agoraStatus = agoraService.checkHealth();
+//        if (!agoraStatus.canUseCloudRecording()) {
+//            log.error("Cloud Recording을 사용할 수 없는 상태 - {}", agoraStatus.statusMessage());
+//            throw new CustomException(ErrorCode.AGORA_REQUEST_FAILED,
+//                    "녹음 서비스가 현재 사용 불가능합니다: " + agoraStatus.statusMessage());
+//        }
 
         Call call = callRepository.findById(request.callId())
                 .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
@@ -128,9 +127,24 @@ public class AgoraRecordingService {
                     resourceId, sid, channelName
             ).block();
 
-            if (stopResponse == null) {
-                throw new CustomException(ErrorCode.RECORDING_STOP_FAILED);
+            if (stopResponse != null && stopResponse.containsKey("code")
+                    && Integer.valueOf(404).equals(stopResponse.get("code"))) {
+                log.warn("녹음이 자동 종료되었거나 시작되지 않음 - callId: {}", callId);
+
+                // 완료 상태로 처리 (실패가 아님!)
+                recording.complete(null, null, "hls");
+                callRecordingRepository.save(recording);
+
+                return RecordingResponse.from(recording);
             }
+
+            if (stopResponse == null || stopResponse.isEmpty()) {
+                log.warn("녹음 중지 응답이 비어있음 - callId: {}", callId);
+                recording.complete(null, null, "hls");
+                callRecordingRepository.save(recording);
+                return RecordingResponse.from(recording);
+            }
+
 
             String fileUrl = extractFileUrl(stopResponse);
             Long fileSize = extractFileSize(stopResponse);

@@ -7,6 +7,7 @@ import com.ldsilver.chingoohaja.domain.category.Category;
 import com.ldsilver.chingoohaja.domain.matching.MatchingQueue;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus;
 import com.ldsilver.chingoohaja.domain.user.User;
+import com.ldsilver.chingoohaja.event.CallStartedEvent;
 import com.ldsilver.chingoohaja.event.MatchingSuccessEvent;
 import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.repository.CategoryRepository;
@@ -193,9 +194,18 @@ public class MatchingSchedulerService {
     private Call createCallFromMatchedUsers(User user1, User user2, Category category) {
         try {
             Call call = Call.from(user1, user2, category, CallType.RANDOM_MATCH);
-            call.startCall();
+            call.startCall(); //상태만 변경
+            Call savedCall = callRepository.save(call);
 
-            return callRepository.save(call);
+            if (savedCall.getAgoraChannelName() != null) {
+                eventPublisher.publishEvent(new CallStartedEvent(
+                        savedCall.getId(),
+                        savedCall.getAgoraChannelName()
+                ));
+                log.debug("CallStartedEvent 발행 - callId: {}" , savedCall.getId());
+            }
+
+            return savedCall;
         } catch (Exception e) {
             log.error("Call 생성 실패 - user1Id: {}, user2Id: {}", user1.getId(), user2.getId(), e);
             return null;
