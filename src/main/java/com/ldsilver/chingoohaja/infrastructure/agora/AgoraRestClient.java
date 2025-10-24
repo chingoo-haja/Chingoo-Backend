@@ -1,7 +1,6 @@
 package com.ldsilver.chingoohaja.infrastructure.agora;
 
 import com.ldsilver.chingoohaja.config.AgoraProperties;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
@@ -16,12 +15,22 @@ import java.util.Base64;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class AgoraRestClient {
 
     @Qualifier("agoraWebClient")
     private final WebClient webClient;
     private final AgoraProperties agoraProperties;
+
+    public AgoraRestClient(
+            @Qualifier("agoraWebClient") WebClient webClient,
+            AgoraProperties agoraProperties
+    ) {
+        this.webClient = webClient;
+        this.agoraProperties = agoraProperties;
+
+        log.info("🔧 AgoraRestClient 생성자 호출");
+        log.info("  - WebClient hashCode: {}", System.identityHashCode(webClient));
+    }
 
     /**
      * Agora REST API 기본 인증 헤더 생성
@@ -37,8 +46,15 @@ public class AgoraRestClient {
      */
     public Mono<Boolean> testConnection() {
         log.debug("Agora API 연결 테스트 시작");
+        log.debug("🔍 WebClient baseUrl: {}",
+                webClient.toString());
 
         try {
+
+            String fullUrl = agoraProperties.getRestApiBaseUrl() + "/dev/v1/projects";
+            log.info("🔍 실제 요청 URL: {}", fullUrl);
+            log.info("🔍 AgoraProperties.restApiBaseUrl: {}", agoraProperties.getRestApiBaseUrl());
+
             return webClient
                     .get()
                     .uri("/dev/v1/projects")
@@ -55,7 +71,8 @@ public class AgoraRestClient {
                             WebClientResponseException webClientError = (WebClientResponseException) error;
                             String body = webClientError.getResponseBodyAsString();
                             body = (body != null && body.length() > 512) ? body.substring(0, 512) + "...(truncated)" : body;
-                            log.warn("Agora API 연결 테스트 실패 - 상태코드: {}, 응답: {}",
+                            log.warn("Agora API 연결 테스트 실패 - url: {}, 상태코드: {}, 응답: {}",
+                                    webClientError.getRequest() != null ? webClientError.getRequest().getURI() : "unknown",
                                     webClientError.getStatusCode(),
                                     body);
                         } else {

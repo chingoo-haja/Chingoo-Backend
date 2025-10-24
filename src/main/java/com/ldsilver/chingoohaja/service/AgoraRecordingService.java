@@ -6,7 +6,6 @@ import com.ldsilver.chingoohaja.config.RecordingProperties;
 import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.CallRecording;
 import com.ldsilver.chingoohaja.domain.call.enums.RecordingStatus;
-import com.ldsilver.chingoohaja.dto.call.AgoraHealthStatus;
 import com.ldsilver.chingoohaja.dto.call.request.RecordingRequest;
 import com.ldsilver.chingoohaja.dto.call.response.RecordingResponse;
 import com.ldsilver.chingoohaja.infrastructure.agora.AgoraCloudRecordingClient;
@@ -39,12 +38,12 @@ public class AgoraRecordingService {
         log.debug("Cloud Recording 시작 - callId: {}, channel: {}",
                 request.callId(), request.channelName());
 
-        AgoraHealthStatus agoraStatus = agoraService.checkHealth();
-        if (!agoraStatus.canUseCloudRecording()) {
-            log.error("Cloud Recording을 사용할 수 없는 상태 - {}", agoraStatus.statusMessage());
-            throw new CustomException(ErrorCode.AGORA_REQUEST_FAILED,
-                    "녹음 서비스가 현재 사용 불가능합니다: " + agoraStatus.statusMessage());
-        }
+//        AgoraHealthStatus agoraStatus = agoraService.checkHealth();
+//        if (!agoraStatus.canUseCloudRecording()) {
+//            log.error("Cloud Recording을 사용할 수 없는 상태 - {}", agoraStatus.statusMessage());
+//            throw new CustomException(ErrorCode.AGORA_REQUEST_FAILED,
+//                    "녹음 서비스가 현재 사용 불가능합니다: " + agoraStatus.statusMessage());
+//        }
 
         Call call = callRepository.findById(request.callId())
                 .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
@@ -112,11 +111,12 @@ public class AgoraRecordingService {
         Call call = callRepository.findById(callId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
 
-        CallRecording recording = callRecordingRepository.findByCallId(callId)
+        CallRecording recording = callRecordingRepository.findByCallIdWithCall(callId)
                 .orElseThrow(() -> new CustomException(ErrorCode.RECORDING_NOT_STARTED));
 
         if (recording.getRecordingStatus() != RecordingStatus.PROCESSING) {
-            throw new CustomException(ErrorCode.RECORDING_ALREADY_STOPPED);
+            log.warn("이미 종료된 녹음 - callId: {}, status: {}", callId, recording.getRecordingStatus());
+            return RecordingResponse.from(recording, call);
         }
 
         String resourceId = recording.getAgoraResourceId();
@@ -128,59 +128,86 @@ public class AgoraRecordingService {
                     resourceId, sid, channelName
             ).block();
 
-            if (stopResponse == null) {
-                throw new CustomException(ErrorCode.RECORDING_STOP_FAILED);
+            // ✅ 404 에러일 때 Query API로 파일 정보 조회
+            if (stopResponse != null && stopResponse.containsKey("code")
+                    && Integer.valueOf(404).equals(stopResponse.get("code"))) {
+                log.warn("⚠️ Stop 실패 (404) - Query API로 파일 정보 조회 시도. callId: {}", callId);
+
+                try {
+                    // ✅ Query API 호출
+                    Map<String, Object> queryResponse = cloudRecordingClient.queryRecording(
+                            resourceId, sid
+                    ).block();
+
+                    log.info("🔍 Query API 응답: {}", queryResponse);
+
+                    if (queryResponse != null) {
+                        String fileUrl = extractFileUrl(queryResponse);
+                        Long fileSize = extractFileSize(queryResponse);
+
+                        log.info("📁 파일 정보 - fileUrl: {}, fileSize: {}", fileUrl, fileSize);
+
+                        if (fileUrl != null && !fileUrl.isEmpty()) {
+                            String finalFileUrl = downloadAndStoreRecordingFile(fileUrl, callId);
+                            recording.complete(finalFileUrl, fileSize, "hls");
+                            callRecordingRepository.saveAndFlush(recording);
+
+                            log.info("✅ Query API로 파일 정보 획득 성공 - callId: {}", callId);
+                            return RecordingResponse.from(recording, call);
+                        } else {
+                            log.warn("⚠️ Query 응답에 파일 정보 없음 - callId: {}", callId);
+                        }
+                    }
+                } catch (Exception queryEx) {
+                    log.error("❌ Query API 호출 실패 - callId: {}", callId, queryEx);
+                }
+
+                // Query에서도 파일 정보 없으면 완료 처리 (file_path=null)
+                recording.complete(null, null, "hls");
+                callRecordingRepository.saveAndFlush(recording);
+
+                log.warn("⚠️ 파일 정보 없이 완료 처리 - callId: {}", callId);
+                return RecordingResponse.from(recording, call);
             }
+
+            if (stopResponse == null || stopResponse.isEmpty()) {
+                log.warn("녹음 중지 응답이 비어있음 - callId: {}", callId);
+                recording.complete(null, null, "hls");
+                callRecordingRepository.saveAndFlush(recording);
+                return RecordingResponse.from(recording, call);
+            }
+
+            // 정상 응답 처리
+            log.info("🔍 Stop Response: {}", stopResponse);
 
             String fileUrl = extractFileUrl(stopResponse);
             Long fileSize = extractFileSize(stopResponse);
-
             String finalFileUrl = downloadAndStoreRecordingFile(fileUrl, callId);
 
             recording.complete(finalFileUrl, fileSize, "hls");
-            try {
-                callRecordingRepository.save(recording);
-            } catch (OptimisticLockException e) {
-                log.warn("Recording이 이미 다른 요청에 의해 중지됨 - callId: {}", callId);
-                throw new CustomException(ErrorCode.RECORDING_ALREADY_STOPPED);
-            }
+            callRecordingRepository.saveAndFlush(recording);
 
-
-            log.info("Cloud Recording 중지 성공 - callId: {}, fileUrl: {}",
-                    callId, finalFileUrl != null ? "saved" : "none");
+            log.info("✅ Cloud Recording 중지 성공 - callId: {}", callId);
 
             return RecordingResponse.stopped(
                     resourceId, sid, callId, channelName, finalFileUrl, fileSize,
                     recording.getRecordingStartedAt(), recording.getRecordingDurationSeconds()
             );
+
         } catch (CustomException e) {
-            // CustomException은 그대로 전파
-            if (e.getErrorCode() == ErrorCode.RECORDING_ALREADY_STOPPED) {
-                throw e;
+            if (e.getErrorCode() == ErrorCode.RECORDING_RESOURCE_NOT_FOUND) {
+                log.warn("녹음 리소스 없음 - callId: {}", callId);
+                recording.complete(null, null, "hls");
+                callRecordingRepository.saveAndFlush(recording);
+                return RecordingResponse.from(recording, call);
             }
 
-            // 다른 CustomException은 fail 처리
-            try {
-                recording.fail();
-                callRecordingRepository.save(recording);
-            } catch (OptimisticLockException lockEx) {
-                log.warn("Recording 실패 상태 저장 시 낙관적 락 실패 - callId: {}", callId);
-            } catch (Exception saveEx) {
-                log.error("Recording 실패 상태 저장 실패 - callId: {}", callId, saveEx);
-            }
+            handleRecordingFailure(recording, callId);
             throw e;
+
         } catch (Exception e) {
-            log.error("Cloud Recording 중지 실패 - callId: {}", callId, e);
-
-            try {
-                recording.fail();
-                callRecordingRepository.save(recording);
-            } catch (OptimisticLockException lockEx) {
-                log.warn("Recording 실패 상태 저장 시 낙관적 락 실패 - callId: {}", callId);
-            } catch (Exception saveEx) {
-                log.error("Recording 실패 상태 저장 실패 - callId: {}", callId, saveEx);
-            }
-
+            log.error("❌ Cloud Recording 중지 실패 - callId: {}", callId, e);
+            handleRecordingFailure(recording, callId);
             throw new CustomException(ErrorCode.RECORDING_STOP_FAILED);
         }
     }
@@ -269,6 +296,19 @@ public class AgoraRecordingService {
     }
 
 
+
+    private void handleRecordingFailure(CallRecording recording, Long callId) {
+        try {
+            recording.fail();
+            callRecordingRepository.saveAndFlush(recording);  // ✅ flush 추가
+        } catch (OptimisticLockException lockEx) {
+            log.warn("⚠️ Recording 실패 상태 저장 시 낙관적 락 실패 (무시) - callId: {}", callId);
+            // ✅ 이미 다른 트랜잭션에서 처리됨 - 무시
+        } catch (Exception saveEx) {
+            log.error("Recording 실패 상태 저장 실패 - callId: {}", callId, saveEx);
+        }
+    }
+
     private void updateCallRecordingFailureStatus(Long callId) {
         try {
             callRecordingRepository.findByCallId(callId).ifPresent(recording -> {
@@ -299,30 +339,68 @@ public class AgoraRecordingService {
         }
     }
 
-    private String extractFileUrl(Map<String, Object> stopResponse) {
+    private String extractFileUrl(Map<String, Object> response) {
+        log.info("=" .repeat(80));
+        log.info("🔍 파일 URL 추출 시작");
+        log.info("=" .repeat(80));
+        log.info("전체 응답: {}", response);
+
         try {
             @SuppressWarnings("unchecked")
-            Map<String, Object> serverResponse = (Map<String, Object>) stopResponse.get("serverResponse");
+            Map<String, Object> serverResponse = (Map<String, Object>) response.get("serverResponse");
 
-            if (serverResponse != null) {
-                @SuppressWarnings("unchecked")
-                List<Map<String, Object>> fileList = (List<Map<String, Object>>) serverResponse.get("fileList");
-
-                if (fileList != null && !fileList.isEmpty()) {
-                    Map<String, Object> firstFile = fileList.get(0);
-                    return (String) firstFile.get("fileName");
-                }
+            if (serverResponse == null) {
+                log.warn("⚠️ serverResponse가 null");
+                log.info("=" .repeat(80));
+                return null;
             }
+
+            log.info("📦 serverResponse: {}", serverResponse);
+
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> fileList = (List<Map<String, Object>>) serverResponse.get("fileList");
+
+            if (fileList == null) {
+                log.warn("⚠️ fileList가 null");
+                log.info("=" .repeat(80));
+                return null;
+            }
+
+            if (fileList.isEmpty()) {
+                log.warn("⚠️ fileList가 비어있음");
+                log.info("=" .repeat(80));
+                return null;
+            }
+
+            log.info("✅ fileList 발견! 개수: {}", fileList.size());
+
+            for (int i = 0; i < fileList.size(); i++) {
+                Map<String, Object> file = fileList.get(i);
+                log.info("  📁 파일 [{}]: {}", i, file);
+            }
+
+            Map<String, Object> firstFile = fileList.get(0);
+            String fileName = (String) firstFile.get("fileName");
+
+            log.info("=" .repeat(80));
+            log.info("✅ 추출된 fileName: {}", fileName);
+            log.info("=" .repeat(80));
+
+            return fileName;
+
         } catch (Exception e) {
-            log.warn("Recording 파일 URL 추출 실패", e);
+            log.error("=" .repeat(80));
+            log.error("❌ 파일 URL 추출 실패", e);
+            log.error("=" .repeat(80));
         }
+
         return null;
     }
 
-    private Long extractFileSize(Map<String, Object> stopResponse) {
+    private Long extractFileSize(Map<String, Object> response) {
         try {
             @SuppressWarnings("unchecked")
-            Map<String, Object> serverResponse = (Map<String, Object>) stopResponse.get("serverResponse");
+            Map<String, Object> serverResponse = (Map<String, Object>) response.get("serverResponse");
 
             if (serverResponse != null) {
                 @SuppressWarnings("unchecked")
@@ -331,11 +409,16 @@ public class AgoraRecordingService {
                 if (fileList != null && !fileList.isEmpty()) {
                     Map<String, Object> firstFile = fileList.get(0);
                     Object fileSize = firstFile.get("fileSize");
-                    return fileSize instanceof Number ? ((Number) fileSize).longValue() : null;
+
+                    if (fileSize instanceof Number) {
+                        long size = ((Number) fileSize).longValue();
+                        log.info("📊 파일 크기: {} bytes", size);
+                        return size;
+                    }
                 }
             }
         } catch (Exception e) {
-            log.warn("Recording 파일 크기 추출 실패", e);
+            log.warn("파일 크기 추출 실패", e);
         }
         return null;
     }

@@ -12,6 +12,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
+    show-sql: false
 
 ws:
   allowed-origins:
@@ -52,10 +53,10 @@ app:
     customer-secret: ${AGORA_CUSTOMER_SECRET}
     token-expiration-in-seconds: 3600 #1시간
     rest-api-base-url: https://api.agora.io
-    recording-region: AP
-    recording-storage-vendor: "1"
+    recording-region: 0
+    recording-storage-vendor: "6"
     use-custom-storage: false
-    recording-storage-bucket: ${AGORA_STORAGE_BUCKET}
+    recording-storage-bucket: ${FIREBASE_STORAGE_BUCKET}
     recording-storage-access-key: ${AGORA_STORAGE_ACCESS_KEY}
     recording-storage-secret-key: ${AGORA_STORAGE_SECRET_KEY}
 
@@ -84,4 +85,11 @@ server:
         http-only: true
         secure: ${app.cookie.secure:true}
         same-site: ${app.cookie.same-site:lax}
+
+logging:
+  level:
+    org.hibernate.SQL: WARN  # INFO가 아닌 WARN 또는 ERROR로
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+    org.hibernate: WARN  # 전체 hibernate 로그를 WARN으로
 

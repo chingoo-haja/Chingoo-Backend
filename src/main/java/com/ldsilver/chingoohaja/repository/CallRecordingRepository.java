@@ -3,6 +3,8 @@ package com.ldsilver.chingoohaja.repository;
 import com.ldsilver.chingoohaja.domain.call.CallRecording;
 import com.ldsilver.chingoohaja.domain.call.enums.RecordingStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -15,4 +17,7 @@ public interface CallRecordingRepository extends JpaRepository<CallRecording, Lo
     List<CallRecording> findByRecordingStatus(RecordingStatus status);
 
     Optional<CallRecording> findByCallId(Long callId);
+
+    @Query("SELECT cr FROM CallRecording cr JOIN FETCH cr.call WHERE cr.call.id = :callId")
+    Optional<CallRecording> findByCallIdWithCall(@Param("callId") Long callId);
 }

@@ -22,7 +22,7 @@ public class CallRecording extends BaseEntity {
     @JoinColumn(name = "call_id", nullable = false)
     private Call call;
 
-    @Column(length = 100)
+    @Column(length = 255)
     private String agoraResourceId;
 
     @Column(length = 100)

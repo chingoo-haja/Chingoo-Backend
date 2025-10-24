@@ -10,11 +10,13 @@ import com.ldsilver.chingoohaja.domain.call.enums.CallType;
 import com.ldsilver.chingoohaja.domain.category.Category;
 import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.dto.call.request.RecordingRequest;
+import com.ldsilver.chingoohaja.event.CallStartedEvent;
 import com.ldsilver.chingoohaja.repository.CallRecordingRepository;
 import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.repository.CallSessionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +39,7 @@ public class CallService {
     private final AgoraRecordingService agoraRecordingService;
     private final RecordingProperties recordingProperties;
     private final CallSessionRepository callSessionRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public void startCall(Long callId) {
@@ -52,10 +55,18 @@ public class CallService {
             // ✅ 녹음 설정 로그 추가
             log.info("통화 시작 완료 - callId: {}, status: {}", callId, call.getCallStatus());
 
-            if (shouldStartRecording(call)) {
-                startRecordingAsync(call);
-            } else {
-                log.info("자동 녹음 비활성화 - callId: {}", callId);
+//            if (shouldStartRecording(call)) {
+//                startRecordingAsync(call);
+//            } else {
+//                log.info("자동 녹음 비활성화 - callId: {}", callId);
+//            }
+
+            if (recordingProperties.isAutoStart() && call.getAgoraChannelName() != null) {
+                eventPublisher.publishEvent(new CallStartedEvent(
+                        call.getId(),
+                        call.getAgoraChannelName()
+                ));
+                log.debug("CallStartedEvent 발행 완료 - callId: {}", callId);
             }
         } catch (Exception e) {
             log.error("통화 시작 처리 실패 - callId: {}", callId, e);
