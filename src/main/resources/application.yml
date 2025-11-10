@@ -43,6 +43,8 @@ app:
       - "http://127.0.0.1:3000"
       - https://chingoo-frontend.vercel.app
       - https://chingoohaja.app
+      - "capacitor://localhost"
+      - "ionic://localhost"
   firebase:
     service-account-path: ${FIREBASE_SERVICE_ACCOUNT_PATH}
     storage-bucket: ${FIREBASE_STORAGE_BUCKET}
