@@ -51,8 +51,9 @@ public class AuthController {
     @PostMapping("/signup")
     public ApiResponse<LoginResponse> signUp(
             @Valid @RequestBody SignUpRequest request,
+            HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
-        log.debug("회원가입 요청 - email: {}", request.email());
+        log.debug("회원가입 요청");
 
         LoginResponse response = localAuthService.signUp(request);
 
@@ -74,7 +75,7 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
-        log.debug("로그인 요청 - email: {}", request.email());
+        log.debug("로그인 요청");
 
         LoginResponse response = localAuthService.login(request);
 

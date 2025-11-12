@@ -96,7 +96,7 @@ public class LocalAuthService {
             // 비밀번호 검증
             if (user.getPassword() == null ||
                     !passwordEncoder.matches(request.password(), user.getPassword())) {
-                throw new CustomException(ErrorCode.INVALID_TOKEN, "이메일 또는 비밀번호가 올바르지 않습니다.");
+                throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
             }
 
             log.info("로그인 성공 - userId: {}, email: {}", user.getId(), user.getEmail());

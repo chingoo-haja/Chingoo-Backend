@@ -63,8 +63,6 @@ public class CorsConfig {
     public CorsConfigurationSource prodCorsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        System.out.println("=== CORS 설정 로딩 (PROD) ===");
-
         List<String> patterns = Arrays.asList(
                 "https://chingoo-frontend.vercel.app",
                 "https://www.chingoo-frontend.vercel.app",
@@ -77,8 +75,6 @@ public class CorsConfig {
                 "capacitor://localhost",
                 "ionic://localhost"
         );
-
-        System.out.println("허용된 Origins: " + patterns);
 
         configuration.setAllowedOriginPatterns(patterns);
 
