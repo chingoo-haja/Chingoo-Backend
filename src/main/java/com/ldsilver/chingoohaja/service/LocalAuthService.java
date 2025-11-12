@@ -27,30 +27,30 @@ public class LocalAuthService {
 
     @Transactional
     public LoginResponse signUp(SignUpRequest request) {
-        log.debug("회원가입 처리 시작 - email: {}", request.getTrimmedEmail());
+        log.debug("회원가입 처리 시작 - email: {}", request.email());
 
         // 이메일 중복 체크
-        if (userRepository.existsByEmail(request.getTrimmedEmail())) {
+        if (userRepository.existsByEmail(request.email())) {
             throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
         }
 
         // 닉네임 중복 체크
-        if (userRepository.existsByNickname(request.getTrimmedNickname())) {
+        if (userRepository.existsByNickname(request.nickname())) {
             throw new CustomException(ErrorCode.DUPLICATE_NICKNAME);
         }
 
         try {
             // 비밀번호 암호화
-            String encodedPassword = passwordEncoder.encode(request.getPassword());
+            String encodedPassword = passwordEncoder.encode(request.password());
 
             // 사용자 생성
             User newUser = User.ofLocal(
-                    request.getTrimmedEmail(),
+                    request.email(),
                     encodedPassword,
-                    request.getTrimmedNickname(),
-                    request.getTrimmedRealName(),
-                    request.getGender(),
-                    request.getBirth(),
+                    request.nickname(),
+                    request.realName(),
+                    request.gender(),
+                    request.birth(),
                     null  // 프로필 이미지는 나중에 업로드 가능
             );
 
@@ -84,16 +84,16 @@ public class LocalAuthService {
 
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
-        log.debug("로그인 처리 시작 - email: {}", request.getTrimmedEmail());
+        log.debug("로그인 처리 시작 - email: {}", request.email());
 
         try {
             // 사용자 조회
-            User user = userRepository.findByEmailAndProvider(request.getTrimmedEmail(), "local")
+            User user = userRepository.findByEmailAndProvider(request.email(), "local")
                     .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
             // 비밀번호 검증
             if (user.getPassword() == null ||
-                    !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+                    !passwordEncoder.matches(request.password(), user.getPassword())) {
                 throw new CustomException(ErrorCode.INVALID_TOKEN, "이메일 또는 비밀번호가 올바르지 않습니다.");
             }
 

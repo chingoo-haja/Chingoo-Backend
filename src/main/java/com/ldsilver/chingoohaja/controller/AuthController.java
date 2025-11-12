@@ -52,7 +52,7 @@ public class AuthController {
     public ApiResponse<LoginResponse> signUp(
             @Valid @RequestBody SignUpRequest request,
             HttpServletResponse httpResponse) {
-        log.debug("회원가입 요청 - email: {}", request.getTrimmedEmail());
+        log.debug("회원가입 요청 - email: {}", request.email());
 
         LoginResponse response = localAuthService.signUp(request);
 
@@ -74,13 +74,14 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
-        log.debug("로그인 요청 - email: {}", request.getTrimmedEmail());
-
-        // 클라이언트 IP 설정
-        request.setClientIp(getClientIpAddress(httpRequest));
+        log.debug("로그인 요청 - email: {}", request.email());
 
         LoginResponse response = localAuthService.login(request);
+
+        // Refresh Token을 HttpOnly 쿠키로 설정
         setRefreshTokenCookie(httpResponse, response.refreshToken());
+
+        // 응답에서 refresh_token 제거
         LoginResponse responseWithoutRefreshToken = response.withoutRefreshToken();
 
         return ApiResponse.ok("로그인 성공", responseWithoutRefreshToken);
