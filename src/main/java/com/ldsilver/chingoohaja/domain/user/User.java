@@ -32,6 +32,9 @@ public class User extends BaseEntity {
     @NotBlank
     private String email;
 
+    @Column(nullable = false, length = 100)
+    private String password;
+
     @Column(nullable = false,unique = true)
     @NotBlank
     @Size(min = 1, max = 100)
@@ -85,12 +88,45 @@ public class User extends BaseEntity {
         return user;
     }
 
+    public static User ofLocal(
+            String email,
+            String password,
+            String nickname,
+            String realName,
+            Gender gender,
+            LocalDate birth,
+            String profileImageUrl
+    ) {
+        User user = new User();
+        user.email = email;
+        user.password = password;
+        user.nickname = nickname;
+        user.realName = realName;
+        user.gender = gender;
+        user.birth = birth;
+        user.userType = UserType.USER;
+        user.profileImageUrl = profileImageUrl;
+        user.provider = "local";
+        user.providerId = email;
+        return user;
+    }
+
     public boolean isOAuthUser() {
         return provider != null && !provider.equals("local");
     }
 
+    public boolean isLocalUser() {
+        return "local".equals(provider);
+    }
+
     public boolean isProviderUser(String providerName) {
         return provider != null && provider.equalsIgnoreCase(providerName);
+    }
+
+    public void updatePassword(String newPassword) {
+        if (newPassword != null && !newPassword.trim().isEmpty()) {
+            this.password = newPassword;
+        }
     }
 
     public void updateProfileImage(String newProfileImageUrl) {
