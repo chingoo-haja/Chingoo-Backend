@@ -270,7 +270,7 @@ public class AuthService {
         while (attempt < maxRetries) {
             try {
                 String uniqueNickname = generateUniqueNickname();
-                String profileImageUrl = getProfileImageUrl(oAuthUserInfo);
+                String profileImageUrl = getProfileImageUrl(oAuthUserInfo); // null일 수 있음
 
                 User newUser = User.of(
                         oAuthUserInfo.email(),
@@ -279,7 +279,7 @@ public class AuthService {
                         determineGender(oAuthUserInfo.gender()),
                         determineBirthDate(),
                         UserType.USER,
-                        profileImageUrl,
+                        profileImageUrl,  // null 허용
                         oAuthUserInfo.provider(),
                         oAuthUserInfo.providerId()
                 );
@@ -301,9 +301,8 @@ public class AuthService {
                             "닉네임 생성 중복으로 인한 사용자 생성 실패");
                 }
 
-                // 짧은 대기 후 재시도 (선택사항)
                 try {
-                    Thread.sleep(50 + (attempt * 10)); // 50ms, 60ms, 70ms 대기
+                    Thread.sleep(50 + (attempt * 10));
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     throw new CustomException(ErrorCode.USER_CREATION_FAILED);
@@ -332,7 +331,7 @@ public class AuthService {
         if (oAuthUserInfo.profileImageUrl() != null && !oAuthUserInfo.profileImageUrl().trim().isEmpty()) {
             return oAuthUserInfo.profileImageUrl();
         }
-        return determineDefaultProfileImage(oAuthUserInfo.gender());
+        return null;
     }
 
     private String generateUniqueNickname() {
@@ -341,14 +340,7 @@ public class AuthService {
         );
     }
 
-    private String determineDefaultProfileImage(Gender gender) {
-        // TODO: 디폴트 프로필 이미지 주소 수정
-        if (gender == Gender.FEMALE) {
-            return "https://example.com/default-profile-female.png";
-        } else {
-            return "https://example.com/default-profile-male.png";
-        }
-    }
+
 
     private Gender determineGender(Gender oAuthGender) {
         if (oAuthGender != null) {
