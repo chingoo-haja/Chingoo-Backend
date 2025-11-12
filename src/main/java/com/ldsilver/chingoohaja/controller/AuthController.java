@@ -91,15 +91,22 @@ public class AuthController {
     @Operation(
             summary = "OAuth 설정 정보 조회",
             description = "프론트엔드에서 소셜 로그인을 위한 OAuth 설정 정보를 제공합니다. " +
-                    "State, Code Challenge 등 보안 파라미터가 포함됩니다."
+                    "State, Code Challenge 등 보안 파라미터가 포함됩니다. " +
+                    "platform 파라미터로 'web' 또는 'mobile'을 지정할 수 있습니다."
     )
     @GetMapping("/oauth/{provider}/config")
     public ApiResponse<OAuthConfigResponse> getOAuthConfig(
             @Parameter(description = "OAuth 공급자", example = "kakao")
-            @PathVariable String provider) {
-        log.debug("OAuth 설정 정보 요청 - {}", provider);
+            @PathVariable String provider,
 
-        OAuthConfigResponse config = oAuthConfigService.getOAuthConfig(provider);
+            @Parameter(description = "플랫폼 타입 (web | mobile)", example = "web")
+            @RequestParam(value = "platform", defaultValue = "web") String platform) {
+
+        log.debug("OAuth 설정 정보 요청 - provider: {}, platform: {}", provider, platform);
+
+        boolean isMobile = "mobile".equalsIgnoreCase(platform);
+        OAuthConfigResponse config = oAuthConfigService.getOAuthConfig(provider, isMobile);
+
         return ApiResponse.ok("OAuth 설정 정보 조회 성공", config);
     }
 

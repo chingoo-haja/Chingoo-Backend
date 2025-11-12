@@ -40,6 +40,11 @@ public class SocialLoginRequest {
     )
     private String codeVerifier;
 
+    @JsonProperty("redirect_uri")
+    @Size(max = AuthValidationConstants.OAuth.MAX_REDIRECT_URI_LENGTH,
+            message = AuthValidationConstants.OAuth.REDIRECT_URI_TOO_LONG)
+    private String redirectUri;
+
     @DeviceInfo(
             nullable = true,
             message = AuthValidationConstants.Device.DEVICE_INFO_TOO_LONG
@@ -54,31 +59,32 @@ public class SocialLoginRequest {
 
 
 
-    private SocialLoginRequest(String code, String state, String deviceInfo, String codeVerifier) {
+    private SocialLoginRequest(String code, String state, String deviceInfo, String codeVerifier, String redirectUri) {
         this.code = code;
         this.state = state;
         this.deviceInfo = deviceInfo;
         this.codeVerifier = codeVerifier;
+        this.redirectUri = redirectUri;
     }
 
     public static SocialLoginRequest of(String code, String state) {
-        return new SocialLoginRequest(code, state, null, null);
+        return new SocialLoginRequest(code, state, null, null, null);
     }
 
     public static SocialLoginRequest of(String code, String state, String deviceInfo) {
-        return new SocialLoginRequest(code, state, deviceInfo, null);
+        return new SocialLoginRequest(code, state, deviceInfo, null, null);
     }
 
     public static SocialLoginRequest of(String code, String state, String deviceInfo, String codeVerifier) {
-        return new SocialLoginRequest(code, state, deviceInfo, codeVerifier);
+        return new SocialLoginRequest(code, state, deviceInfo, codeVerifier, null);
     }
 
     public static SocialLoginRequest withPKCE(String code, String state, String codeVerifier) {
-        return new SocialLoginRequest(code, state, null, codeVerifier);
+        return new SocialLoginRequest(code, state, null, codeVerifier, null);
     }
 
     public static SocialLoginRequest forTest(String code, String state) {
-        return new SocialLoginRequest(code, state, "Test Device", null);
+        return new SocialLoginRequest(code, state, "Test Device", null, null);
     }
 
 
@@ -89,6 +95,10 @@ public class SocialLoginRequest {
 
     public boolean hasCodeVerifier() {
         return codeVerifier != null && !codeVerifier.trim().isEmpty();
+    }
+
+    public boolean hasRedirectUri() {
+        return redirectUri != null && !redirectUri.trim().isEmpty();
     }
 
     public String getSafeDeviceInfo() {

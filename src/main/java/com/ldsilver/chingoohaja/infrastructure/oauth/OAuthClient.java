@@ -13,6 +13,17 @@ public interface OAuthClient {
     TokenResponse exchangeCodeForToken(String code, String codeVerifier);
 
     /**
+     * 인가 코드를 액세스 토큰으로 교환 (redirect_uri 포함)
+     * @param code 인가 코드
+     * @param codeVerifier PKCE code verifier (선택)
+     * @param redirectUri 토큰 교환 시 사용할 redirect URI (선택)
+     * @return OAuth 토큰 정보
+     */
+    default TokenResponse exchangeCodeForToken(String code, String codeVerifier, String redirectUri) {
+        return exchangeCodeForToken(code, codeVerifier);
+    }
+
+    /**
      * 액세스 토큰으로 사용자 정보 조회
      * @param accessToken OAuth 액세스 토큰
      * @return 사용자 정보

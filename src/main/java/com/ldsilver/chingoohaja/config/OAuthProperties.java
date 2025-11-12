@@ -51,9 +51,10 @@ public class OAuthProperties {
             return redirectUri;
         }
 
-        public String getAuthorizationUrl(String state, String codeChallenge) {
+        public String getAuthorizationUrl(String state, String codeChallenge, boolean isMobile) {
+            String redirectUriToUse = getRedirectUri(isMobile);
             return String.format("%s?client_id=%s&redirect_uri=%s&response_type=code&scope=%s&state=%s&code_challenge=%s&code_challenge_method=S256",
-                    authUrl, clientId, redirectUri, scope, state, codeChallenge);
+                    authUrl, clientId, redirectUriToUse, scope, state, codeChallenge);
         }
     }
 
@@ -75,7 +76,6 @@ public class OAuthProperties {
 
         private String scope = "openid email profile";
 
-        // 구글 API URLs
         private String authUrl = "https://accounts.google.com/o/oauth2/v2/auth";
         private String tokenUrl = "https://oauth2.googleapis.com/token";
         private String userInfoUrl = "https://www.googleapis.com/oauth2/v2/userinfo";
@@ -87,9 +87,10 @@ public class OAuthProperties {
             return redirectUri;
         }
 
-        public String getAuthorizationUrl(String state, String codeChallenge) {
+        public String getAuthorizationUrl(String state, String codeChallenge, boolean isMobile) {
+            String redirectUriToUse = getRedirectUri(isMobile);
             return String.format("%s?client_id=%s&redirect_uri=%s&response_type=code&scope=%s&state=%s&code_challenge=%s&code_challenge_method=S256&access_type=offline",
-                    authUrl, clientId, redirectUri, scope, state, codeChallenge);
+                    authUrl, clientId, redirectUriToUse, scope, state, codeChallenge);
         }
     }
 }
