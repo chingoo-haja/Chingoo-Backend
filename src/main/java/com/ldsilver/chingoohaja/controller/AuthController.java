@@ -3,12 +3,16 @@ package com.ldsilver.chingoohaja.controller;
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.config.CookieProperties;
+import com.ldsilver.chingoohaja.dto.auth.request.LoginRequest;
+import com.ldsilver.chingoohaja.dto.auth.request.SignUpRequest;
+import com.ldsilver.chingoohaja.dto.auth.response.LoginResponse;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.dto.oauth.request.LogoutRequest;
 import com.ldsilver.chingoohaja.dto.oauth.request.RefreshTokenRequest;
 import com.ldsilver.chingoohaja.dto.oauth.request.SocialLoginRequest;
 import com.ldsilver.chingoohaja.dto.oauth.response.*;
 import com.ldsilver.chingoohaja.service.AuthService;
+import com.ldsilver.chingoohaja.service.LocalAuthService;
 import com.ldsilver.chingoohaja.service.OAuthConfigService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -34,10 +38,55 @@ import java.time.Duration;
 public class AuthController {
 
     private final AuthService authService;
+    private final LocalAuthService localAuthService;
     private final OAuthConfigService oAuthConfigService;
     private final CookieProperties cookieProperties;
 
     private static final String REFRESH_TOKEN_COOKIE = "refreshToken";
+
+    @Operation(
+            summary = "회원가입",
+            description = "이메일과 비밀번호로 회원가입을 진행합니다."
+    )
+    @PostMapping("/signup")
+    public ApiResponse<LoginResponse> signUp(
+            @Valid @RequestBody SignUpRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
+        log.debug("회원가입 요청");
+
+        LoginResponse response = localAuthService.signUp(request);
+
+        // Refresh Token을 HttpOnly 쿠키로 설정
+        setRefreshTokenCookie(httpResponse, response.refreshToken());
+
+        // 응답에서 refresh_token 제거
+        LoginResponse responseWithoutRefreshToken = response.withoutRefreshToken();
+
+        return ApiResponse.ok("회원가입 성공", responseWithoutRefreshToken);
+    }
+
+    @Operation(
+            summary = "로그인",
+            description = "이메일과 비밀번호로 로그인을 진행합니다."
+    )
+    @PostMapping("/login")
+    public ApiResponse<LoginResponse> login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
+        log.debug("로그인 요청");
+
+        LoginResponse response = localAuthService.login(request);
+
+        // Refresh Token을 HttpOnly 쿠키로 설정
+        setRefreshTokenCookie(httpResponse, response.refreshToken());
+
+        // 응답에서 refresh_token 제거
+        LoginResponse responseWithoutRefreshToken = response.withoutRefreshToken();
+
+        return ApiResponse.ok("로그인 성공", responseWithoutRefreshToken);
+    }
 
     @Operation(
             summary = "OAuth 설정 정보 조회",

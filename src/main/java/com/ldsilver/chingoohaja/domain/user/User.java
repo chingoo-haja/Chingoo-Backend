@@ -32,6 +32,9 @@ public class User extends BaseEntity {
     @NotBlank
     private String email;
 
+    @Column(nullable = true, length = 100)
+    private String password;
+
     @Column(nullable = false,unique = true)
     @NotBlank
     @Size(min = 1, max = 100)
@@ -41,10 +44,10 @@ public class User extends BaseEntity {
     private String realName;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = true)
     private Gender gender;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private LocalDate birth;
 
     @Enumerated(EnumType.STRING)
@@ -52,7 +55,7 @@ public class User extends BaseEntity {
     private UserType userType = UserType.USER;
 
     @Size(max = MAX_PROFILE_IMAGE_URL_LENGTH)
-    @Column(nullable = false, length = MAX_PROFILE_IMAGE_URL_LENGTH)
+    @Column(nullable = true, length = MAX_PROFILE_IMAGE_URL_LENGTH)
     private String profileImageUrl;
 
     @Column(nullable = false)
@@ -85,12 +88,45 @@ public class User extends BaseEntity {
         return user;
     }
 
+    public static User ofLocal(
+            String email,
+            String password,
+            String nickname,
+            String realName,
+            Gender gender,
+            LocalDate birth,
+            String profileImageUrl
+    ) {
+        User user = new User();
+        user.email = email;
+        user.password = password;
+        user.nickname = nickname;
+        user.realName = realName;
+        user.gender = gender;
+        user.birth = birth;
+        user.userType = UserType.USER;
+        user.profileImageUrl = profileImageUrl;
+        user.provider = "local";
+        user.providerId = email; // 로컬의 경우 email을 providerId로 사용
+        return user;
+    }
+
     public boolean isOAuthUser() {
         return provider != null && !provider.equals("local");
     }
 
+    public boolean isLocalUser() {
+        return "local".equals(provider);
+    }
+
     public boolean isProviderUser(String providerName) {
         return provider != null && provider.equalsIgnoreCase(providerName);
+    }
+
+    public void updatePassword(String newPassword) {
+        if (newPassword != null && !newPassword.trim().isEmpty()) {
+            this.password = newPassword;
+        }
     }
 
     public void updateProfileImage(String newProfileImageUrl) {
@@ -135,18 +171,12 @@ public class User extends BaseEntity {
         }
     }
 
-    /**
-     * 사용자 타입 업데이트 (일반 사용자 → 보호자 등)
-     */
     public void updateUserType(UserType newUserType) {
         if (newUserType != null) {
             this.userType = newUserType;
         }
     }
 
-    /**
-     * OAuth Provider 정보 업데이트 (Provider 연동 변경 시)
-     */
     public void updateProviderInfo(String newProvider, String newProviderId) {
         if (newProvider != null && !newProvider.trim().isEmpty() &&
                 newProviderId != null && !newProviderId.trim().isEmpty()) {
@@ -171,15 +201,11 @@ public class User extends BaseEntity {
         return LocalDate.now().getYear() - birth.getYear();
     }
 
-    /**
-     * 프로필 완성도 확인 (OAuth 로그인 후 추가 정보 입력 필요 여부)
-     */
     public boolean isProfileComplete() {
         return realName != null && !realName.trim().isEmpty() &&
                 nickname != null && !nickname.trim().isEmpty() &&
                 gender != null &&
-                birth != null &&
-                profileImageUrl != null && !profileImageUrl.trim().isEmpty();
+                birth != null && !birth.equals(LocalDate.of(1900, 1, 1)); // 임시값이 아닌지 체크
     }
 
     public String getDisplayName() {
@@ -201,5 +227,4 @@ public class User extends BaseEntity {
     public int hashCode() {
         return id != null ? id.hashCode() : 0;
     }
-
 }

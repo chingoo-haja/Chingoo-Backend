@@ -63,12 +63,20 @@ public class CorsConfig {
     public CorsConfigurationSource prodCorsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOriginPatterns(Arrays.asList(
+        List<String> patterns = Arrays.asList(
                 "https://chingoo-frontend.vercel.app",
                 "https://www.chingoo-frontend.vercel.app",
                 "https://chingoohaja.app",
-                "https://www.chingoohaja.app"
-        ));
+                "https://www.chingoohaja.app",
+                "https://silverld.site",
+                "https://localhost",
+                "http://localhost",
+                "http://localhost:*",
+                "capacitor://localhost",
+                "ionic://localhost"
+        );
+
+        configuration.setAllowedOriginPatterns(patterns);
 
         configuration.setAllowedMethods(Arrays.asList(
                 "GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"

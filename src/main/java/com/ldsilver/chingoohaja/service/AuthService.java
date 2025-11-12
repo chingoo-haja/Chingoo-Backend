@@ -264,13 +264,26 @@ public class AuthService {
     private User createNewUser(OAuthUserInfo oAuthUserInfo) {
         log.debug("신규 사용자 생성 시작 - email: {}, provider: {}", oAuthUserInfo.email(), oAuthUserInfo.provider());
 
+        Optional<User> existingUser = userRepository.findByEmailAndProviderNot(
+                oAuthUserInfo.email(),
+                oAuthUserInfo.provider()
+        );
+
+        if (existingUser.isPresent()) {
+            User existing = existingUser.get();
+            log.error("이메일 중복 - email: {}, 기존 provider: {}, 시도한 provider: {}",
+                    oAuthUserInfo.email(), existing.getProvider(), oAuthUserInfo.provider());
+            throw new CustomException(ErrorCode.DUPLICATE_EMAIL,
+                    String.format("이미 %s 계정으로 가입된 이메일입니다.", existing.getProvider()));
+        }
+
         int maxRetries = 3;
         int attempt = 0;
 
         while (attempt < maxRetries) {
             try {
                 String uniqueNickname = generateUniqueNickname();
-                String profileImageUrl = getProfileImageUrl(oAuthUserInfo);
+                String profileImageUrl = getProfileImageUrl(oAuthUserInfo); // null일 수 있음
 
                 User newUser = User.of(
                         oAuthUserInfo.email(),
@@ -279,7 +292,7 @@ public class AuthService {
                         determineGender(oAuthUserInfo.gender()),
                         determineBirthDate(),
                         UserType.USER,
-                        profileImageUrl,
+                        profileImageUrl,  // null 허용
                         oAuthUserInfo.provider(),
                         oAuthUserInfo.providerId()
                 );
@@ -293,6 +306,15 @@ public class AuthService {
 
             } catch (DataIntegrityViolationException e) {
                 attempt++;
+
+                String errorMessage = e.getMessage().toLowerCase();
+
+                // 이메일 중복 에러인 경우 (재시도 안 함)
+                if (errorMessage.contains("email") || errorMessage.contains("uk_users_email")) {
+                    log.error("이메일 중복 에러 - email: {}", oAuthUserInfo.email());
+                    throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
+                }
+
                 log.warn("닉네임 중복으로 사용자 생성 실패 ({}회 시도) - 재시도합니다", attempt, e);
 
                 if (attempt >= maxRetries) {
@@ -301,9 +323,8 @@ public class AuthService {
                             "닉네임 생성 중복으로 인한 사용자 생성 실패");
                 }
 
-                // 짧은 대기 후 재시도 (선택사항)
                 try {
-                    Thread.sleep(50 + (attempt * 10)); // 50ms, 60ms, 70ms 대기
+                    Thread.sleep(50 + (attempt * 10));
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     throw new CustomException(ErrorCode.USER_CREATION_FAILED);
@@ -332,7 +353,7 @@ public class AuthService {
         if (oAuthUserInfo.profileImageUrl() != null && !oAuthUserInfo.profileImageUrl().trim().isEmpty()) {
             return oAuthUserInfo.profileImageUrl();
         }
-        return determineDefaultProfileImage(oAuthUserInfo.gender());
+        return null;
     }
 
     private String generateUniqueNickname() {
@@ -341,14 +362,7 @@ public class AuthService {
         );
     }
 
-    private String determineDefaultProfileImage(Gender gender) {
-        // TODO: 디폴트 프로필 이미지 주소 수정
-        if (gender == Gender.FEMALE) {
-            return "https://example.com/default-profile-female.png";
-        } else {
-            return "https://example.com/default-profile-male.png";
-        }
-    }
+
 
     private Gender determineGender(Gender oAuthGender) {
         if (oAuthGender != null) {
