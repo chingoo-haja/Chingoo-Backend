@@ -45,6 +45,8 @@ app:
       - https://chingoohaja.app
       - "capacitor://localhost"
       - "ionic://localhost"
+      - https://localhost
+      - "http://localhost"
   firebase:
     service-account-path: ${FIREBASE_SERVICE_ACCOUNT_PATH}
     storage-bucket: ${FIREBASE_STORAGE_BUCKET}

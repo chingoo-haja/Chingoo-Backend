@@ -63,12 +63,24 @@ public class CorsConfig {
     public CorsConfigurationSource prodCorsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOriginPatterns(Arrays.asList(
+        System.out.println("=== CORS 설정 로딩 (PROD) ===");
+
+        List<String> patterns = Arrays.asList(
                 "https://chingoo-frontend.vercel.app",
                 "https://www.chingoo-frontend.vercel.app",
                 "https://chingoohaja.app",
-                "https://www.chingoohaja.app"
-        ));
+                "https://www.chingoohaja.app",
+                "https://silverld.site",
+                "https://localhost",
+                "http://localhost",
+                "http://localhost:*",
+                "capacitor://localhost",
+                "ionic://localhost"
+        );
+
+        System.out.println("허용된 Origins: " + patterns);
+
+        configuration.setAllowedOriginPatterns(patterns);
 
         configuration.setAllowedMethods(Arrays.asList(
                 "GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"
