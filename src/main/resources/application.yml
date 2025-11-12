@@ -31,10 +31,12 @@ app:
       client-id: ${KAKAO_CLIENT_ID}
       client-secret: ${KAKAO_CLIENT_SECRET}
       redirect-uri: "http://localhost:3000/oauth/callback"
+      redirect-uri-mobile: com.chingoohaja.app://oauth/callback/kakao
     google:
       client-id: ${GOOGLE_CLIENT_ID}
       client-secret: ${GOOGLE_CLIENT_SECRET}
       redirect-uri: "http://localhost:3000/oauth/callback"
+      redirect-uri-mobile: com.chingoohaja.app://oauth/callback/google
   cors:
     allowed-origins:
       - http://localhost:3000
