@@ -264,6 +264,19 @@ public class AuthService {
     private User createNewUser(OAuthUserInfo oAuthUserInfo) {
         log.debug("신규 사용자 생성 시작 - email: {}, provider: {}", oAuthUserInfo.email(), oAuthUserInfo.provider());
 
+        Optional<User> existingUser = userRepository.findByEmailAndProviderNot(
+                oAuthUserInfo.email(),
+                oAuthUserInfo.provider()
+        );
+
+        if (existingUser.isPresent()) {
+            User existing = existingUser.get();
+            log.error("이메일 중복 - email: {}, 기존 provider: {}, 시도한 provider: {}",
+                    oAuthUserInfo.email(), existing.getProvider(), oAuthUserInfo.provider());
+            throw new CustomException(ErrorCode.DUPLICATE_EMAIL,
+                    String.format("이미 %s 계정으로 가입된 이메일입니다.", existing.getProvider()));
+        }
+
         int maxRetries = 3;
         int attempt = 0;
 
@@ -293,6 +306,15 @@ public class AuthService {
 
             } catch (DataIntegrityViolationException e) {
                 attempt++;
+
+                String errorMessage = e.getMessage().toLowerCase();
+
+                // 이메일 중복 에러인 경우 (재시도 안 함)
+                if (errorMessage.contains("email") || errorMessage.contains("uk_users_email")) {
+                    log.error("이메일 중복 에러 - email: {}", oAuthUserInfo.email());
+                    throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
+                }
+
                 log.warn("닉네임 중복으로 사용자 생성 실패 ({}회 시도) - 재시도합니다", attempt, e);
 
                 if (attempt >= maxRetries) {

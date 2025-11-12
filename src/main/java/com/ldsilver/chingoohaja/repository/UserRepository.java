@@ -36,7 +36,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT u.provider, COUNT(u) FROM User u GROUP BY u.provider ORDER BY COUNT(u) DESC")
     List<Object[]> getProviderStatistics();
 
-    List<User> findByEmailAndProviderNot(String email, String excludeProvider);
+    Optional<User> findByEmailAndProviderNot(String email, String excludeProvider);
 
     List<User> findByProviderNotAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(String provider, LocalDateTime since);
 
