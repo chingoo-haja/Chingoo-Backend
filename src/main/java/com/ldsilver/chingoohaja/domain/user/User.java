@@ -32,7 +32,7 @@ public class User extends BaseEntity {
     @NotBlank
     private String email;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = true, length = 100)
     private String password;
 
     @Column(nullable = false,unique = true)
@@ -55,7 +55,7 @@ public class User extends BaseEntity {
     private UserType userType = UserType.USER;
 
     @Size(max = MAX_PROFILE_IMAGE_URL_LENGTH)
-    @Column(nullable = false, length = MAX_PROFILE_IMAGE_URL_LENGTH)
+    @Column(nullable = true, length = MAX_PROFILE_IMAGE_URL_LENGTH)
     private String profileImageUrl;
 
     @Column(nullable = false)
