@@ -84,7 +84,7 @@ public class LocalAuthService {
         }
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public LoginResponse login(LoginRequest request) {
         log.debug("로그인 처리 시작 - email: {}", request.email());
 
