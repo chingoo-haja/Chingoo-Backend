@@ -2,6 +2,7 @@ package com.ldsilver.chingoohaja.service;
 
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
+import com.ldsilver.chingoohaja.common.util.NicknameGenerator;
 import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.dto.auth.request.LoginRequest;
 import com.ldsilver.chingoohaja.dto.auth.request.SignUpRequest;
@@ -16,6 +17,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -24,6 +27,7 @@ public class LocalAuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
+    private final NicknameGenerator nicknameGenerator;
 
     @Transactional
     public LoginResponse signUp(SignUpRequest request) {
@@ -34,31 +38,29 @@ public class LocalAuthService {
             throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
         }
 
-        // 닉네임 중복 체크
-        if (userRepository.existsByNickname(request.nickname())) {
-            throw new CustomException(ErrorCode.DUPLICATE_NICKNAME);
-        }
-
         try {
-            // 비밀번호 암호화
             String encodedPassword = passwordEncoder.encode(request.password());
 
-            // 사용자 생성
+            String randomNickname = nicknameGenerator.generateUniqueNickname(
+                    userRepository::existsByNickname
+            );
+
+            // 사용자 생성 (닉네임 자동 생성, 성별/생년월일은 임시값)
             User newUser = User.ofLocal(
                     request.email(),
                     encodedPassword,
-                    request.nickname(),
+                    randomNickname,
                     request.realName(),
-                    request.gender(),
-                    request.birth(),
-                    null  // 프로필 이미지는 나중에 업로드 가능
+                    null,
+                    LocalDate.of(1900, 1, 1),
+                    null
             );
 
             User savedUser = userRepository.save(newUser);
 
-            log.info("회원가입 성공 - userId: {}, email: {}", savedUser.getId(), savedUser.getEmail());
+            log.info("회원가입 성공 - userId: {}, email: {}, 자동생성 닉네임: {}",
+                    savedUser.getId(), savedUser.getEmail(), savedUser.getNickname());
 
-            // 토큰 생성 및 로그인 처리
             TokenResponse tokenResponse = tokenService.generateTokens(
                     savedUser.getId(),
                     "Unknown Device"

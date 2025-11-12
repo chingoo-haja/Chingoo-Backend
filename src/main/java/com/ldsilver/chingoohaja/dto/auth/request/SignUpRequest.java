@@ -1,13 +1,8 @@
 package com.ldsilver.chingoohaja.dto.auth.request;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.ldsilver.chingoohaja.domain.user.enums.Gender;
-import com.ldsilver.chingoohaja.validation.CommonValidationConstants;
 import com.ldsilver.chingoohaja.validation.UserValidationConstants;
 import jakarta.validation.constraints.*;
-
-import java.time.LocalDate;
 
 public record SignUpRequest(
         @NotBlank(message = UserValidationConstants.Email.REQUIRED)
@@ -24,15 +19,6 @@ public record SignUpRequest(
         @JsonProperty("password")
         String password,
 
-        @NotBlank(message = UserValidationConstants.Nickname.REQUIRED)
-        @Size(min = UserValidationConstants.Nickname.MIN_LENGTH,
-                max = UserValidationConstants.Nickname.MAX_LENGTH,
-                message = UserValidationConstants.Nickname.INVALID_LENGTH)
-        @Pattern(regexp = UserValidationConstants.Nickname.PATTERN,
-                message = UserValidationConstants.Nickname.INVALID_FORMAT)
-        @JsonProperty("nickname")
-        String nickname,
-
         @NotBlank(message = UserValidationConstants.RealName.REQUIRED)
         @Size(min = UserValidationConstants.RealName.MIN_LENGTH,
                 max = UserValidationConstants.RealName.MAX_LENGTH,
@@ -40,26 +26,11 @@ public record SignUpRequest(
         @Pattern(regexp = UserValidationConstants.RealName.PATTERN,
                 message = UserValidationConstants.RealName.INVALID_FORMAT)
         @JsonProperty("real_name")
-        String realName,
-
-        @NotNull(message = "성별은 필수입니다.")
-        @JsonProperty("gender")
-        Gender gender,
-
-        @NotNull(message = "생년월일은 필수입니다.")
-        @Past(message = UserValidationConstants.Birth.LEAST_DOB)
-        @JsonFormat(shape = JsonFormat.Shape.STRING,
-                pattern = CommonValidationConstants.Date.DATE_PATTERN)
-        @JsonProperty("birth")
-        LocalDate birth
+        String realName
 ) {
-    // Compact Constructor - validation 로직
     public SignUpRequest {
         if (email != null) {
             email = email.trim();
-        }
-        if (nickname != null) {
-            nickname = nickname.trim();
         }
         if (realName != null) {
             realName = realName.trim();
