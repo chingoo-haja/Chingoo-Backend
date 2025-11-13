@@ -8,6 +8,7 @@ import com.ldsilver.chingoohaja.domain.user.enums.Gender;
 import com.ldsilver.chingoohaja.domain.user.enums.UserType;
 import com.ldsilver.chingoohaja.dto.oauth.OAuthUserInfo;
 import com.ldsilver.chingoohaja.dto.oauth.request.LogoutRequest;
+import com.ldsilver.chingoohaja.dto.oauth.request.NativeSocialLoginRequest;
 import com.ldsilver.chingoohaja.dto.oauth.request.RefreshTokenRequest;
 import com.ldsilver.chingoohaja.dto.oauth.request.SocialLoginRequest;
 import com.ldsilver.chingoohaja.dto.oauth.response.SocialLoginResponse;
@@ -204,6 +205,60 @@ public class AuthService {
             throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
     }
+
+    @Transactional
+    public SocialLoginResponse nativeKakaoLogin(NativeSocialLoginRequest request) {
+        log.debug("네이티브 카카오 로그인 처리 시작");
+
+        try {
+            // 카카오 액세스 토큰으로 사용자 정보 조회
+            OAuthUserInfo oAuthUserInfo = getNativeKakaoUserInfo(request.getKakaoAccessToken());
+
+            // 사용자 찾기 또는 생성
+            UserLoginResult userLoginResult = findOrCreateUser(oAuthUserInfo);
+
+            // JWT 토큰 생성
+            TokenResponse tokenResponse = tokenService.generateTokens(
+                    userLoginResult.user().getId(),
+                    request.getSafeDeviceInfo()
+            );
+
+            // 사용자 정보 응답 생성
+            SocialLoginResponse.UserInfo userInfo = SocialLoginResponse.UserInfo.from(
+                    userLoginResult.user(),
+                    userLoginResult.isNewUser()
+            );
+
+            log.info("네이티브 카카오 로그인 성공 - userId: {}, isNewUser: {}",
+                    userLoginResult.user().getId(), userLoginResult.isNewUser());
+
+            return SocialLoginResponse.of(
+                    tokenResponse.accessToken(),
+                    tokenResponse.refreshToken(),
+                    tokenResponse.expiresIn(),
+                    userInfo
+            );
+        } catch (CustomException e) {
+            log.error("네이티브 카카오 로그인 실패 - error: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("네이티브 카카오 로그인 중 예상치 못한 오류 발생", e);
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR, "로그인 처리 중 오류가 발생했습니다.");
+        }
+    }
+
+    private OAuthUserInfo getNativeKakaoUserInfo(String kakaoAccessToken) {
+        OAuthClient kakaoClient = oAuthClientFactory.getClient("kakao");
+
+        // 카카오 액세스 토큰으로 사용자 정보 조회
+        OAuthUserInfo userInfo = kakaoClient.getUserInfo(kakaoAccessToken);
+
+        validateOAuthUserInfo(userInfo);
+
+        return userInfo;
+    }
+
+
 
     private void logoutAllDevices(User user) {
         userTokenRepository.deactivateAllTokensByUser(user);
