@@ -7,15 +7,13 @@ import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.domain.user.enums.Gender;
 import com.ldsilver.chingoohaja.domain.user.enums.UserType;
 import com.ldsilver.chingoohaja.dto.oauth.OAuthUserInfo;
-import com.ldsilver.chingoohaja.dto.oauth.request.LogoutRequest;
-import com.ldsilver.chingoohaja.dto.oauth.request.NativeSocialLoginRequest;
-import com.ldsilver.chingoohaja.dto.oauth.request.RefreshTokenRequest;
-import com.ldsilver.chingoohaja.dto.oauth.request.SocialLoginRequest;
+import com.ldsilver.chingoohaja.dto.oauth.request.*;
 import com.ldsilver.chingoohaja.dto.oauth.response.SocialLoginResponse;
 import com.ldsilver.chingoohaja.dto.oauth.response.TokenResponse;
 import com.ldsilver.chingoohaja.dto.oauth.response.TokenValidationResponse;
 import com.ldsilver.chingoohaja.dto.oauth.response.UserMeResponse;
 import com.ldsilver.chingoohaja.infrastructure.jwt.JwtTokenProvider;
+import com.ldsilver.chingoohaja.infrastructure.oauth.GoogleIdTokenValidator;
 import com.ldsilver.chingoohaja.infrastructure.oauth.OAuthClient;
 import com.ldsilver.chingoohaja.infrastructure.oauth.OAuthClientFactory;
 import com.ldsilver.chingoohaja.repository.UserRepository;
@@ -42,6 +40,7 @@ public class AuthService {
     private final TokenCacheService tokenCacheService;
     private final NicknameGenerator nicknameGenerator;
     private final JwtTokenProvider jwtTokenProvider;
+    private final GoogleIdTokenValidator googleIdTokenValidator;
 
     @Transactional
     public SocialLoginResponse socialLogin(String provider, SocialLoginRequest request) {
@@ -256,6 +255,47 @@ public class AuthService {
         validateOAuthUserInfo(userInfo);
 
         return userInfo;
+    }
+
+    @Transactional
+    public SocialLoginResponse nativeGoogleLogin(NativeGoogleLoginRequest request) {
+        log.debug("네이티브 구글 로그인 처리 시작");
+
+        try {
+            // Google ID Token 검증 및 사용자 정보 조회
+            OAuthUserInfo oAuthUserInfo = googleIdTokenValidator.verifyIdToken(request.getGoogleIdToken());
+
+            // 사용자 찾기 또는 생성
+            UserLoginResult userLoginResult = findOrCreateUser(oAuthUserInfo);
+
+            // JWT 토큰 생성
+            TokenResponse tokenResponse = tokenService.generateTokens(
+                    userLoginResult.user().getId(),
+                    request.getSafeDeviceInfo()
+            );
+
+            // 사용자 정보 응답 생성
+            SocialLoginResponse.UserInfo userInfo = SocialLoginResponse.UserInfo.from(
+                    userLoginResult.user(),
+                    userLoginResult.isNewUser()
+            );
+
+            log.info("네이티브 구글 로그인 성공 - userId: {}, isNewUser: {}",
+                    userLoginResult.user().getId(), userLoginResult.isNewUser());
+
+            return SocialLoginResponse.of(
+                    tokenResponse.accessToken(),
+                    tokenResponse.refreshToken(),
+                    tokenResponse.expiresIn(),
+                    userInfo
+            );
+        } catch (CustomException e) {
+            log.error("네이티브 구글 로그인 실패 - error: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("네이티브 구글 로그인 중 예상치 못한 오류 발생", e);
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR, "로그인 처리 중 오류가 발생했습니다.");
+        }
     }
 
 

@@ -7,10 +7,7 @@ import com.ldsilver.chingoohaja.dto.auth.request.LoginRequest;
 import com.ldsilver.chingoohaja.dto.auth.request.SignUpRequest;
 import com.ldsilver.chingoohaja.dto.auth.response.LoginResponse;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
-import com.ldsilver.chingoohaja.dto.oauth.request.LogoutRequest;
-import com.ldsilver.chingoohaja.dto.oauth.request.NativeSocialLoginRequest;
-import com.ldsilver.chingoohaja.dto.oauth.request.RefreshTokenRequest;
-import com.ldsilver.chingoohaja.dto.oauth.request.SocialLoginRequest;
+import com.ldsilver.chingoohaja.dto.oauth.request.*;
 import com.ldsilver.chingoohaja.dto.oauth.response.*;
 import com.ldsilver.chingoohaja.service.AuthService;
 import com.ldsilver.chingoohaja.service.LocalAuthService;
@@ -254,6 +251,33 @@ public class AuthController {
         request.setClientIp(getClientIpAddress(httpRequest));
 
         SocialLoginResponse response = authService.nativeKakaoLogin(request);
+
+        // Refresh Token을 HttpOnly 쿠키로 설정
+        setRefreshTokenCookie(httpResponse, response.refreshToken());
+
+        // 응답에서 refresh_token 제거
+        SocialLoginResponse responseWithoutRefreshToken = response.withoutRefreshToken();
+
+        return ApiResponse.ok("로그인 성공", responseWithoutRefreshToken);
+    }
+
+    @Operation(
+            summary = "네이티브 앱 구글 로그인",
+            description = "네이티브 앱에서 Google SDK로 받은 ID 토큰을 사용하여 로그인합니다. " +
+                    "기존 사용자는 로그인, 신규 사용자는 회원가입과 동시에 로그인됩니다."
+    )
+    @PostMapping("/oauth/google/native")
+    public ApiResponse<SocialLoginResponse> nativeGoogleLogin(
+            @Valid @RequestBody NativeGoogleLoginRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
+
+        log.debug("네이티브 구글 로그인 요청");
+
+        // 클라이언트 IP 설정
+        request.setClientIp(getClientIpAddress(httpRequest));
+
+        SocialLoginResponse response = authService.nativeGoogleLogin(request);
 
         // Refresh Token을 HttpOnly 쿠키로 설정
         setRefreshTokenCookie(httpResponse, response.refreshToken());
