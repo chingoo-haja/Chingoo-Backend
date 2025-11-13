@@ -42,3 +42,5 @@ out/
 docker/.env
 .env
 .env.*
+
+deploy.sh
