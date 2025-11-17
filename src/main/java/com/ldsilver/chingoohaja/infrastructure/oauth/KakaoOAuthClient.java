@@ -27,11 +27,17 @@ public class KakaoOAuthClient implements OAuthClient{
     private final WebClient webClient;
     private final OAuthProperties oAuthProperties;
 
+    // KakaoOAuthClient.java 수정
+
     @Override
     public TokenResponse exchangeCodeForToken(String code, String codeVerifier) {
+        return exchangeCodeForToken(code, codeVerifier, null);
+    }
+
+    public TokenResponse exchangeCodeForToken(String code, String codeVerifier, String redirectUri) {
         log.debug("카카오 토큰 교환 시작 - code:{}", maskCode(code));
 
-        MultiValueMap<String, String> formData = createTokenRequestForm(code, codeVerifier);
+        MultiValueMap<String, String> formData = createTokenRequestForm(code, codeVerifier, redirectUri);
 
         try {
             TokenResponse response = webClient
@@ -54,6 +60,27 @@ public class KakaoOAuthClient implements OAuthClient{
             log.error("카카오 토큰 교환 중 예외 발생", e);
             throw new CustomException(ErrorCode.OAUTH_TOKEN_EXCHANGE_FAILED);
         }
+    }
+
+    private MultiValueMap<String, String> createTokenRequestForm(String code, String codeVerifier, String redirectUri) {
+        MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+        formData.add("grant_type", "authorization_code");
+        formData.add("client_id", oAuthProperties.getKakao().getClientId());
+        formData.add("client_secret", oAuthProperties.getKakao().getClientSecret());
+
+        // ✅ redirect_uri 사용 (없으면 기본값)
+        String redirectUriToUse = (redirectUri != null && !redirectUri.isEmpty())
+                ? redirectUri
+                : oAuthProperties.getKakao().getRedirectUri();
+        formData.add("redirect_uri", redirectUriToUse);
+
+        formData.add("code", code);
+
+        if (codeVerifier != null && !codeVerifier.trim().isEmpty()) {
+            formData.add("code_verifier", codeVerifier);
+        }
+
+        return formData;
     }
 
     @Override

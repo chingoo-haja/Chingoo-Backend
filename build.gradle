@@ -61,6 +61,12 @@ dependencies {
 	// https://mvnrepository.com/artifact/me.paulschwarz/spring-dotenv
 	implementation("me.paulschwarz:spring-dotenv:4.0.0")
 
+	// https://mvnrepository.com/artifact/com.google.api-client/google-api-client
+	implementation("com.google.api-client:google-api-client:2.8.1")
+
+	// https://mvnrepository.com/artifact/com.google.auth/google-auth-library-oauth2-http
+	implementation("com.google.auth:google-auth-library-oauth2-http:1.40.0")
+
 }
 
 tasks.named('test') {

@@ -35,15 +35,26 @@ public class OAuthProperties {
         @Size(max = 512, message = "리다이렉트 URI가 너무 깁니다.")
         private String redirectUri;
 
+        @Size(max = 512, message = "모바일 리다이렉트 URI가 너무 깁니다.")
+        private String redirectUriMobile;
+
         private String scope = "profile_nickname, profile_image, account_email";
 
         private String authUrl = "https://kauth.kakao.com/oauth/authorize";
         private String tokenUrl = "https://kauth.kakao.com/oauth/token";
         private String userInfoUrl = "https://kapi.kakao.com/v2/user/me";
 
-        public String getAuthorizationUrl(String state, String codeChallenge) {
+        public String getRedirectUri(boolean isMobile) {
+            if (isMobile && redirectUriMobile != null && !redirectUriMobile.isEmpty()) {
+                return redirectUriMobile;
+            }
+            return redirectUri;
+        }
+
+        public String getAuthorizationUrl(String state, String codeChallenge, boolean isMobile) {
+            String redirectUriToUse = getRedirectUri(isMobile);
             return String.format("%s?client_id=%s&redirect_uri=%s&response_type=code&scope=%s&state=%s&code_challenge=%s&code_challenge_method=S256",
-                    authUrl, clientId, redirectUri, scope, state, codeChallenge);
+                    authUrl, clientId, redirectUriToUse, scope, state, codeChallenge);
         }
     }
 
@@ -60,16 +71,26 @@ public class OAuthProperties {
         @Size(max = 512, message = "리다이렉트 URI가 너무 깁니다.")
         private String redirectUri;
 
+        @Size(max = 512, message = "모바일 리다이렉트 URI가 너무 깁니다.")
+        private String redirectUriMobile;
+
         private String scope = "openid email profile";
 
-        // 구글 API URLs
         private String authUrl = "https://accounts.google.com/o/oauth2/v2/auth";
         private String tokenUrl = "https://oauth2.googleapis.com/token";
         private String userInfoUrl = "https://www.googleapis.com/oauth2/v2/userinfo";
 
-        public String getAuthorizationUrl(String state, String codeChallenge) {
+        public String getRedirectUri(boolean isMobile) {
+            if (isMobile && redirectUriMobile != null && !redirectUriMobile.isEmpty()) {
+                return redirectUriMobile;
+            }
+            return redirectUri;
+        }
+
+        public String getAuthorizationUrl(String state, String codeChallenge, boolean isMobile) {
+            String redirectUriToUse = getRedirectUri(isMobile);
             return String.format("%s?client_id=%s&redirect_uri=%s&response_type=code&scope=%s&state=%s&code_challenge=%s&code_challenge_method=S256&access_type=offline",
-                    authUrl, clientId, redirectUri, scope, state, codeChallenge);
+                    authUrl, clientId, redirectUriToUse, scope, state, codeChallenge);
         }
     }
 }

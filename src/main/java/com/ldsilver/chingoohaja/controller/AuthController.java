@@ -7,9 +7,7 @@ import com.ldsilver.chingoohaja.dto.auth.request.LoginRequest;
 import com.ldsilver.chingoohaja.dto.auth.request.SignUpRequest;
 import com.ldsilver.chingoohaja.dto.auth.response.LoginResponse;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
-import com.ldsilver.chingoohaja.dto.oauth.request.LogoutRequest;
-import com.ldsilver.chingoohaja.dto.oauth.request.RefreshTokenRequest;
-import com.ldsilver.chingoohaja.dto.oauth.request.SocialLoginRequest;
+import com.ldsilver.chingoohaja.dto.oauth.request.*;
 import com.ldsilver.chingoohaja.dto.oauth.response.*;
 import com.ldsilver.chingoohaja.service.AuthService;
 import com.ldsilver.chingoohaja.service.LocalAuthService;
@@ -91,15 +89,22 @@ public class AuthController {
     @Operation(
             summary = "OAuth 설정 정보 조회",
             description = "프론트엔드에서 소셜 로그인을 위한 OAuth 설정 정보를 제공합니다. " +
-                    "State, Code Challenge 등 보안 파라미터가 포함됩니다."
+                    "State, Code Challenge 등 보안 파라미터가 포함됩니다. " +
+                    "platform 파라미터로 'web' 또는 'mobile'을 지정할 수 있습니다."
     )
     @GetMapping("/oauth/{provider}/config")
     public ApiResponse<OAuthConfigResponse> getOAuthConfig(
             @Parameter(description = "OAuth 공급자", example = "kakao")
-            @PathVariable String provider) {
-        log.debug("OAuth 설정 정보 요청 - {}", provider);
+            @PathVariable String provider,
 
-        OAuthConfigResponse config = oAuthConfigService.getOAuthConfig(provider);
+            @Parameter(description = "플랫폼 타입 (web | mobile)", example = "web")
+            @RequestParam(value = "platform", defaultValue = "web") String platform) {
+
+        log.debug("OAuth 설정 정보 요청 - provider: {}, platform: {}", provider, platform);
+
+        boolean isMobile = "mobile".equalsIgnoreCase(platform);
+        OAuthConfigResponse config = oAuthConfigService.getOAuthConfig(provider, isMobile);
+
         return ApiResponse.ok("OAuth 설정 정보 조회 성공", config);
     }
 
@@ -226,6 +231,61 @@ public class AuthController {
         UserMeResponse response = authService.getMyInfo(accessToken);
 
         return ApiResponse.ok("사용자 정보 조회 성공", response);
+    }
+
+
+    @Operation(
+            summary = "네이티브 앱 카카오 로그인",
+            description = "네이티브 앱에서 카카오 SDK로 받은 액세스 토큰을 사용하여 로그인합니다. " +
+                    "기존 사용자는 로그인, 신규 사용자는 회원가입과 동시에 로그인됩니다."
+    )
+    @PostMapping("/oauth/kakao/native")
+    public ApiResponse<SocialLoginResponse> nativeKakaoLogin(
+            @Valid @RequestBody NativeSocialLoginRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
+
+        log.debug("네이티브 카카오 로그인 요청");
+
+        // 클라이언트 IP 설정
+        request.setClientIp(getClientIpAddress(httpRequest));
+
+        SocialLoginResponse response = authService.nativeKakaoLogin(request);
+
+        // Refresh Token을 HttpOnly 쿠키로 설정
+        setRefreshTokenCookie(httpResponse, response.refreshToken());
+
+        // 응답에서 refresh_token 제거
+        SocialLoginResponse responseWithoutRefreshToken = response.withoutRefreshToken();
+
+        return ApiResponse.ok("로그인 성공", responseWithoutRefreshToken);
+    }
+
+    @Operation(
+            summary = "네이티브 앱 구글 로그인",
+            description = "네이티브 앱에서 Google SDK로 받은 ID 토큰을 사용하여 로그인합니다. " +
+                    "기존 사용자는 로그인, 신규 사용자는 회원가입과 동시에 로그인됩니다."
+    )
+    @PostMapping("/oauth/google/native")
+    public ApiResponse<SocialLoginResponse> nativeGoogleLogin(
+            @Valid @RequestBody NativeGoogleLoginRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
+
+        log.debug("네이티브 구글 로그인 요청");
+
+        // 클라이언트 IP 설정
+        request.setClientIp(getClientIpAddress(httpRequest));
+
+        SocialLoginResponse response = authService.nativeGoogleLogin(request);
+
+        // Refresh Token을 HttpOnly 쿠키로 설정
+        setRefreshTokenCookie(httpResponse, response.refreshToken());
+
+        // 응답에서 refresh_token 제거
+        SocialLoginResponse responseWithoutRefreshToken = response.withoutRefreshToken();
+
+        return ApiResponse.ok("로그인 성공", responseWithoutRefreshToken);
     }
 
 
