@@ -98,7 +98,7 @@ public class SecurityConfig {
                 .headers(headers -> headers
                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
                         .contentSecurityPolicy(csp -> csp
-                                .policyDirectives("frame-ancestors 'self' capacitor://localhost http://localhost https://localhost https://chingoohaja.app")
+                                .policyDirectives("frame-ancestors 'self' capacitor://localhost https://localhost https://chingoohaja.app")
                         )
                 )
                 .sessionManagement(session ->
