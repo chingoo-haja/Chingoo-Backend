@@ -20,6 +20,9 @@ ws:
     - "http://localhost:3001"     # React Native 개발서버
     - "https://chingoo-frontend.vercel.app"   # 운영 도메인
     - "https://chingoohaja.app"
+    - "capacitor://localhost"
+    - "https://localhost"
+
 
 app:
   jwt:
@@ -43,12 +46,10 @@ app:
       - http://localhost:5173
       - "http://localhost:3001"
       - "http://127.0.0.1:3000"
-      - https://chingoo-frontend.vercel.app
-      - https://chingoohaja.app
+      - "https://chingoohaja.app"
       - "capacitor://localhost"
       - "ionic://localhost"
-      - https://localhost
-      - "http://localhost"
+      - "https://localhost"
   firebase:
     service-account-path: ${FIREBASE_SERVICE_ACCOUNT_PATH}
     storage-bucket: ${FIREBASE_STORAGE_BUCKET}

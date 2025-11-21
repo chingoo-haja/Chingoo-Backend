@@ -71,7 +71,6 @@ public class CorsConfig {
                 "https://silverld.site",
                 "https://localhost",
                 "http://localhost",
-                "http://localhost:*",
                 "capacitor://localhost",
                 "ionic://localhost"
         );
