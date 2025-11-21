@@ -43,7 +43,7 @@ public class MatchingEventListener {
     private final RecordingProperties recordingProperties;
     private final ApplicationEventPublisher eventPublisher;
 
-    @Async
+    @Async("matchingTaskExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void handleMatchingSuccess(MatchingSuccessEvent event) {
         log.debug("매칭 성공 이벤트 처리 시작 - callId: {}", event.getCallId());
