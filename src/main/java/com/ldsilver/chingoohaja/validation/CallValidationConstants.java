@@ -14,6 +14,7 @@ public class CallValidationConstants {
     public static final String DEFAULT_ROLE = "PUBLISHER";
     public final long AGORA_MAX_UID = 4_294_967_295L;
     public static final int RECORDING_TOKEN_TTL_SECONDS = 86400;
-    public static final String RECORDING_API_UID = "0";
-    public static final int RECORDING_BOT_UID = 1;
+
+    public static final String RECORDING_API_UID = "527841";
+    public static final int RECORDING_BOT_UID = 527841;
 }

@@ -83,7 +83,7 @@ public class AgoraCloudRecordingClient {
     }
 
     public Mono<String> startRecording(String resourceId, String channelName, RecordingRequest request) {
-        log.debug("오디오 전용 Agora Cloud Recording 시작 - resourceId: {}, channel: {}",
+        log.debug("개별 오디오 전용 Agora Cloud Recording 시작 - resourceId: {}, channel: {}",
                 maskSensitiveData(resourceId), channelName);
 
         log.info("=" .repeat(80));
@@ -99,8 +99,8 @@ public class AgoraCloudRecordingClient {
         Map<String, Object> recordingConfig = new HashMap<>();
         recordingConfig.put("maxIdleTime", request.maxIdleTime());
         recordingConfig.put("streamTypes", 0); // 0 = audio only
+        recordingConfig.put("streamMode", "standard");
         recordingConfig.put("channelType", 0); // 0 = communication
-        recordingConfig.put("audioProfile", request.audioProfile());
         recordingConfig.put("subscribeAudioUids", List.of("#allstream#"));
         recordingConfig.put("subscribeVideoUids", List.of());
         recordingConfig.put("subscribeUidGroup", 0);
@@ -125,7 +125,7 @@ public class AgoraCloudRecordingClient {
         );
 
         // ✅ 전체 요청 본문 로그 (민감 정보는 마스킹)
-        log.info("📤 요청 URL: /v1/apps/{}/cloud_recording/resourceid/{}/mode/mix/start",
+        log.info("📤 요청 URL: /v1/apps/{}/cloud_recording/resourceid/{}/mode/individual/start",
                 maskSensitiveData(agoraProperties.getAppId()), maskSensitiveData(resourceId));
         log.info("📦 요청 본문:");
         log.info("  cname: {}", channelName);
@@ -145,7 +145,7 @@ public class AgoraCloudRecordingClient {
 
 
         return webClient.post()
-                .uri("/v1/apps/{appid}/cloud_recording/resourceid/{resourceid}/mode/mix/start",
+                .uri("/v1/apps/{appid}/cloud_recording/resourceid/{resourceid}/mode/individual/start",
                         agoraProperties.getAppId(), resourceId)
                 .header(HttpHeaders.AUTHORIZATION, createBasicAuthHeader())
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
@@ -182,8 +182,9 @@ public class AgoraCloudRecordingClient {
                 "clientRequest", Map.of()
         );
 
+        //   https://api.agora.io/v1/apps/<yourappid>/cloud_recording/resourceid/<resourceid>/sid/<sid>/mode/individual/stop
         return webClient.post()
-                .uri("/v1/apps/{appid}/cloud_recording/resourceid/{resourceid}/sid/{sid}/mode/mix/stop",
+                .uri("/v1/apps/{appid}/cloud_recording/resourceid/{resourceid}/sid/{sid}/mode/individual/stop",
                         agoraProperties.getAppId(), resourceId, sid)
                 .header(HttpHeaders.AUTHORIZATION, createBasicAuthHeader())
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
@@ -210,7 +211,7 @@ public class AgoraCloudRecordingClient {
                 maskSensitiveData(resourceId), maskSensitiveData(sid));
 
         return webClient.get()
-                .uri("/v1/apps/{appid}/cloud_recording/resourceid/{resourceid}/sid/{sid}/mode/mix/query",
+                .uri("/v1/apps/{appid}/cloud_recording/resourceid/{resourceid}/sid/{sid}/mode/individual/query",
                         agoraProperties.getAppId(), resourceId, sid)
                 .header(HttpHeaders.AUTHORIZATION, createBasicAuthHeader())
                 .retrieve()
