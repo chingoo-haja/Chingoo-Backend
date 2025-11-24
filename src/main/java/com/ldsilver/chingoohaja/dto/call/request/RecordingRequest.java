@@ -18,21 +18,18 @@ public record RecordingRequest(
         @Size(min = 1, max = 64, message = "채널명은 1-64자여야 합니다.")
         @JsonProperty("channel_name") String channelName,
 
-        @JsonProperty("max_idle_time") Integer maxIdleTime,
-        @JsonProperty("audio_profile") Integer audioProfile
+        @JsonProperty("max_idle_time") Integer maxIdleTime
         ) {
     public RecordingRequest {
         // 기본값 설정
         if (maxIdleTime == null || maxIdleTime < 10 || maxIdleTime > 300) {
             maxIdleTime = 30; // 30초
         }
-        if (audioProfile == null || audioProfile < 0 || audioProfile > 2) {
-            audioProfile = 0; // 기본 오디오 프로필
-        }
+
     }
 
     public static RecordingRequest of(Long callId, String channelName) {
-        return new RecordingRequest(callId, channelName, 30, 0);
+        return new RecordingRequest(callId, channelName, 30);
     }
 
     public int getChannelType() {
