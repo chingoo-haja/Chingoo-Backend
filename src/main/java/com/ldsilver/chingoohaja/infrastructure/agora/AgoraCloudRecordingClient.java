@@ -17,6 +17,8 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -254,7 +256,7 @@ public class AgoraCloudRecordingClient {
         Map<String, Object> config = new HashMap<>();
         config.put("vendor", vendorCode);
 
-        // ✅ GCS Multi-region 처리
+        // GCS Multi-region 처리
         if (vendorCode == 6) {
             // "0", "us", "US" 같은 값들은 그대로 문자열로
             if ("0".equals(regionStr) || "US".equalsIgnoreCase(regionStr)) {
@@ -273,6 +275,15 @@ public class AgoraCloudRecordingClient {
         config.put("bucket", bucket);
         config.put("accessKey", accessKey);
         config.put("secretKey", secretKey);
+
+        LocalDate today = LocalDate.now();
+        String dateFolder = today.format(DateTimeFormatter.BASIC_ISO_DATE);
+
+        config.put("fileNamePrefix", List.of(
+                "recordings",                       //recordings/
+                dateFolder,                         //recordings/20250123
+                String.valueOf(request.callId())    //recordings/20250123/1/
+        ));
 
         log.info("📦 StorageConfig - vendor: {}, region: '{}', bucket: {}",
                 vendorCode, config.get("region"), agoraProperties.getRecordingStorageBucket());
