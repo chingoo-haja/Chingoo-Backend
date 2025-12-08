@@ -121,4 +121,21 @@ public class FriendshipController {
         friendshipService.deleteFriendship(userDetails.getUserId(), friendId);
         return ApiResponse.ok("친구를 삭제했습니다.");
     }
+
+    @Operation(
+            summary = "사용자 차단",
+            description = "특정 친구 관계를 차단 상태로 변경합니다. " +
+                    "PENDING 또는 ACCEPTED 상태에서만 차단할 수 있습니다."
+    )
+    @PutMapping("/requests/{friendshipId}/block")
+    public ApiResponse<Void> blockUser(
+            @Parameter(description = "차단할 친구 관계 ID", example = "1")
+            @PathVariable Long friendshipId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        log.debug("사용자 차단 - userId: {}, friendshipId: {}",
+                userDetails.getUserId(), friendshipId);
+
+        friendshipService.blockUser(userDetails.getUserId(), friendshipId);
+        return ApiResponse.ok("사용자를 차단했습니다.");
+    }
 }

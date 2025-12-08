@@ -185,6 +185,25 @@ public class FriendshipService {
         log.debug("친구 삭제 완료 - userId: {}, friendId: {}", userId, friendId);
     }
 
+    @Transactional
+    public void blockUser(Long userId, Long friendshipId) {
+        log.debug("사용자 차단 - userId: {}, friendshipId: {}", userId, friendshipId);
+
+        Friendship friendship = friendshipRepository.findById(friendshipId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FRIENDSHIP_NOT_FOUND));
+
+        validateBlockPermission(friendship, userId);
+
+        try {
+            friendship.block();
+            friendshipRepository.save(friendship);
+            log.debug("사용자 차단 완료 - userId: {}, friendshipId: {}", userId, friendshipId);
+        } catch (IllegalStateException e) {
+            log.error("사용자 차단 실패 - 상태 전환 오류: {}", e.getMessage());
+            throw new CustomException(ErrorCode.INVALID_GUARDIAN_RELATIONSHIP);
+        }
+    }
+
 
 
     // ========== Private 권한 검증 메서드 (Service 책임) ==========
@@ -216,6 +235,15 @@ public class FriendshipService {
         }
         if (!friendship.isAccepted()) {
             throw new CustomException(ErrorCode.FRIENDSHIP_NOT_FOUND);
+        }
+    }
+
+    private void validateBlockPermission(Friendship friendship, Long userId) {
+        boolean isRequester = friendship.getRequester().getId().equals(userId);
+        boolean isAddressee = friendship.getAddressee().getId().equals(userId);
+
+        if (!isRequester && !isAddressee) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
     }
 
