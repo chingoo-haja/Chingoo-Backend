@@ -80,17 +80,17 @@ public class FriendshipService {
     }
 
     @Transactional
-    public void sendFriendRequest(Long requesterId, Long addresseeId) {
-        log.debug("친구 요청 전송 - requesterId: {}, addresseeId: {}", requesterId, addresseeId);
-
-        if (requesterId.equals(addresseeId)) {
-            throw new CustomException(ErrorCode.SELF_FRIENDSHIP_NOT_ALLOWED);
-        }
+    public void sendFriendRequest(Long requesterId, String addresseeNickname) {
+        log.debug("친구 요청 전송 - requesterId: {}, addresseeNickname: {}", requesterId, addresseeNickname);
 
         User requester = userRepository.findById(requesterId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        User addressee = userRepository.findById(addresseeId)
+        User addressee = userRepository.findByNickname(addresseeNickname)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        if (requesterId.equals(addressee.getId())) {
+            throw new CustomException(ErrorCode.SELF_FRIENDSHIP_NOT_ALLOWED);
+        }
 
         friendshipRepository.findFriendshipBetweenUsers(requester, addressee, FriendshipStatus.ACCEPTED)
                 .ifPresent(f -> {
@@ -104,7 +104,7 @@ public class FriendshipService {
         Friendship friendship = Friendship.from(requester, addressee);
         friendshipRepository.save(friendship);
 
-        log.debug("친구 요청 전송 완료 - requsterId: {}, addresseeId: {}", requesterId, addresseeId);
+        log.debug("친구 요청 전송 완료 - requsterId: {}, addresseeId: {}", requesterId, addressee.getId());
     }
 
     @Transactional

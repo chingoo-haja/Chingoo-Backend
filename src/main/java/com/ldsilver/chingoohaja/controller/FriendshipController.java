@@ -2,12 +2,14 @@ package com.ldsilver.chingoohaja.controller;
 
 import com.ldsilver.chingoohaja.domain.user.CustomUserDetails;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
+import com.ldsilver.chingoohaja.dto.friendship.request.FriendRequestSendRequest;
 import com.ldsilver.chingoohaja.dto.friendship.response.FriendListResponse;
 import com.ldsilver.chingoohaja.service.FriendshipService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -17,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/friendships")
 @RequiredArgsConstructor
-@Tag(name = "친구", description = "친구 관게 관리 API")
+@Tag(name = "친구", description = "친구 관계 관리 API")
 @SecurityRequirement(name = "Bearer Authentication")
 public class FriendshipController {
 
@@ -39,17 +41,16 @@ public class FriendshipController {
 
     @Operation(
             summary = "친구 요청 전송",
-            description = "특정 사용자에게 친구 요청을 전송합니다."
+            description = "닉네임으로 특정 사용자에게 친구 요청을 전송합니다."
     )
-    @PostMapping("/{addresseeId}")
+    @PostMapping
     public ApiResponse<Void> sendFriendRequest(
-            @Parameter(description = "친구 요청을 받을 사용자 ID", example = "1")
-            @PathVariable Long addresseeId,
+            @Valid @RequestBody FriendRequestSendRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        log.debug("친구 요청 전송 - requesterId: {}, addresseeId: {}",
-                userDetails.getUserId(), addresseeId);
+        log.debug("친구 요청 전송 - requesterId: {}, addresseeNickname: {}",
+                userDetails.getUserId(), request.getNickname());
 
-        friendshipService.sendFriendRequest(userDetails.getUserId(), addresseeId);
+        friendshipService.sendFriendRequest(userDetails.getUserId(), request.getTrimmedNickname());
         return ApiResponse.ok("친구 요청을 전송했습니다.");
     }
 
