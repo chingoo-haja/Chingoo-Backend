@@ -22,12 +22,6 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
                                                     @Param("user2") User user2,
                                                     @Param("status") FriendshipStatus status);
 
-    // 사용자의 친구 목록 조회
-    @Query("SELECT CASE WHEN f.requester = :user THEN f.addressee ELSE f.requester END " +
-            "FROM Friendship f WHERE (f.requester = :user OR f.addressee = :user) " +
-            "AND f.friendshipStatus = 'ACCEPTED'")
-    List<User> findFriendsByUser(@Param("user") User user);
-
     // 받은 친구 요청 조회
     List<Friendship> findByAddresseeAndFriendshipStatusOrderByCreatedAtDesc(User addressee, FriendshipStatus status);
 
