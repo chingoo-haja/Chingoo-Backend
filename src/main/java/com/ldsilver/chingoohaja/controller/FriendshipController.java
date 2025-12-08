@@ -5,14 +5,13 @@ import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.dto.friendship.response.FriendListResponse;
 import com.ldsilver.chingoohaja.service.FriendshipService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
@@ -36,5 +35,38 @@ public class FriendshipController {
 
         FriendListResponse response = friendshipService.getFriendsList(userDetails.getUserId());
         return ApiResponse.ok("친구 목록 조회 성공", response);
+    }
+
+    @Operation(
+            summary = "친구 요청 전송",
+            description = "특정 사용자에게 친구 요청을 전송합니다."
+    )
+    @PostMapping("/{addresseeId}")
+    public ApiResponse<Void> sendFriendRequest(
+            @Parameter(description = "친구 요청을 받을 사용자 ID", example = "1")
+            @PathVariable Long addresseeId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        log.debug("친구 요청 전송 - requesterId: {}, addresseeId: {}",
+                userDetails.getUserId(), addresseeId);
+
+        friendshipService.sendFriendRequest(userDetails.getUserId(), addresseeId);
+        return ApiResponse.ok("친구 요청을 전송했습니다.");
+    }
+
+    @Operation(
+            summary = "친구 요청 수락",
+            description = "받은 친구 요청을 수락합니다. " +
+                    "요청을 받은 사람(addressee)만 수락할 수 있습니다."
+    )
+    @PutMapping("/{friendshipId}/accept")
+    public ApiResponse<Void> acceptFriendRequest(
+            @Parameter(description = "친구 요청 ID", example = "1")
+            @PathVariable Long friendshipId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        log.debug("친구 요청 수락 - userId: {}, friendshipId: {}",
+                userDetails.getUserId(), friendshipId);
+
+        friendshipService.acceptFriendRequest(userDetails.getUserId(), friendshipId);
+        return ApiResponse.ok("친구 요청을 수락했습니다.");
     }
 }

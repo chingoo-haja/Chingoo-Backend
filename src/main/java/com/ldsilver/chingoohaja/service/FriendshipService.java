@@ -126,6 +126,25 @@ public class FriendshipService {
         }
     }
 
+    @Transactional
+    public void rejectFriendRequest(Long userId, Long friendshipId) {
+        log.debug("친구 요청 거절 - userId: {}, friendshipId: {}", userId, friendshipId);
+
+        Friendship friendship = friendshipRepository.findById(friendshipId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FRIENDSHIP_NOT_FOUND));
+
+        validateRejectPermission(friendship, userId);
+
+        try {
+            friendship.reject();
+            friendshipRepository.save(friendship);
+            log.debug("친구 요청 거절 완료 - userId: {}, friendshipId: {}", userId, friendshipId);
+        } catch (IllegalStateException e) {
+            log.error("친구 요청 거절 실패 - 상태 전환 오류: {}", e.getMessage());
+            throw new CustomException(ErrorCode.INVALID_GUARDIAN_RELATIONSHIP);
+        }
+    }
+
     // ========== Private 권한 검증 메서드 (Service 책임) ==========
 
     private void validateAcceptPermission(Friendship friendship, Long userId) {
@@ -136,4 +155,14 @@ public class FriendshipService {
             throw new CustomException(ErrorCode.INVALID_GUARDIAN_RELATIONSHIP);
         }
     }
+
+    private void validateRejectPermission(Friendship friendship, Long userId) {
+        if (!friendship.getAddressee().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+        if (!friendship.isPending()) {
+            throw new CustomException(ErrorCode.INVALID_GUARDIAN_RELATIONSHIP);
+        }
+    }
+
 }
