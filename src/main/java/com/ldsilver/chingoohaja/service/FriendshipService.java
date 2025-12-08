@@ -6,6 +6,7 @@ import com.ldsilver.chingoohaja.domain.friendship.Friendship;
 import com.ldsilver.chingoohaja.domain.friendship.enums.FriendshipStatus;
 import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.dto.friendship.response.FriendListResponse;
+import com.ldsilver.chingoohaja.dto.friendship.response.PendingFriendRequestListResponse;
 import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.repository.FriendshipRepository;
 import com.ldsilver.chingoohaja.repository.UserRepository;
@@ -145,7 +146,28 @@ public class FriendshipService {
         }
     }
 
-    // ========== Private 권한 검증 메서드 (Service 책임) ==========
+    @Transactional(readOnly = true)
+    public PendingFriendRequestListResponse getPendingFriendRequests(Long userId) {
+        log.debug("받은 친구 요청 목록 조회 시작 - userId: {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        List<Friendship> pendingRequests = friendshipRepository
+                .findByAddresseeAndFriendshipStatusOrderByCreatedAtDesc(user, FriendshipStatus.PENDING);
+
+        List<PendingFriendRequestListResponse.PendingFriendRequestItem> requestItems =
+                pendingRequests.stream()
+                        .map(PendingFriendRequestListResponse.PendingFriendRequestItem::from)
+                        .collect(Collectors.toList());
+
+        log.debug("받은 친구 요청 목록 조회 완료 - userId: {}, requestCount: {}",
+                userId, requestItems.size());
+
+        return PendingFriendRequestListResponse.of(requestItems);
+    }
+
+        // ========== Private 권한 검증 메서드 (Service 책임) ==========
 
     private void validateAcceptPermission(Friendship friendship, Long userId) {
         if (!friendship.getAddressee().getId().equals(userId)) {
