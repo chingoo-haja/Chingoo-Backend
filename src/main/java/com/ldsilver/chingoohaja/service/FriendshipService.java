@@ -67,15 +67,9 @@ public class FriendshipService {
                 })
                 .sorted((a, b) -> {
                     // 마지막 통화 시간 기준 내림차순 정렬 (최근 통화한 친구가 위로)
-                    if (a.lastCallAt() == null && b.lastCallAt() == null) {
-                        return 0;
-                    }
-                    if (a.lastCallAt() == null) {
-                        return 1;
-                    }
-                    if (b.lastCallAt() == null) {
-                        return -1;
-                    }
+                    if (a.lastCallAt() == null && b.lastCallAt() == null) return 0;
+                    if (a.lastCallAt() == null) return 1;
+                    if (b.lastCallAt() == null) return -1;
                     return b.lastCallAt().compareTo(a.lastCallAt());
                 })
                 .collect(Collectors.toList());
@@ -111,5 +105,35 @@ public class FriendshipService {
         friendshipRepository.save(friendship);
 
         log.debug("친구 요청 전송 완료 - requsterId: {}, addresseeId: {}", requesterId, addresseeId);
+    }
+
+    @Transactional
+    public void acceptFriendRequest(Long userId, Long friendshipId) {
+        log.debug("친구 요청 수락 - userId: {}, friendshipId: {}", userId, friendshipId);
+
+        Friendship friendship = friendshipRepository.findById(friendshipId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FRIENDSHIP_NOT_FOUND));
+
+        validateAcceptPermission(friendship, userId);
+
+        try {
+            friendship.accept();
+            friendshipRepository.save(friendship);
+            log.debug("친구 요청 수락 완료 - userId: {}, friendshipId: {}", userId, friendshipId);
+        } catch (IllegalStateException e) {
+            log.error("친구 요청 수락 실패 - 상태 전환 오류: {}", e.getMessage());
+            throw new CustomException(ErrorCode.INVALID_GUARDIAN_RELATIONSHIP);
+        }
+    }
+
+    // ========== Private 권한 검증 메서드 (Service 책임) ==========
+
+    private void validateAcceptPermission(Friendship friendship, Long userId) {
+        if (!friendship.getAddressee().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+        if (!friendship.isPending()) {
+            throw new CustomException(ErrorCode.INVALID_GUARDIAN_RELATIONSHIP);
+        }
     }
 }
