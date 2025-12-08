@@ -119,4 +119,28 @@ public interface CallRepository extends JpaRepository<Call, Long> {
             Pageable pageable
     );
 
+    // ======= 친구 관련 메서드들 =======
+    /**
+     * 두 사용자 간의 마지막 완료된 통화 조회
+     * 친구 목록에서 마지막 통화 시간을 표시하기 위해 사용
+     */
+    @Query("SELECT c FROM Call c " +
+            "WHERE ((c.user1.id = :userId1 AND c.user2.id = :userId2) " +
+            "OR (c.user1.id = :userId2 AND c.user2.id = :userId1)) " +
+            "AND c.callStatus = :status " +
+            "ORDER BY c.endAt DESC")
+    List<Call> findCallsBetweenUsers(
+            @Param("userId1") Long userId1,
+            @Param("userId2") Long userId2,
+            @Param("status") CallStatus status
+    );
+
+    /**
+     * 두 사용자 간의 마지막 완료된 통화 조회 (단건)
+     */
+    default Optional<Call> findLastCompletedCallBetweenUsers(Long userId1, Long userId2) {
+        List<Call> calls = findCallsBetweenUsers(userId1, userId2, CallStatus.COMPLETED);
+        return calls.isEmpty() ? Optional.empty() : Optional.of(calls.get(0));
+    }
+
 }
