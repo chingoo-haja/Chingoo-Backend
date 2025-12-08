@@ -84,4 +84,32 @@ public class FriendshipService {
 
         return FriendListResponse.of(friendItems);
     }
+
+    @Transactional
+    public void sendFriendRequest(Long requesterId, Long addresseeId) {
+        log.debug("친구 요청 전송 - requesterId: {}, addresseeId: {}", requesterId, addresseeId);
+
+        if (requesterId.equals(addresseeId)) {
+            throw new CustomException(ErrorCode.SELF_FRIENDSHIP_NOT_ALLOWED);
+        }
+
+        User requester = userRepository.findById(requesterId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        User addressee = userRepository.findById(addresseeId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        friendshipRepository.findFriendshipBetweenUsers(requester, addressee, FriendshipStatus.ACCEPTED)
+                .ifPresent(f -> {
+                    throw new CustomException(ErrorCode.FRIENDSHIP_ALREADY_EXISTS);
+                });
+        friendshipRepository.findFriendshipBetweenUsers(requester, addressee, FriendshipStatus.PENDING)
+                .ifPresent(f -> {
+                    throw new CustomException(ErrorCode.FRIENDSHIP_REQUEST_ALREADY_SENT);
+                });
+
+        Friendship friendship = Friendship.from(requester, addressee);
+        friendshipRepository.save(friendship);
+
+        log.debug("친구 요청 전송 완료 - requsterId: {}, addresseeId: {}", requesterId, addresseeId);
+    }
 }
