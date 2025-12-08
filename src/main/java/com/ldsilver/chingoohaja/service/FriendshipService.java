@@ -24,7 +24,7 @@ public class FriendshipService {
     private final CallRepository callRepository;
 
     @Transactional(readOnly = true)
-    public FriendListResponse getFriendList(Long userId){
+    public FriendListResponse getFriendsList(Long userId){
         log.debug("친구 목록 조회 시작 - userId: {}", userId);
 
         User user = userRepository.findById(userId)
