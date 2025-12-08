@@ -167,7 +167,27 @@ public class FriendshipService {
         return PendingFriendRequestListResponse.of(requestItems);
     }
 
-        // ========== Private 권한 검증 메서드 (Service 책임) ==========
+    @Transactional
+    public void deleteFriendship(Long userId, Long friendId) {
+        log.debug("친구 삭제 - userId: {}, friendId: {}", userId, friendId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        User friend = userRepository.findById(friendId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        Friendship friendship = friendshipRepository.findFriendshipBetweenUsers(user, friend, FriendshipStatus.ACCEPTED)
+                .orElseThrow(() -> new CustomException(ErrorCode.FRIENDSHIP_NOT_FOUND));
+
+        validateDeletePermission(friendship, userId);
+
+        friendshipRepository.delete(friendship);
+        log.debug("친구 삭제 완료 - userId: {}, friendId: {}", userId, friendId);
+    }
+
+
+
+    // ========== Private 권한 검증 메서드 (Service 책임) ==========
 
     private void validateAcceptPermission(Friendship friendship, Long userId) {
         if (!friendship.getAddressee().getId().equals(userId)) {
@@ -184,6 +204,18 @@ public class FriendshipService {
         }
         if (!friendship.isPending()) {
             throw new CustomException(ErrorCode.INVALID_GUARDIAN_RELATIONSHIP);
+        }
+    }
+
+    private void validateDeletePermission(Friendship friendship, Long userId) {
+        boolean isRequester = friendship.getRequester().getId().equals(userId);
+        boolean isAddressee = friendship.getAddressee().getId().equals(userId);
+
+        if (!isRequester && !isAddressee) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+        if (!friendship.isAccepted()) {
+            throw new CustomException(ErrorCode.FRIENDSHIP_NOT_FOUND);
         }
     }
 

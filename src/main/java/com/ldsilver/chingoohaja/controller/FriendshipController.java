@@ -104,4 +104,21 @@ public class FriendshipController {
                 friendshipService.getPendingFriendRequests(userDetails.getUserId());
         return ApiResponse.ok("받은 친구 요청 목록 조회 성공", response);
     }
+
+    @Operation(
+            summary = "친구 삭제",
+            description = "친구 관계를 삭제합니다. " +
+                    "친구 관계의 양쪽 사용자 모두 삭제할 수 있습니다."
+    )
+    @DeleteMapping("/{friendId}")
+    public ApiResponse<Void> deleteFriendship(
+            @Parameter(description = "삭제할 친구 사용자 ID", example = "1")
+            @PathVariable Long friendId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        log.debug("친구 삭제 - userId: {}, friendId: {}",
+                userDetails.getUserId(), friendId);
+
+        friendshipService.deleteFriendship(userDetails.getUserId(), friendId);
+        return ApiResponse.ok("친구를 삭제했습니다.");
+    }
 }
