@@ -4,6 +4,7 @@ import com.ldsilver.chingoohaja.domain.user.CustomUserDetails;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.dto.friendship.request.FriendRequestSendRequest;
 import com.ldsilver.chingoohaja.dto.friendship.response.FriendListResponse;
+import com.ldsilver.chingoohaja.dto.friendship.response.PendingFriendRequestListResponse;
 import com.ldsilver.chingoohaja.service.FriendshipService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -86,5 +87,21 @@ public class FriendshipController {
 
         friendshipService.rejectFriendRequest(userDetails.getUserId(), friendshipId);
         return ApiResponse.ok("친구 요청을 거절했습니다.");
+    }
+
+    @Operation(
+            summary = "받은 친구 요청 목록 조회",
+            description = "현재 로그인한 사용자가 받은 친구 요청 목록을 조회합니다. " +
+                    "PENDING 상태이면서 내가 응답해야 하는 요청들만 포함됩니다. " +
+                    "최신 요청 순으로 정렬됩니다."
+    )
+    @GetMapping("/requests")
+    public ApiResponse<PendingFriendRequestListResponse> getPendingFriendRequests(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        log.debug("받은 친구 요청 목록 조회 요청 - userId: {}", userDetails.getUserId());
+
+        PendingFriendRequestListResponse response =
+                friendshipService.getPendingFriendRequests(userDetails.getUserId());
+        return ApiResponse.ok("받은 친구 요청 목록 조회 성공", response);
     }
 }
