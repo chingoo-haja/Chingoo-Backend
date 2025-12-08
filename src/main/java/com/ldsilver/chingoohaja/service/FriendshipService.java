@@ -35,39 +35,31 @@ public class FriendshipService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        // 친구 관계 조회 (ACCEPTED 상태만)
-        // 내가 요청한 경우
         List<User> friendsAsRequester = friendshipRepository
                 .findByRequesterAndFriendshipStatusOrderByCreatedAtDesc(user, FriendshipStatus.ACCEPTED)
                 .stream()
                 .map(Friendship::getAddressee)
                 .toList();
 
-        // 상대방이 요청한 경우
         List<User> friendsAsAddressee = friendshipRepository
                 .findByAddresseeAndFriendshipStatusOrderByCreatedAtDesc(user, FriendshipStatus.ACCEPTED)
                 .stream()
                 .map(Friendship::getRequester)
                 .toList();
 
-        // 두 리스트 합치기 (중복 제거를 위해 Set 사용)
         Set<User> uniqueFriends = new HashSet<>();
         uniqueFriends.addAll(friendsAsRequester);
         uniqueFriends.addAll(friendsAsAddressee);
 
-        // 친구별 마지막 통화 정보와 함께 DTO 생성
         List<FriendListResponse.FriendItem> friendItems = uniqueFriends.stream()
                 .map(friend -> {
-                    // 해당 친구와의 마지막 완료된 통화 조회
                     var lastCall = callRepository.findLastCompletedCallBetweenUsers(userId, friend.getId());
-
                     return FriendListResponse.FriendItem.of(
                             friend,
                             lastCall.orElse(null)
                     );
                 })
                 .sorted((a, b) -> {
-                    // 마지막 통화 시간 기준 내림차순 정렬 (최근 통화한 친구가 위로)
                     if (a.lastCallAt() == null && b.lastCallAt() == null) return 0;
                     if (a.lastCallAt() == null) return 1;
                     if (b.lastCallAt() == null) return -1;
@@ -76,7 +68,6 @@ public class FriendshipService {
                 .collect(Collectors.toList());
 
         log.debug("친구 목록 조회 완료 - userId: {}, friendCount: {}", userId, friendItems.size());
-
         return FriendListResponse.of(friendItems);
     }
 
@@ -169,7 +160,7 @@ public class FriendshipService {
 
     @Transactional
     public void deleteFriendship(Long userId, Long friendId) {
-        log.debug("친구 삭제 - userId: {}, friendId: {}", userId, friendId);
+        log.debug("친구 삭제 (소프트 삭제) - userId: {}, friendId: {}", userId, friendId);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -181,8 +172,15 @@ public class FriendshipService {
 
         validateDeletePermission(friendship, userId);
 
-        friendshipRepository.delete(friendship);
-        log.debug("친구 삭제 완료 - userId: {}, friendId: {}", userId, friendId);
+        try {
+            friendship.delete();
+            friendshipRepository.save(friendship);
+            log.debug("친구 삭제 완료 (소프트 삭제) - userId: {}, friendId: {}, friendshipId: {}",
+                    userId, friendId, friendship.getId());
+        } catch (IllegalStateException e) {
+            log.error("친구 삭제 실패 - 상태 전환 오류: {}", e.getMessage());
+            throw new CustomException(ErrorCode.INVALID_GUARDIAN_RELATIONSHIP);
+        }
     }
 
     @Transactional

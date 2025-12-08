@@ -76,6 +76,15 @@ public class Friendship extends BaseEntity {
         this.friendshipStatus = FriendshipStatus.BLOCKED;
     }
 
+    /**
+     * 친구 삭제 (소프트 삭제)
+     * 도메인 규칙: ACCEPTED 상태에서만 DELETED로 전환 가능
+     */
+    public void delete() {
+        validateStatusTransition(FriendshipStatus.ACCEPTED, "삭제");
+        this.friendshipStatus = FriendshipStatus.DELETED;
+    }
+
     // ========== 도메인 상태 확인 (상태 조회만) ==========
 
     public boolean isPending() {
@@ -92,6 +101,17 @@ public class Friendship extends BaseEntity {
 
     public boolean isBlocked() {
         return this.friendshipStatus == FriendshipStatus.BLOCKED;
+    }
+
+    public boolean isDeleted() {
+        return this.friendshipStatus == FriendshipStatus.DELETED;
+    }
+
+    /**
+     * 활성 상태인지 확인 (프론트에서 보여줄 친구인지)
+     */
+    public boolean isActive() {
+        return this.friendshipStatus == FriendshipStatus.ACCEPTED;
     }
 
     // ========== 도메인 제약사항 검증 ==========
