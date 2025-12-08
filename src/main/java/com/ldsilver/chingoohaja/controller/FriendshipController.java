@@ -69,4 +69,21 @@ public class FriendshipController {
         friendshipService.acceptFriendRequest(userDetails.getUserId(), friendshipId);
         return ApiResponse.ok("친구 요청을 수락했습니다.");
     }
+
+    @Operation(
+            summary = "친구 요청 거절",
+            description = "받은 친구 요청을 거절합니다. " +
+                    "요청을 받은 사람(addressee)만 거절할 수 있습니다."
+    )
+    @PutMapping("/{friendshipId}/reject")
+    public ApiResponse<Void> rejectFriendRequest(
+            @Parameter(description = "친구 요청 ID", example = "1")
+            @PathVariable Long friendshipId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        log.debug("친구 요청 거절 - userId: {}, friendshipId: {}",
+                userDetails.getUserId(), friendshipId);
+
+        friendshipService.rejectFriendRequest(userDetails.getUserId(), friendshipId);
+        return ApiResponse.ok("친구 요청을 거절했습니다.");
+    }
 }
