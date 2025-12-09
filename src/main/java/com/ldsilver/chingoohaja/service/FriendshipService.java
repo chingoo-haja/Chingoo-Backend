@@ -107,7 +107,7 @@ public class FriendshipService {
         Friendship friendship = friendshipRepository.findById(friendshipId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FRIENDSHIP_NOT_FOUND));
 
-        validateAcceptPermission(friendship, userId);
+        validateAddresseePermission(friendship, userId);
 
         try {
             friendship.accept();
@@ -126,7 +126,7 @@ public class FriendshipService {
         Friendship friendship = friendshipRepository.findById(friendshipId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FRIENDSHIP_NOT_FOUND));
 
-        validateRejectPermission(friendship, userId);
+        validateAddresseePermission(friendship, userId);
 
         try {
             friendship.reject();
@@ -246,16 +246,7 @@ public class FriendshipService {
 
     // ========== Private 권한 검증 메서드 (Service 책임) ==========
 
-    private void validateAcceptPermission(Friendship friendship, Long userId) {
-        if (!friendship.getAddressee().getId().equals(userId)) {
-            throw new CustomException(ErrorCode.ACCESS_DENIED);
-        }
-        if (!friendship.isPending()) {
-            throw new CustomException(ErrorCode.FAILED_FRIENDSHIP_PERMISSION);
-        }
-    }
-
-    private void validateRejectPermission(Friendship friendship, Long userId) {
+    private void validateAddresseePermission(Friendship friendship, Long userId) {
         if (!friendship.getAddressee().getId().equals(userId)) {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
