@@ -180,6 +180,25 @@ public class FriendshipService {
     }
 
     @Transactional
+    public void cancelSentFriendRequest(Long userId, Long friendshipId) {
+        log.debug("보낸 친구 요청 취소 - userId: {}, friendshipId: {}", userId, friendshipId);
+
+        Friendship friendship = friendshipRepository.findById(friendshipId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FRIENDSHIP_NOT_FOUND));
+
+        if (!friendship.getRequester().getId().equals(userId)) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED);
+        }
+        if (!friendship.isPending()) {
+            throw new CustomException(ErrorCode.PENDING_STATES_CAN_CANCELED);
+        }
+
+        friendshipRepository.delete(friendship);
+
+        log.debug("보낸 친구 요청 취소 완료 - userId: {}, friendshipId: {}", userId, friendshipId);
+    }
+
+    @Transactional
     public void deleteFriendship(Long userId, Long friendId) {
         log.debug("친구 삭제 (소프트 삭제) - userId: {}, friendId: {}", userId, friendId);
 
