@@ -190,7 +190,7 @@ public class FriendshipService {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
         if (!friendship.isPending()) {
-            throw new CustomException(ErrorCode.PENDING_STATES_CAN_CANCELED);
+            throw new CustomException(ErrorCode.ONLY_PENDING_CAN_BE_CANCELED);
         }
 
         friendshipRepository.delete(friendship);
