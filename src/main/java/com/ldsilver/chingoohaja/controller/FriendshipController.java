@@ -122,6 +122,23 @@ public class FriendshipController {
         return ApiResponse.ok("보낸 친구 요청 목록 조회 성공", response);
     }
 
+    @Operation(
+            summary = "보낸 친구 요청 취소",
+            description = "내가 보낸 친구 요청을 취소합니다. " +
+                    "PENDING 상태이면서 내가 요청 보낸 사람(requester)인 경우만 취소 가능합니다."
+    )
+    @DeleteMapping("/requests/{friendshipId}")
+    public ApiResponse<Void> cancelSentFriendRequest(
+            @Parameter(description = "취소할 친구 요청 ID", example = "1")
+            @PathVariable Long friendshipId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        log.debug("보낸 친구 요청 취소 - userId: {}, friendshipId: {}",
+                userDetails.getUserId(), friendshipId);
+
+        friendshipService.cancelSentFriendRequest(userDetails.getUserId(), friendshipId);
+        return ApiResponse.ok("친구 요청을 취소했습니다.");
+    }
+
 
     @Operation(
             summary = "친구 삭제",
