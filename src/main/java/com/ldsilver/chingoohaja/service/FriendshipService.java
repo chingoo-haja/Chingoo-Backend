@@ -97,7 +97,7 @@ public class FriendshipService {
         Friendship friendship = Friendship.from(requester, addressee);
         friendshipRepository.save(friendship);
 
-        log.debug("친구 요청 전송 완료 - requsterId: {}, addresseeId: {}", requesterId, addressee.getId());
+        log.debug("친구 요청 전송 완료 - requesterId: {}, addresseeId: {}", requesterId, addressee.getId());
     }
 
     @Transactional
