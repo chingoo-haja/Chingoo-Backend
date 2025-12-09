@@ -114,6 +114,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/users/**").hasAnyRole("USER", "GUARDIAN")
                         .requestMatchers("/api/v1/calls/**").hasAnyRole("USER", "GUARDIAN")
                         .requestMatchers("/api/v1/matching/**").hasAnyRole("USER", "GUARDIAN")
+                        .requestMatchers("/api/v1/friendships/**").hasAnyRole("USER", "GUARDIAN")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exception -> exception

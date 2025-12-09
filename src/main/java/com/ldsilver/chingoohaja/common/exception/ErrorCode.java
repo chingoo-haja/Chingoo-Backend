@@ -150,6 +150,10 @@ public enum ErrorCode {
     FRIENDSHIP_REQUEST_ALREADY_SENT(HttpStatus.CONFLICT, "F002", "이미 친구 요청을 보냈습니다."),
     FRIENDSHIP_NOT_FOUND(HttpStatus.NOT_FOUND, "F003", "친구 관계를 찾을 수 없습니다."),
     SELF_FRIENDSHIP_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "F004", "자기 자신과는 친구가 될 수 없습니다."),
+    ONLY_PENDING_CAN_BE_CANCELED(HttpStatus.BAD_REQUEST, "F005", "대기중인 요청만 취소할 수 있습니다."),
+    FAILED_FRIENDSHIP_REQUEST(HttpStatus.BAD_REQUEST, "F006", "친구 관계 수정 요청이 실패했습니다."),
+    FAILED_FRIENDSHIP_PERMISSION(HttpStatus.BAD_REQUEST, "F007", "친구 관계 수정에 필요한 권한 인증에 실패했습니다."),
+
 
     // 보호자 관련 에러
     GUARDIAN_RELATIONSHIP_NOT_FOUND(HttpStatus.NOT_FOUND, "G001", "보호자 관계를 찾을 수 없습니다."),
