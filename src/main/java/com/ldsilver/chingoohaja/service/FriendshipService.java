@@ -115,7 +115,7 @@ public class FriendshipService {
             log.debug("친구 요청 수락 완료 - userId: {}, friendshipId: {}", userId, friendshipId);
         } catch (IllegalStateException e) {
             log.error("친구 요청 수락 실패 - 상태 전환 오류: {}", e.getMessage());
-            throw new CustomException(ErrorCode.INVALID_GUARDIAN_RELATIONSHIP);
+            throw new CustomException(ErrorCode.FAILED_FRIENDSHIP_REQUEST);
         }
     }
 
@@ -134,7 +134,7 @@ public class FriendshipService {
             log.debug("친구 요청 거절 완료 - userId: {}, friendshipId: {}", userId, friendshipId);
         } catch (IllegalStateException e) {
             log.error("친구 요청 거절 실패 - 상태 전환 오류: {}", e.getMessage());
-            throw new CustomException(ErrorCode.INVALID_GUARDIAN_RELATIONSHIP);
+            throw new CustomException(ErrorCode.FAILED_FRIENDSHIP_REQUEST);
         }
     }
 
@@ -219,7 +219,7 @@ public class FriendshipService {
                     userId, friendId, friendship.getId());
         } catch (IllegalStateException e) {
             log.error("친구 삭제 실패 - 상태 전환 오류: {}", e.getMessage());
-            throw new CustomException(ErrorCode.INVALID_GUARDIAN_RELATIONSHIP);
+            throw new CustomException(ErrorCode.FAILED_FRIENDSHIP_REQUEST);
         }
     }
 
@@ -238,7 +238,7 @@ public class FriendshipService {
             log.debug("사용자 차단 완료 - userId: {}, friendshipId: {}", userId, friendshipId);
         } catch (IllegalStateException e) {
             log.error("사용자 차단 실패 - 상태 전환 오류: {}", e.getMessage());
-            throw new CustomException(ErrorCode.INVALID_GUARDIAN_RELATIONSHIP);
+            throw new CustomException(ErrorCode.FAILED_FRIENDSHIP_REQUEST);
         }
     }
 
@@ -251,7 +251,7 @@ public class FriendshipService {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
         if (!friendship.isPending()) {
-            throw new CustomException(ErrorCode.INVALID_GUARDIAN_RELATIONSHIP);
+            throw new CustomException(ErrorCode.FAILED_FRIENDSHIP_PERMISSION);
         }
     }
 
@@ -260,7 +260,7 @@ public class FriendshipService {
             throw new CustomException(ErrorCode.ACCESS_DENIED);
         }
         if (!friendship.isPending()) {
-            throw new CustomException(ErrorCode.INVALID_GUARDIAN_RELATIONSHIP);
+            throw new CustomException(ErrorCode.FAILED_FRIENDSHIP_PERMISSION);
         }
     }
 
@@ -281,7 +281,7 @@ public class FriendshipService {
         boolean isAddressee = friendship.getAddressee().getId().equals(userId);
 
         if (!isRequester && !isAddressee) {
-            throw new CustomException(ErrorCode.ACCESS_DENIED);
+            throw new CustomException(ErrorCode.FAILED_FRIENDSHIP_PERMISSION);
         }
     }
 
