@@ -95,7 +95,7 @@ public class FriendshipController {
                     "PENDING 상태이면서 내가 응답해야 하는 요청들만 포함됩니다. " +
                     "최신 요청 순으로 정렬됩니다."
     )
-    @GetMapping("/requests")
+    @GetMapping("/requests/received")
     public ApiResponse<PendingFriendRequestListResponse> getPendingFriendRequests(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         log.debug("받은 친구 요청 목록 조회 요청 - userId: {}", userDetails.getUserId());
