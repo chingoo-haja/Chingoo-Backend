@@ -39,6 +39,9 @@ public record FriendListResponse (
         }
     }
     public static FriendListResponse of(List<FriendItem> friends) {
+        if (friends == null) {
+            return new FriendListResponse(List.of(), 0);
+        }
         return new FriendListResponse(friends, friends.size());
     }
 }
