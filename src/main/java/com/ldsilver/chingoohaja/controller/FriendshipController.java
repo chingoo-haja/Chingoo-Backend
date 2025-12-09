@@ -162,7 +162,7 @@ public class FriendshipController {
             description = "특정 친구 관계를 차단 상태로 변경합니다. " +
                     "PENDING 또는 ACCEPTED 상태에서만 차단할 수 있습니다."
     )
-    @PutMapping("/requests/{friendshipId}/block")
+    @PutMapping("/{friendshipId}/block")
     public ApiResponse<Void> blockUser(
             @Parameter(description = "차단할 친구 관계 ID", example = "1")
             @PathVariable Long friendshipId,
