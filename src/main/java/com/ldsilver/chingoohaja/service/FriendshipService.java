@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -85,14 +86,7 @@ public class FriendshipService {
             throw new CustomException(ErrorCode.SELF_FRIENDSHIP_NOT_ALLOWED);
         }
 
-        friendshipRepository.findFriendshipBetweenUsers(requester, addressee, FriendshipStatus.ACCEPTED)
-                .ifPresent(f -> {
-                    throw new CustomException(ErrorCode.FRIENDSHIP_ALREADY_EXISTS);
-                });
-        friendshipRepository.findFriendshipBetweenUsers(requester, addressee, FriendshipStatus.PENDING)
-                .ifPresent(f -> {
-                    throw new CustomException(ErrorCode.FRIENDSHIP_REQUEST_ALREADY_SENT);
-                });
+        validateFriendshipDuplication(requester, addressee);
 
         Friendship friendship = Friendship.from(requester, addressee);
         friendshipRepository.save(friendship);
@@ -245,6 +239,40 @@ public class FriendshipService {
 
 
     // ========== Private 권한 검증 메서드 (Service 책임) ==========
+
+    private void validateFriendshipDuplication(User requester,User addressee){
+        // 1. 이미 친구인 경우
+        Optional<Friendship> existingFriendship =
+                friendshipRepository.findFriendshipBetweenUsers(requester, addressee, FriendshipStatus.ACCEPTED);
+
+        if (existingFriendship.isPresent()) {
+            log.debug("이미 친구 관계 - requesterId: {}, addresseeId: {}",
+                    requester.getId(), addressee.getId());
+            throw new CustomException(ErrorCode.FRIENDSHIP_ALREADY_EXISTS);
+        }
+
+        // 2. PENDING 상태 확인
+        Optional<Friendship> pendingFriendship =
+                friendshipRepository.findFriendshipBetweenUsers(requester, addressee, FriendshipStatus.PENDING);
+
+        if (pendingFriendship.isPresent()) {
+            Friendship friendship = pendingFriendship.get();
+
+            // 2-1. 내가 이미 요청을 보낸 경우
+            if (friendship.getRequester().getId().equals(requester.getId())) {
+                log.debug("이미 친구 요청을 보냄 - requesterId: {}, addresseeId: {}",
+                        requester.getId(), addressee.getId());
+                throw new CustomException(ErrorCode.FRIENDSHIP_REQUEST_ALREADY_SENT);
+            }
+
+            // 2-2. 상대방이 나에게 요청을 보낸 경우
+            if (friendship.getAddressee().getId().equals(requester.getId())) {
+                log.debug("상대방으로부터 이미 친구 요청을 받음 - requesterId: {}, addresseeId: {}",
+                        requester.getId(), addressee.getId());
+                throw new CustomException(ErrorCode.FRIENDSHIP_REQUEST_ALREADY_RECEIVED);
+            }
+        }
+    }
 
     private void validateAddresseePermission(Friendship friendship, Long userId) {
         if (!friendship.getAddressee().getId().equals(userId)) {

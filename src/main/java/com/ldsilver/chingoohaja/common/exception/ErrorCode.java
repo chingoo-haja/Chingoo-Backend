@@ -153,6 +153,7 @@ public enum ErrorCode {
     ONLY_PENDING_CAN_BE_CANCELED(HttpStatus.BAD_REQUEST, "F005", "대기중인 요청만 취소할 수 있습니다."),
     FAILED_FRIENDSHIP_REQUEST(HttpStatus.BAD_REQUEST, "F006", "친구 관계 수정 요청이 실패했습니다."),
     FAILED_FRIENDSHIP_PERMISSION(HttpStatus.BAD_REQUEST, "F007", "친구 관계 수정에 필요한 권한 인증에 실패했습니다."),
+    FRIENDSHIP_REQUEST_ALREADY_RECEIVED(HttpStatus.CONFLICT, "F008", "해당 사용자로부터 이미 친구 요청을 받았습니다."),
 
 
     // 보호자 관련 에러
