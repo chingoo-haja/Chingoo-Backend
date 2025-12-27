@@ -11,6 +11,8 @@ spring:
     defer-datasource-initialization: true
     properties:
       hibernate:
+        jdbc:
+          time_zone: Asia/Seoul
         dialect: org.hibernate.dialect.MySQLDialect
     show-sql: false
 
