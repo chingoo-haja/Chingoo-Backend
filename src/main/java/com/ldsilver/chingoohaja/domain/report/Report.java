@@ -2,6 +2,7 @@ package com.ldsilver.chingoohaja.domain.report;
 
 import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.common.BaseEntity;
+import com.ldsilver.chingoohaja.domain.report.enums.ReportReason;
 import com.ldsilver.chingoohaja.domain.user.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
