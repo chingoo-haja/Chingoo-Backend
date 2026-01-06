@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
-public interface ReportRepository extends JpaRepository<Repository, Long> {
+public interface ReportRepository extends JpaRepository<Report, Long> {
     /**
      * 특정 사용자가 특정 사용자를 이미 신고했는지 확인
      */
