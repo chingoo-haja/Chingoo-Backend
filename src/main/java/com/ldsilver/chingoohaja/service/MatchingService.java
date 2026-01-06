@@ -13,6 +13,7 @@ import com.ldsilver.chingoohaja.dto.matching.response.MatchingResponse;
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingStatusResponse;
 import com.ldsilver.chingoohaja.infrastructure.redis.RedisMatchingConstants;
 import com.ldsilver.chingoohaja.repository.CategoryRepository;
+import com.ldsilver.chingoohaja.repository.FriendshipRepository;
 import com.ldsilver.chingoohaja.repository.MatchingQueueRepository;
 import com.ldsilver.chingoohaja.repository.UserRepository;
 import com.ldsilver.chingoohaja.validation.MatchingValidationConstants;
@@ -32,6 +33,7 @@ public class MatchingService {
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
     private final MatchingQueueRepository matchingQueueRepository;
+    private final FriendshipRepository friendshipRepository;
 
     @Transactional
     public MatchingResponse joinMatchingQueue(Long userId, MatchingRequest request) {
@@ -45,6 +47,13 @@ public class MatchingService {
         if (!category.isActive()) {
             throw new CustomException(ErrorCode.CATEGORY_NOT_ACTIVE);
         }
+
+        List<Long> blockedUserIds = friendshipRepository.findBlockedUserIds(userId);
+        // Redis에 차단 목록 저장 (매칭 시 사용)
+        if (!blockedUserIds.isEmpty()) {
+            redisMatchingQueueService.saveBlockedUsers(userId, blockedUserIds);
+        }
+
 
         RedisMatchingQueueService.QueueStatusInfo existingQueue = redisMatchingQueueService.getQueueStatus(userId);
         if (existingQueue != null) {
