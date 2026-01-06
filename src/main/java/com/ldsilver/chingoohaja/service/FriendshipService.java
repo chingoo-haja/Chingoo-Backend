@@ -236,6 +236,30 @@ public class FriendshipService {
         }
     }
 
+    @Transactional
+    public void reportUser(Long reporterId, Long reportedUserId) {
+        User reporter = userRepository.findById(reporterId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        User reported = userRepository.findById(reportedUserId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        Optional<Friendship> existingFriendship = friendshipRepository
+                .findFriendshipBetweenUsersAnyStatus(reporter, reported);
+
+        if (existingFriendship.isPresent()) {
+            Friendship friendship = existingFriendship.get();
+            friendship.block(); // 기존 block() 메서드 사용
+            friendshipRepository.save(friendship);
+            log.info("기존 관계를 BLOCKED로 변경 - reporterId: {}, reportedId: {}",
+                    reporterId, reportedUserId);
+        } else {
+            // 새로운 차단 관계 생성
+            Friendship newBlock = Friendship.of(reporter, reported, FriendshipStatus.BLOCKED);
+            friendshipRepository.save(newBlock);
+            log.info("새로운 BLOCKED 관계 생성 - reporterId: {}, reportedId: {}",
+                    reporterId, reportedUserId);
+        }
+    }
 
 
     // ========== Private 권한 검증 메서드 (Service 책임) ==========

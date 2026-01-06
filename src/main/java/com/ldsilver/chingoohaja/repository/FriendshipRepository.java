@@ -28,4 +28,26 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
     // 보낸 친구 요청 조회
     List<Friendship> findByRequesterAndFriendshipStatusOrderByCreatedAtDesc(User requester, FriendshipStatus status);
 
+    /**
+     * 두 사용자 간의 관계 조회 (모든 상태)
+     */
+    @Query("SELECT f FROM Friendship f WHERE " +
+            "((f.requester = :user1 AND f.addressee = :user2) OR " +
+            "(f.requester = :user2 AND f.addressee = :user1))")
+    Optional<Friendship> findFriendshipBetweenUsersAnyStatus(
+            @Param("user1") User user1,
+            @Param("user2") User user2
+    );
+
+    /**
+     * 특정 사용자가 차단한 사용자 ID 목록
+     */
+    @Query("SELECT CASE " +
+            "WHEN f.requester.id = :userId THEN f.addressee.id " +
+            "ELSE f.requester.id END " +
+            "FROM Friendship f " +
+            "WHERE (f.requester.id = :userId OR f.addressee.id = :userId) " +
+            "AND f.friendshipStatus = com.ldsilver.chingoohaja.domain.friendship.enums.FriendshipStatus.BLOCKED")
+    List<Long> findBlockedUserIds(@Param("userId") Long userId);
+
 }
