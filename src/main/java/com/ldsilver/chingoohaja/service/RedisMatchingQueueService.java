@@ -5,6 +5,7 @@ import com.ldsilver.chingoohaja.infrastructure.redis.RedisMatchingConstants;
 import com.ldsilver.chingoohaja.validation.MatchingValidationConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,9 @@ import java.util.*;
 public class RedisMatchingQueueService {
 
     private final StringRedisTemplate redisTemplate;
+
+    @Value("${app.redis.blocked-users-ttl:86400}")
+    private long blockedUsersTtl;
 
     public EnqueueResult enqueueUser(Long userId, Long categoryId, String queueId) {
         log.debug("매칭 대기열 참가 - userId: {}, categoryId: {}", userId, categoryId);
@@ -314,7 +318,7 @@ public class RedisMatchingQueueService {
         String key = "user:blocked:" + userId;
         redisTemplate.opsForSet().add(key,
                 blockedUserIds.stream().map(String::valueOf).toArray(String[]::new));
-        redisTemplate.expire(key, Duration.ofHours(24));
+        redisTemplate.expire(key, Duration.ofSeconds(blockedUsersTtl));
     }
 
     public boolean isBlocked(Long user1Id, Long user2Id) {

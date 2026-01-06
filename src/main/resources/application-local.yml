@@ -52,6 +52,8 @@ app:
       expired-time: 1200      # 20분
       manual-trigger-enabled: true  # 수동 실행 API 활성화
       log-level: DEBUG         # 로그 레벨을 WARN으로 설정
+  redis:
+    blocked-users-ttl: 600  # 10분 (초 단위)
 
 logging:
   level:
