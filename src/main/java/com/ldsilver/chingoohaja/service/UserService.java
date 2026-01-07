@@ -102,6 +102,9 @@ public class UserService {
         if (request.hasBirthChange()) {
             user.updateBirth(request.getBirth());
         }
+        if (request.hasPhoneNumberChange()) {
+            user.updatePhoneNumber(request.getTrimmedPhoneNumber());
+        }
     }
 
     private void validateNicknameUnique(String nickname, Long currentUserId) {

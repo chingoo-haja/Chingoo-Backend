@@ -70,4 +70,20 @@ public class UserValidationConstants {
         public static final String INVALID_TYPE = "지원하지 않는 이미지 형식입니다. (jpeg/jpg, png, webp)";
         public static final String TOO_LARGE = "이미지 파일 크기는 5MB 이하여야 합니다.";
     }
+
+    @UtilityClass
+    public static class PhoneNumber {
+        // 전화번호 제한
+        public static final int MIN_LENGTH = 10;
+        public static final int MAX_LENGTH = 20;
+
+        // 전화번호 패턴 (숫자, 하이픈, 플러스 허용)
+        public static final String PATTERN = "^[0-9+-]+$";
+
+        // 에러 메시지
+        public static final String REQUIRED = "전화번호는 필수입니다.";
+        public static final String INVALID_LENGTH = "전화번호는 10-20자여야 합니다.";
+        public static final String INVALID_FORMAT = "전화번호는 숫자, 하이픈(-), 플러스(+)만 사용 가능합니다.";
+        public static final String DUPLICATE = "이미 사용 중인 전화번호입니다.";
+    }
 }
