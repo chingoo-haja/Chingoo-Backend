@@ -182,6 +182,9 @@ public class User extends BaseEntity {
         if (newPhoneNumber != null) {
             String trimmed = newPhoneNumber.trim();
             if (!trimmed.isEmpty()) {
+                if (trimmed.length() > 20) {
+                    throw new CustomException(ErrorCode.INVALID_PHONE_NUMBER_LENGTH);
+                }
                 this.phoneNumber = trimmed;
             }
         }
