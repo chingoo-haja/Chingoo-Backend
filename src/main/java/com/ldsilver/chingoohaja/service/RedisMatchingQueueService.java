@@ -5,10 +5,12 @@ import com.ldsilver.chingoohaja.infrastructure.redis.RedisMatchingConstants;
 import com.ldsilver.chingoohaja.validation.MatchingValidationConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 
@@ -19,6 +21,9 @@ import java.util.*;
 public class RedisMatchingQueueService {
 
     private final StringRedisTemplate redisTemplate;
+
+    @Value("${app.redis.blocked-users-ttl:86400}")
+    private long blockedUsersTtl;
 
     public EnqueueResult enqueueUser(Long userId, Long categoryId, String queueId) {
         log.debug("매칭 대기열 참가 - userId: {}, categoryId: {}", userId, categoryId);
@@ -305,6 +310,27 @@ public class RedisMatchingQueueService {
             log.error("Redis 연결 확인 실패", e);
             return false;
         }
+    }
+
+
+    // 신고된 사용자 관련
+    public void saveBlockedUsers(Long userId, List<Long> blockedUserIds) {
+        String key = "user:blocked:" + userId;
+        redisTemplate.opsForSet().add(key,
+                blockedUserIds.stream().map(String::valueOf).toArray(String[]::new));
+        redisTemplate.expire(key, Duration.ofSeconds(blockedUsersTtl));
+    }
+
+    public boolean isBlocked(Long user1Id, Long user2Id) {
+        String key1 = "user:blocked:" + user1Id;
+        String key2 = "user:blocked:" + user2Id;
+
+        Boolean blocked1 = redisTemplate.opsForSet()
+                .isMember(key1, String.valueOf(user2Id));
+        Boolean blocked2 = redisTemplate.opsForSet()
+                .isMember(key2, String.valueOf(user1Id));
+
+        return Boolean.TRUE.equals(blocked1) || Boolean.TRUE.equals(blocked2);
     }
 
 

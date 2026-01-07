@@ -86,6 +86,7 @@ public class FriendshipService {
             throw new CustomException(ErrorCode.SELF_FRIENDSHIP_NOT_ALLOWED);
         }
 
+        checkIfBlocked(requesterId, addressee.getId());
         validateFriendshipDuplication(requester, addressee);
 
         Friendship friendship = Friendship.from(requester, addressee);
@@ -236,6 +237,30 @@ public class FriendshipService {
         }
     }
 
+    @Transactional
+    public void reportUser(Long reporterId, Long reportedUserId) {
+        User reporter = userRepository.findById(reporterId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        User reported = userRepository.findById(reportedUserId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        Optional<Friendship> existingFriendship = friendshipRepository
+                .findFriendshipBetweenUsersAnyStatus(reporter, reported);
+
+        if (existingFriendship.isPresent()) {
+            Friendship friendship = existingFriendship.get();
+            friendship.block(); // 기존 block() 메서드 사용
+            friendshipRepository.save(friendship);
+            log.info("기존 관계를 BLOCKED로 변경 - reporterId: {}, reportedId: {}",
+                    reporterId, reportedUserId);
+        } else {
+            // 새로운 차단 관계 생성
+            Friendship newBlock = Friendship.of(reporter, reported, FriendshipStatus.BLOCKED);
+            friendshipRepository.save(newBlock);
+            log.info("새로운 BLOCKED 관계 생성 - reporterId: {}, reportedId: {}",
+                    reporterId, reportedUserId);
+        }
+    }
 
 
     // ========== Private 권한 검증 메서드 (Service 책임) ==========
@@ -301,6 +326,34 @@ public class FriendshipService {
 
         if (!isRequester && !isAddressee) {
             throw new CustomException(ErrorCode.FAILED_FRIENDSHIP_PERMISSION);
+        }
+    }
+
+    private void checkIfBlocked(Long user1Id, Long user2Id) {
+        User user1 = userRepository.findById(user1Id)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        User user2 = userRepository.findById(user2Id)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 양방향으로 BLOCKED 상태 확인
+        Optional<Friendship> blockedRelation = friendshipRepository
+                .findFriendshipBetweenUsers(user1, user2, FriendshipStatus.BLOCKED);
+
+        if (blockedRelation.isPresent()) {
+            Friendship friendship = blockedRelation.get();
+
+            // 차단한 사람이 누구인지 확인
+            boolean user1Blocked = friendship.getRequester().getId().equals(user1Id);
+
+            if (user1Blocked) {
+                log.warn("차단된 사용자에게 친구 요청 시도 (본인이 차단) - userId: {}, blockedUserId: {}",
+                        user1Id, user2Id);
+                throw new CustomException(ErrorCode.FRIENDSHIP_YOU_BLOCKED);
+            } else {
+                log.warn("차단된 사용자에게 친구 요청 시도 (상대방이 차단) - userId: {}, blockedById: {}",
+                        user1Id, user2Id);
+                throw new CustomException(ErrorCode.ALREADY_FRIENDSHIP_BLOCKED);
+            }
         }
     }
 

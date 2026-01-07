@@ -97,67 +97,86 @@ public class MatchingSchedulerService {
 
 
             // 2. 하이브리드 매칭 실행
-            RedisMatchingQueueService.MatchCandicateResult candidateResult =
-                    redisMatchingQueueService.findMatchCandidates(category.getId(), 2);
+            int maxAttempts = 5;
+            RedisMatchingQueueService.MatchCandicateResult candidateResult = null;
 
-            if (!candidateResult.success() || candidateResult.userIds().size() < 2) {
-                log.debug("하이브리드 매칭 실패 - categoryId: {}, reason: {}",
-                        category.getId(), candidateResult.message());
-                return false;
+
+            for (int attempt = 0; attempt < maxAttempts; attempt++) {
+                candidateResult = redisMatchingQueueService.findMatchCandidates(category.getId(), 2);
+
+                if (!candidateResult.success() || candidateResult.userIds().size() < 2) {
+                    log.debug("하이브리드 매칭 실패 (시도 {}/{}) - categoryId: {}, reason: {}",
+                            attempt + 1, maxAttempts, category.getId(), candidateResult.message());
+                    continue;
+                }
+
+                // 3. 매칭된 사용자들 검증
+                List<Long> userIds = candidateResult.userIds();
+                Long user1Id = userIds.get(0);
+                Long user2Id = userIds.get(1);
+
+                if (user1Id.equals(user2Id)) {
+                    log.warn("동일 사용자 매칭 감지 (시도 {}/{}) - categoryId: {}, userId: {}",
+                            attempt + 1, maxAttempts, category.getId(), user1Id);
+                    continue;
+                }
+
+                if (redisMatchingQueueService.isBlocked(user1Id, user2Id)) {
+                    log.warn("차단된 사용자 매칭 방지 (시도 {}/{}) - categoryId: {}, user1: {}, user2: {}",
+                            attempt + 1, maxAttempts, category.getId(), user1Id, user2Id);
+                    continue;
+                }
+
+                Optional<User> user1Opt = userRepository.findById(user1Id);
+                Optional<User> user2Opt = userRepository.findById(user2Id);
+
+                if (user1Opt.isEmpty() || user2Opt.isEmpty()) {
+                    log.error("매칭된 사용자 조회 실패 - user1Id: {}, user2Id: {}, user1Exists: {}, user2Exists: {}",
+                            user1Id, user2Id, user1Opt.isPresent(), user2Opt.isPresent());
+                    restoreUsersToQueue(userIds, category.getId());
+                    continue;
+                }
+
+                User user1 = user1Opt.get();
+                User user2 = user2Opt.get();
+
+                log.info("유효한 매칭 발견 (시도 {}/{}) - categoryId: {}, users: [{}, {}]",
+                        attempt + 1, maxAttempts, category.getId(), user1Id, user2Id);
+
+                // 4. Call 엔티티 생성
+                Call savedCall = createCallFromMatchedUsers(user1, user2, category);
+
+                if (savedCall == null) {
+                    log.error("Call 생성 실패 - categoryId: {}, userIds: {}", category.getId(), userIds);
+                    restoreUsersToQueue(userIds, category.getId());
+                    return false;
+                }
+
+                // 5. DB 매칭 큐 상태 업데이트 (WAITING -> MATCHING)
+                updateMatchingQueueStatus(userIds, category.getId(), QueueStatus.MATCHING);
+
+                // 6. 통화방 입장용 세션 토큰 생성
+                String sessionToken = generateSessionToken();
+
+                log.debug("매칭 성공 완료 - categoryId: {}, callId: {}, users: {}",
+                        category.getId(), savedCall.getId(), userIds);
+
+                // 7. 커밋 이후 처리: Redis 제거 → WebSocket 매칭 성공 알림 전송
+                // 수정: 이벤트 발행 (트랜젝션 커밋 후 처리)
+                eventPublisher.publishEvent(new MatchingSuccessEvent(
+                        savedCall.getId(),
+                        category.getId(),
+                        userIds,
+                        user1,
+                        user2
+                ));
+                return true;
             }
 
-            // 3. 매칭된 사용자들 검증
-            List<Long> userIds = candidateResult.userIds();
-            Long user1Id = userIds.get(0);
-            Long user2Id = userIds.get(1);
-
-            if (user1Id.equals(user2Id)) {
-                log.warn("동일 사용자 매칭 감지 - categoryId: {}, userId: {}", category.getId(), user1Id);
-                return false;
-            }
-
-            Optional<User> user1Opt = userRepository.findById(user1Id);
-            Optional<User> user2Opt = userRepository.findById(user2Id);
-
-            if (user1Opt.isEmpty() || user2Opt.isEmpty()) {
-                log.error("매칭된 사용자 조회 실패 - user1Id: {}, user2Id: {}, user1Exists: {}, user2Exists: {}",
-                        user1Id, user2Id, user1Opt.isPresent(), user2Opt.isPresent());
-                restoreUsersToQueue(userIds, category.getId());
-                return false;
-            }
-
-            User user1 = user1Opt.get();
-            User user2 = user2Opt.get();
-
-            // 4. Call 엔티티 생성
-            Call savedCall = createCallFromMatchedUsers(user1, user2, category);
-
-            if (savedCall == null) {
-                log.error("Call 생성 실패 - categoryId: {}, userIds: {}", category.getId(), userIds);
-                restoreUsersToQueue(userIds, category.getId());
-                return false;
-            }
-
-            // 5. DB 매칭 큐 상태 업데이트 (WAITING -> MATCHING)
-            updateMatchingQueueStatus(userIds, category.getId(),QueueStatus.MATCHING);
-
-            // 6. 통화방 입장용 세션 토큰 생성
-            String sessionToken = generateSessionToken();
-
-            log.debug("매칭 성공 완료 - categoryId: {}, callId: {}, users: {}",
-                    category.getId(), savedCall.getId(), userIds);
-
-            // 7. 커밋 이후 처리: Redis 제거 → WebSocket 매칭 성공 알림 전송
-            // 수정: 이벤트 발행 (트랜젝션 커밋 후 처리)
-            eventPublisher.publishEvent(new MatchingSuccessEvent(
-                    savedCall.getId(),
-                    category.getId(),
-                    userIds,
-                    user1,
-                    user2
-            ));
-
-            return true;
+            // 최대 시도 횟수 초과
+            log.warn("유효한 매칭을 찾지 못함 - categoryId: {}, 최대 시도 횟수 초과 ({}회)",
+                    category.getId(), maxAttempts);
+            return false;
 
         } catch (Exception e) {
             log.error("카테고리 매칭 처리 실패 - categoryId: {}", category.getId(), e);

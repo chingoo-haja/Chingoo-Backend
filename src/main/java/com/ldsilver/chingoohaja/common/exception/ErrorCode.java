@@ -155,11 +155,16 @@ public enum ErrorCode {
     FAILED_FRIENDSHIP_PERMISSION(HttpStatus.BAD_REQUEST, "F007", "친구 관계 수정에 필요한 권한 인증에 실패했습니다."),
     FRIENDSHIP_REQUEST_ALREADY_RECEIVED(HttpStatus.CONFLICT, "F008", "해당 사용자로부터 이미 친구 요청을 받았습니다."),
 
-
     // 보호자 관련 에러
     GUARDIAN_RELATIONSHIP_NOT_FOUND(HttpStatus.NOT_FOUND, "G001", "보호자 관계를 찾을 수 없습니다."),
     GUARDIAN_PERMISSION_DENIED(HttpStatus.FORBIDDEN, "G002", "보호자 권한이 없습니다."),
-    INVALID_GUARDIAN_RELATIONSHIP(HttpStatus.BAD_REQUEST, "G003", "유효하지 않은 보호자 관계입니다.");
+    INVALID_GUARDIAN_RELATIONSHIP(HttpStatus.BAD_REQUEST, "G003", "유효하지 않은 보호자 관계입니다."),
+
+    // 신고 관련 에러
+    SELF_REPORT_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "R001", "자기 자신을 신고할 수 없습니다."),
+    DUPLICATE_REPORT_REQUEST(HttpStatus.BAD_REQUEST, "R002", "이미 해당 사용자를 신고했습니다."),
+    FRIENDSHIP_YOU_BLOCKED(HttpStatus.BAD_REQUEST, "R003", "차단한 사용자에게는 친구 요청을 보낼 수 없습니다."),
+    ALREADY_FRIENDSHIP_BLOCKED(HttpStatus.BAD_REQUEST, "R004", "해당 사용자에게 친구 요청을 보낼 수 없습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

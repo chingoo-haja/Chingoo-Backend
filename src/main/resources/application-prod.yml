@@ -74,6 +74,8 @@ app:
       expired-time: 600         # 10분
       log-level: WARN           # 중요한 로그만
       manual-trigger-enabled: false  # 보안상 비활성화
+  redis:
+    blocked-users-ttl: 86400  # 24시간
 
 logging:
   level:
