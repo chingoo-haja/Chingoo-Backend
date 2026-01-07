@@ -50,6 +50,9 @@ public class User extends BaseEntity {
     @Column(nullable = true)
     private LocalDate birth;
 
+    @Column(nullable = true, length = 20)
+    private String phoneNumber;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserType userType = UserType.USER;
@@ -70,6 +73,7 @@ public class User extends BaseEntity {
             String realName,
             Gender gender,
             LocalDate birth,
+            String phoneNumber,
             UserType userType,
             String profileImageUrl,
             String provider,
@@ -81,6 +85,7 @@ public class User extends BaseEntity {
         user.realName = realName;
         user.gender = gender;
         user.birth = birth;
+        user.phoneNumber = phoneNumber;
         user.userType = userType;
         user.profileImageUrl = profileImageUrl;
         user.provider = provider;
@@ -95,6 +100,7 @@ public class User extends BaseEntity {
             String realName,
             Gender gender,
             LocalDate birth,
+            String phoneNumber,
             String profileImageUrl
     ) {
         User user = new User();
@@ -104,6 +110,7 @@ public class User extends BaseEntity {
         user.realName = realName;
         user.gender = gender;
         user.birth = birth;
+        user.phoneNumber = phoneNumber;
         user.userType = UserType.USER;
         user.profileImageUrl = profileImageUrl;
         user.provider = "local";
@@ -171,6 +178,15 @@ public class User extends BaseEntity {
         }
     }
 
+    public void updatePhoneNumber(String newPhoneNumber) {
+        if (newPhoneNumber != null) {
+            String trimmed = newPhoneNumber.trim();
+            if (!trimmed.isEmpty()) {
+                this.phoneNumber = trimmed;
+            }
+        }
+    }
+
     public void updateUserType(UserType newUserType) {
         if (newUserType != null) {
             this.userType = newUserType;
@@ -186,12 +202,13 @@ public class User extends BaseEntity {
     }
 
     public void updateProfile(String newRealName, String newNickname, Gender newGender,
-                              LocalDate newBirth, String newProfileImageUrl) {
+                              LocalDate newBirth, String newProfileImageUrl, String newPhoneNumber) {
         updateRealName(newRealName);
         updateNickname(newNickname);
         updateGender(newGender);
         updateBirth(newBirth);
         updateProfileImage(newProfileImageUrl);
+        updatePhoneNumber(newPhoneNumber);
     }
 
     public int getAge() {
@@ -205,7 +222,8 @@ public class User extends BaseEntity {
         return realName != null && !realName.trim().isEmpty() &&
                 nickname != null && !nickname.trim().isEmpty() &&
                 gender != null &&
-                birth != null && !birth.equals(LocalDate.of(1900, 1, 1)); // 임시값이 아닌지 체크
+                birth != null && !birth.equals(LocalDate.of(1900, 1, 1)) &&
+                phoneNumber != null && !phoneNumber.trim().isEmpty(); // 임시값이 아닌지 체크
     }
 
     public String getDisplayName() {
