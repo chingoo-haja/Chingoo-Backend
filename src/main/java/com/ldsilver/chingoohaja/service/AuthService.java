@@ -386,6 +386,7 @@ public class AuthService {
                         oAuthUserInfo.name() != null ? oAuthUserInfo.name() : uniqueNickname,
                         determineGender(oAuthUserInfo.gender()),
                         determineBirthDate(),
+                        null,
                         UserType.USER,
                         profileImageUrl,  // null 허용
                         oAuthUserInfo.provider(),
