@@ -1,5 +1,7 @@
 package com.ldsilver.chingoohaja.controller;
 
+import com.ldsilver.chingoohaja.common.exception.CustomException;
+import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.user.CustomUserDetails;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.dto.matching.request.MatchingCancelRequest;
@@ -38,6 +40,15 @@ public class MatchingController {
     public ApiResponse<MatchingResponse> joinMatching(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody MatchingRequest request) {
+        // 운영 시간 체크 추가
+        if (!operatingHoursService.isOperatingTime()) {
+            OperatingHoursInfo info = operatingHoursService.getOperatingHoursInfo();
+            throw new CustomException(
+                    ErrorCode.SERVICE_NOT_OPERATING,
+                    info.getOperatingHoursText()
+            );
+        }
+
         log.debug("매칭 참가 요청 - userId: {}, categoryId: {}",
                 userDetails.getUserId(), request.categoryId());
 
