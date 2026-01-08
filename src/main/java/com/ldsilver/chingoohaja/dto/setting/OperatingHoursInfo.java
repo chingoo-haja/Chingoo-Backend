@@ -38,6 +38,10 @@ public class OperatingHoursInfo {
         LocalTime start = LocalTime.parse(startTime);
         LocalTime end = LocalTime.parse(endTime);
 
+        // 자정을 넘는 경우 처리 (예: 23:00 ~ 02:00)
+        if (end.isBefore(start)) {
+            return !now.isBefore(start) || now.isBefore(end);
+        }
         return !now.isBefore(start) && now.isBefore(end);
     }
 
