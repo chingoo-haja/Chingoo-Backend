@@ -6,7 +6,9 @@ import com.ldsilver.chingoohaja.dto.matching.request.MatchingCancelRequest;
 import com.ldsilver.chingoohaja.dto.matching.request.MatchingRequest;
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingResponse;
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingStatusResponse;
+import com.ldsilver.chingoohaja.dto.setting.OperatingHoursInfo;
 import com.ldsilver.chingoohaja.service.MatchingService;
+import com.ldsilver.chingoohaja.service.OperatingHoursService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,7 +25,9 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "매칭", description = "실시간 매칭 API")
 @SecurityRequirement(name = "Bearer Authentication")
 public class MatchingController {
+
     private final MatchingService matchingService;
+    private final OperatingHoursService operatingHoursService;
 
     @Operation(
             summary = "매칭 대기열 참가",
@@ -74,5 +78,17 @@ public class MatchingController {
 
         matchingService.cancelMatching(userDetails.getUserId(), request.queueId());
         return ApiResponse.ok("매칭 취소 성공");
+    }
+
+
+    @Operation(
+            summary = "운영 시간 정보 조회",
+            description = "통화 서비스의 현재 운영 시간 정보를 조회합니다."
+    )
+    @GetMapping("/operating-info")
+    public ApiResponse<OperatingHoursInfo> getOperatingInfo() {
+        log.debug("운영 시간 정보 조회 요청");
+        OperatingHoursInfo info = operatingHoursService.getOperatingHoursInfo();
+        return ApiResponse.ok("운영 시간 정보 조회 성공", info);
     }
 }
