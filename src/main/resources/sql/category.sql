@@ -39,3 +39,16 @@ WHERE NOT EXISTS (
     WHERE categories.name = new_categories.name
       AND categories.category_type = new_categories.category_type
 );
+
+-- 서비스 운영 시간 설정
+INSERT INTO service_settings (setting_key, setting_value, description, created_at, updated_at)
+SELECT setting_key, setting_value, description, created_at, updated_at
+FROM (
+         SELECT 'call_service_enabled' as setting_key, 'true' as setting_value, '통화 서비스 활성화 여부' as description, NOW() as created_at, NOW() as updated_at
+         UNION ALL SELECT 'call_start_time', '09:00', '통화 서비스 시작 시간', NOW(), NOW()
+         UNION ALL SELECT 'call_end_time', '23:00', '통화 서비스 종료 시간', NOW(), NOW()
+     ) AS new_settings
+WHERE NOT EXISTS (
+    SELECT 1 FROM service_settings
+    WHERE service_settings.setting_key = new_settings.setting_key
+);

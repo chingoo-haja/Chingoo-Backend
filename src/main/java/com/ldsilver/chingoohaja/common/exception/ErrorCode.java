@@ -86,6 +86,8 @@ public enum ErrorCode {
     STATUS_NOT_WAITING(HttpStatus.BAD_REQUEST, "M007", "대기 중인 상태에서만 취소할 수 있습니다. 현재 상태: %s"),
     START_MATCHING_FAILED(HttpStatus.BAD_REQUEST, "M008", "대기 중인 상태에서만 매칭을 시작할 수 있습니다. 현재 상태: %s"),
     MATCHING_EXPIRED_FAILED(HttpStatus.BAD_REQUEST, "M009", "대기 중인 상태에서만 만료할 수 있습니다. 현재 상태: %s"),
+    SERVICE_NOT_OPERATING(HttpStatus.SERVICE_UNAVAILABLE, "M010", "현재 통화 서비스 운영 시간이 아닙니다. 운영 시간: %s"),
+
 
     // 통화 관련 에러
     CALL_NOT_FOUND(HttpStatus.NOT_FOUND, "L001", "통화 정보를 찾을 수 없습니다."),

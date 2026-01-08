@@ -36,6 +36,14 @@ public class ErrorResponse {
         );
     }
 
+    public static ErrorResponse of(ErrorCode errorCode, String customMessage) {
+        return new ErrorResponse(
+                errorCode.getCode(),
+                customMessage,  // 포맷팅된 메시지 사용
+                null
+        );
+    }
+
     public static ErrorResponse of(ErrorCode errorCode, BindingResult bindingResult) {
         return new ErrorResponse(
                 errorCode.getCode(),
