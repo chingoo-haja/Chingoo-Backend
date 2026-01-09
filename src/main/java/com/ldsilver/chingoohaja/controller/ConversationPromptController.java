@@ -50,6 +50,28 @@ public class ConversationPromptController {
     }
 
     @Operation(
+            summary = "다음 질문으로 이동",
+            description = "현재 질문을 종료하고 다음 질문을 준비합니다.\n" +
+                    "- 현재 질문의 표시 상태를 종료 처리 (is_currently_displayed = false)\n" +
+                    "- 다음 GET /prompts 호출 시 새로운 질문이 제공됨\n" +
+                    "- 통화 참가자 중 한 명이 호출하면 양쪽 모두 다음 질문으로 이동"
+    )
+    @PostMapping("/{callId}/prompts/next")
+    public ApiResponse<Void> moveToNextPrompt(
+            @Parameter(description = "통화 ID", example = "1", required = true)
+            @PathVariable Long callId,
+
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        log.debug("다음 질문 요청 - callId: {}, userId: {}", callId, userDetails.getUserId());
+
+        conversationPromptService.moveToNextPrompt(callId, userDetails.getUserId());
+
+        return ApiResponse.ok("다음 질문 준비 완료");
+    }
+
+
+    @Operation(
             summary = "질문 피드백 기록",
             description = "표시된 질문이 도움이 되었는지 피드백을 기록합니다. " +
                     "추후 질문 효과 분석에 활용됩니다."
