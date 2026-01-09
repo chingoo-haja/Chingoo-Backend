@@ -29,6 +29,9 @@ public class PromptLog extends BaseEntity {
     @Column(nullable = false)
     private LocalDateTime displayedAt;
 
+    @Column(nullable = false)
+    private Boolean isCurrentlyDisplayed = true;
+
     // 나중에 질문 효과 분석용
     private Boolean wasHelpful; // 사용자 피드백
 
@@ -37,7 +40,12 @@ public class PromptLog extends BaseEntity {
         log.call = call;
         log.prompt = prompt;
         log.displayedAt = LocalDateTime.now();
+        log.isCurrentlyDisplayed = true;
         return log;
+    }
+
+    public void markAsDisplayed() {
+        this.isCurrentlyDisplayed = false;
     }
 
     public void markAsHelpful(boolean helpful) {
