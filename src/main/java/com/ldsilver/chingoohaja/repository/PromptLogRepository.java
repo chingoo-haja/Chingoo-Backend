@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface PromptLogRepository extends JpaRepository<PromptLog, Long> {
@@ -24,4 +25,11 @@ public interface PromptLogRepository extends JpaRepository<PromptLog, Long> {
             "WHERE pl.wasHelpful IS NOT NULL " +
             "GROUP BY pl.prompt.id")
     List<Object[]> getPromptEffectivenessStats();
+
+    @Query("SELECT pl FROM PromptLog pl " +
+            "WHERE pl.call.id = :callId " +
+            "AND pl.isCurrentlyDisplayed = true " +
+            "ORDER BY pl.displayedAt DESC")
+    Optional<PromptLog> findCurrentPromptByCallId(@Param("callId") Long callId);
+
 }
