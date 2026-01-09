@@ -3,9 +3,11 @@ package com.ldsilver.chingoohaja.repository;
 import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.enums.CallStatus;
 import com.ldsilver.chingoohaja.domain.user.User;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -142,5 +144,9 @@ public interface CallRepository extends JpaRepository<Call, Long> {
         List<Call> calls = findCallsBetweenUsers(userId1, userId2, CallStatus.COMPLETED);
         return calls.isEmpty() ? Optional.empty() : Optional.of(calls.get(0));
     }
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Call c WHERE c.id = :callId")
+    Optional<Call> findByIdWithLock(@Param("callId") Long callId);
 
 }

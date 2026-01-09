@@ -37,7 +37,7 @@ public class ConversationPromptService {
                 callId, userId, maxDifficulty);
 
         // 1. Call 조회 및 권한 검증
-        Call call = callRepository.findById(callId)
+        Call call = callRepository.findByIdWithLock(callId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
 
         if (!call.isParticipant(userId)) {
