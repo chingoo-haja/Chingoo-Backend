@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 
 @Slf4j
@@ -43,59 +44,53 @@ public class ConversationPromptService {
             throw new CustomException(ErrorCode.CALL_NOT_PARTICIPANT);
         }
 
-        // 2. 통화 상태 확인
         if (!call.isInProgress()) {
             throw new CustomException(ErrorCode.CALL_NOT_IN_PROGRESS);
         }
 
-        // 3. 이미 표시된 질문 ID 조회
-        List<Long> displayedPromptIds = promptLogRepository.findDisplayedPromptIdsByCallId(callId);
+        // 2. DB에서 현재 표시중인 질문 확인
+        Optional<PromptLog> currentPromptLog = promptLogRepository.findCurrentPromptByCallId(callId);
 
-        // 4. Call의 Category 기반 질문 조회
-        Long categoryId = call.getCategory() != null ? call.getCategory().getId() : null;
-        List<ConversationPrompt> candidates;
-
-        if (categoryId != null && maxDifficulty != null) {
-            // 특정 카테고리 + 난이도 필터링
-            candidates = promptRepository.findRandomPromptsByCategory(categoryId, maxDifficulty);
-        } else if (categoryId != null) {
-            // 특정 카테고리만 (난이도 제한 없음)
-            candidates = promptRepository.findByCategoryIdAndIsActiveTrueOrderByDisplayOrderAsc(categoryId);
-        } else {
-            // 카테고리 없음 - 전체 랜덤
-            candidates = promptRepository.findRandomActivePrompts();
+        if (currentPromptLog.isPresent()) {
+            // 현재 표시 중인 질문이 있으면 그대로 반환
+            ConversationPrompt prompt = currentPromptLog.get().getPrompt();
+            log.info("기존 질문 반환 - callId: {}, userId: {}, promptId: {}",
+                    callId, userId, prompt.getId());
+            return PromptResponse.from(prompt);
         }
 
-        // 5. 이미 표시된 질문 제외
-        List<ConversationPrompt> availablePrompts = candidates.stream()
-                .filter(p -> !displayedPromptIds.contains(p.getId()))
-                .toList();
+        // 3. 새로운 질문 선택
+        ConversationPrompt selectedPrompt = selectNewPrompt(call, maxDifficulty);
 
-        // 6. 랜덤 선택
-        if (availablePrompts.isEmpty()) {
-            log.warn("사용 가능한 질문이 없음 - callId: {}, categoryId: {}, 표시된 질문 초기화",
-                    callId, categoryId);
-            // 모든 질문을 다 사용한 경우, 전체 중에서 랜덤 선택
-            availablePrompts = candidates;
-        }
+        // 4. 로그 기록 (isCurrentlyDisplayed = true)
+        PromptLog newLog = PromptLog.create(call, selectedPrompt);
+        promptLogRepository.save(newLog);
 
-        if (availablePrompts.isEmpty()) {
-            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR,
-                    "해당 카테고리에 사용 가능한 질문이 없습니다.");
-        }
-
-        ConversationPrompt selectedPrompt = availablePrompts.get(
-                random.nextInt(availablePrompts.size())
-        );
-
-        // 7. 로그 기록
-        PromptLog promptLog = PromptLog.create(call, selectedPrompt);
-        promptLogRepository.save(promptLog);
-
-        log.info("질문 제공 완료 - callId: {}, categoryId: {}, promptId: {}, question: {}",
-                callId, categoryId, selectedPrompt.getId(), selectedPrompt.getQuestion());
+        log.info("새 질문 제공 - callId: {}, userId: {}, promptId: {}, question: {}",
+                callId, userId, selectedPrompt.getId(), selectedPrompt.getQuestion());
 
         return PromptResponse.from(selectedPrompt);
+    }
+
+    @Transactional
+    public void moveToNextPrompt(Long callId, Long userId) {
+        log.debug("다음 질문으로 이동 - callId: {}, userId: {}", callId, userId);
+
+        Call call = callRepository.findById(callId)
+                .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
+
+        if (!call.isParticipant(userId)) {
+            throw new CustomException(ErrorCode.CALL_NOT_PARTICIPANT);
+        }
+
+        // ✅ 현재 표시 중인 질문의 isCurrentlyDisplayed를 false로 변경
+        promptLogRepository.findCurrentPromptByCallId(callId)
+                .ifPresent(promptLog -> {
+                    promptLog.markAsDisplayed();
+                    promptLogRepository.save(promptLog);
+                });
+
+        log.info("현재 질문 종료 처리 완료 - callId: {}, 다음 호출 시 새 질문 제공", callId);
     }
 
     /**
@@ -125,5 +120,37 @@ public class ConversationPromptService {
 
         log.info("질문 피드백 기록 완료 - callId: {}, promptId: {}, helpful: {}",
                 callId, promptId, helpful);
+    }
+
+    private ConversationPrompt selectNewPrompt(Call call, Integer maxDifficulty) {
+        // 이미 표시된 질문 ID 조회
+        List<Long> displayedPromptIds = promptLogRepository.findDisplayedPromptIdsByCallId(call.getId());
+
+        Long categoryId = call.getCategory() != null ? call.getCategory().getId() : null;
+        List<ConversationPrompt> candidates;
+
+        if (categoryId != null && maxDifficulty != null) {
+            candidates = promptRepository.findRandomPromptsByCategory(categoryId, maxDifficulty);
+        } else if (categoryId != null) {
+            candidates = promptRepository.findByCategoryIdAndIsActiveTrueOrderByDisplayOrderAsc(categoryId);
+        } else {
+            candidates = promptRepository.findRandomActivePrompts();
+        }
+
+        List<ConversationPrompt> availablePrompts = candidates.stream()
+                .filter(p -> !displayedPromptIds.contains(p.getId()))
+                .toList();
+
+        if (availablePrompts.isEmpty()) {
+            log.warn("사용 가능한 질문이 없음 - callId: {}, 전체 질문으로 초기화", call.getId());
+            availablePrompts = candidates;
+        }
+
+        if (availablePrompts.isEmpty()) {
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR,
+                    "해당 카테고리에 사용 가능한 질문이 없습니다.");
+        }
+
+        return availablePrompts.get(random.nextInt(availablePrompts.size()));
     }
 }
