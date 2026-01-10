@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Slf4j
 @Service
@@ -151,6 +152,6 @@ public class ConversationPromptService {
                     "해당 카테고리에 사용 가능한 질문이 없습니다.");
         }
 
-        return availablePrompts.get(random.nextInt(availablePrompts.size()));
+        return availablePrompts.get(ThreadLocalRandom.current().nextInt(availablePrompts.size()));
     }
 }
