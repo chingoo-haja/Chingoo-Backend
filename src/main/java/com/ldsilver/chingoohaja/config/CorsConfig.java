@@ -68,6 +68,7 @@ public class CorsConfig {
                 "https://www.chingoo-frontend.vercel.app",
                 "https://chingoohaja.app",
                 "https://www.chingoohaja.app",
+                "https://api.chingoohaja.app",
                 "https://silverld.site",
                 "https://localhost",
                 "http://localhost",
