@@ -77,7 +77,7 @@ public class ConversationPromptService {
     public void moveToNextPrompt(Long callId, Long userId) {
         log.debug("다음 질문으로 이동 - callId: {}, userId: {}", callId, userId);
 
-        Call call = callRepository.findById(callId)
+        Call call = callRepository.findByIdWithLock(callId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
 
         if (!call.isParticipant(userId)) {
