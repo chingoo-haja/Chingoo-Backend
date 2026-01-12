@@ -32,4 +32,11 @@ public interface PromptLogRepository extends JpaRepository<PromptLog, Long> {
             "ORDER BY pl.displayedAt DESC")
     Optional<PromptLog> findCurrentPromptByCallId(@Param("callId") Long callId);
 
+    @Query("SELECT pl FROM PromptLog pl " +
+            "WHERE pl.call.id = :callId " +
+            "AND pl.prompt.id = :promptId " +
+            "ORDER BY pl.displayedAt DESC")
+    Optional<PromptLog> findLatestByCallIdAndPromptId(
+            @Param("callId") Long callId,
+            @Param("promptId") Long promptId);
 }

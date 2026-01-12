@@ -109,11 +109,7 @@ public class ConversationPromptService {
             throw new CustomException(ErrorCode.CALL_NOT_PARTICIPANT);
         }
 
-        List<PromptLog> logs = promptLogRepository.findByCallIdOrderByDisplayedAtDesc(callId);
-
-        logs.stream()
-                .filter(l -> l.getPrompt().getId().equals(promptId))
-                .findFirst()
+        promptLogRepository.findLatestByCallIdAndPromptId(callId, promptId)
                 .ifPresent(log -> {
                     log.markAsHelpful(helpful);
                     promptLogRepository.save(log);
