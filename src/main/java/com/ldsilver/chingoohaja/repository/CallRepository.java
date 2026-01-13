@@ -149,4 +149,7 @@ public interface CallRepository extends JpaRepository<Call, Long> {
     @Query("SELECT c FROM Call c WHERE c.id = :callId")
     Optional<Call> findByIdWithLock(@Param("callId") Long callId);
 
+    @Query("SELECT c FROM Call c WHERE c.callStatus = 'IN_PROGRESS' AND c.startAt < :threshold")
+    List<Call> findStaleInProgressCalls(@Param("threshold") LocalDateTime threshold);
+
 }

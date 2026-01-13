@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,4 +21,8 @@ public interface CallRecordingRepository extends JpaRepository<CallRecording, Lo
 
     @Query("SELECT cr FROM CallRecording cr JOIN FETCH cr.call WHERE cr.call.id = :callId")
     Optional<CallRecording> findByCallIdWithCall(@Param("callId") Long callId);
+
+    @Query("SELECT cr FROM CallRecording cr WHERE cr.recordingStatus = 'PROCESSING' " +
+            "AND cr.recordingStartedAt < :threshold")
+    List<CallRecording> findStuckProcessingRecordings(@Param("threshold") LocalDateTime threshold);
 }
