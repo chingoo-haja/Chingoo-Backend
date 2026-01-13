@@ -1,5 +1,6 @@
 package com.ldsilver.chingoohaja.service;
 
+import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.CallRecording;
 import com.ldsilver.chingoohaja.domain.call.CallSession;
@@ -127,8 +128,13 @@ public class CallCleanupSchedulerService {
                         try {
                             agoraRecordingService.stopRecording(call.getId());
                             log.info("고아 Call의 Recording 중지 완료 - callId: {}", call.getId());
-                        } catch (Exception e) {
-                            log.warn("고아 Call의 Recording 중지 실패 (무시) - callId: {}", call.getId(), e);
+                        } catch (CustomException e) {
+                            // ✅ 404는 예상된 동작
+                            if (e.getErrorCode().name().contains("NOT_FOUND")) {
+                                log.info("고아 Call의 Recording 이미 종료됨 (404) - callId: {}", call.getId());
+                            } else {
+                                log.warn("고아 Call의 Recording 중지 실패 (무시) - callId: {}", call.getId(), e);
+                            }
                         }
                     }
                 });
