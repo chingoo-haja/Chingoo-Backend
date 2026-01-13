@@ -65,8 +65,16 @@ public class CallStatusService {
             throw new CustomException(ErrorCode.CALL_NOT_PARTICIPANT);
         }
 
-        if (call.getCallStatus() == CallStatus.COMPLETED ||
-                call.getCallStatus() == CallStatus.CANCELLED ||
+        if (call.getCallStatus() == CallStatus.COMPLETED) {
+            log.info("이미 종료된 통화 - callId: {}, userId: {}", callId, userId);
+            CallStatusResponse baseResponse = CallStatusResponse.from(call, userId);
+            boolean canEvaluate = evaluationService.canEvaluate(userId, callId);
+            boolean hasEvaluated = evaluationService.hasUserEvaluatedCall(userId, callId);
+            return baseResponse.withEvaluationInfo(canEvaluate, hasEvaluated);
+        }
+
+
+        if (call.getCallStatus() == CallStatus.CANCELLED ||
                 call.getCallStatus() == CallStatus.FAILED) {
             throw new CustomException(ErrorCode.CALL_ALREADY_ENDED);
         }
