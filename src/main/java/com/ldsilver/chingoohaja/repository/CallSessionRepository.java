@@ -108,4 +108,9 @@ public interface CallSessionRepository extends JpaRepository<CallSession, Long> 
     Optional<CallSession> findActiveSessionByCallIdAndUserId(@Param("callId") Long callId,
                                                              @Param("userId") Long userId);
 
+
+    @Query("SELECT cs FROM CallSession cs WHERE cs.sessionStatus = 'JOINED' AND cs.joinedAt < :threshold")
+    List<CallSession> findOrphanedJoinedSessions(@Param("threshold") LocalDateTime threshold);
+
+
 }

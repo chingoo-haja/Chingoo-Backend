@@ -129,7 +129,7 @@ public enum ErrorCode {
     EXPIRED_TIME_NOT_FOUND(HttpStatus.BAD_REQUEST, "L037", "토큰 만료 시각은 필수입니다."),
     BAD_EXPIRED_TIME(HttpStatus.BAD_REQUEST, "L038", "토큰 만료 시각은 현재 시각 이후여야 합니다."),
     RECORDING_ALREADY_STOPPED(HttpStatus.CONFLICT, "L039", "이미 녹음이 중지되었습니다."),
-
+    WEBSOCKET_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "L040", "WebSocket 메시지 전송에 실패했습니다."),
 
     // 카테고리 관련 에러
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "T001", "카테고리를 찾을 수 없습니다."),
