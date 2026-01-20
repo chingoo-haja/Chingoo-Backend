@@ -141,6 +141,11 @@ public class WebSocketController {
             Authentication auth = (Authentication) principal;
             Object principalObj = auth.getPrincipal();
 
+            if (principalObj == null) {
+                log.error("Authentication.principal이 null입니다");
+                return null;
+            }
+
             log.debug("Authentication.principal 타입: {}", principalObj.getClass().getName());
 
             if (principalObj instanceof CustomUserDetails) {
