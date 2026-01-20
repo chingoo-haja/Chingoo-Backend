@@ -86,6 +86,7 @@ public class WebSocketController {
         } catch (Exception e) {
             log.error("❌ [통화종료] 전송 실패 - to: {}, callId: {}",
                     partnerId, message.callId(), e);
+            throw new CustomException(ErrorCode.WEBSOCKET_SEND_FAILED);
         }
     }
 
