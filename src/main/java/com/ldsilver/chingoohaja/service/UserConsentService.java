@@ -55,17 +55,18 @@ public class UserConsentService {
         );
         userConsentRepository.save(requiredConsent);
 
-        // 선택 동의 저장 (동의한 경우에만)
-        if (request.hasOptionalConsent()) {
+        // 선택 동의 저장
+        if (request.getOptionalDataUsage() != null) {
             UserConsent optionalConsent = UserConsent.of(
                     user,
                     ConsentType.OPTIONAL_DATA_USAGE,
-                    true,
+                    request.getOptionalDataUsage(),
                     currentConsentVersion,
                     request.getChannel()
             );
             userConsentRepository.save(optionalConsent);
-            log.debug("선택 동의 저장 완료 - userId: {}", userId);
+            log.debug("선택 동의 저장 완료 - userId: {}, agreed: {}",
+                    userId, request.getOptionalDataUsage());
         }
 
         log.info("동의 정보 저장 완료 - userId: {}, 필수: {}, 선택: {}",
