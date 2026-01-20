@@ -38,9 +38,6 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
                 try {
                     Authentication authentication = authenticateToken(token);
                     accessor.setUser(authentication);
-                    log.debug("WebSocket 연결 인증 성공 - userId: {}",
-                            ((CustomUserDetails) authentication.getPrincipal()).getUserId());
-
 
                     log.debug("인증 설정 완료 - principal type: {}",
                             authentication.getPrincipal().getClass().getName());
@@ -51,7 +48,7 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
                         CustomUserDetails details = (CustomUserDetails) authentication.getPrincipal();
                         log.debug("CustomUserDetails.user is null?: {}", details.getUser() == null);
                         if (details.getUser() != null) {
-                            log.debug("User ID: {}", details.getUser().getId());
+                            log.debug("WebSocket 연결 인증 성공 - userId: {}", details.getUser().getId());
                         }
                     }
 
