@@ -54,21 +54,4 @@ public class CallGracePeriodService {
         String key = GRACE_PERIOD_PREFIX + callId + ":" + userId;
         return Boolean.TRUE.equals(redisTemplate.hasKey(key));
     }
-
-    /**
-     * 남은 유예 시간 (초)
-     */
-    public long getRemainingGracePeriod(Long callId, Long userId) {
-        String key = GRACE_PERIOD_PREFIX + callId + ":" + userId;
-        Long expire = redisTemplate.getExpire(key, TimeUnit.SECONDS);
-        return expire != null ? expire : 0;
-    }
-
-    /**
-     * 양쪽 참가자 모두 유예 기간이 끝났는지 확인
-     */
-    public boolean areBothUsersDisconnected(Long callId, Long user1Id, Long user2Id) {
-        return !isInGracePeriod(callId, user1Id) &&
-                !isInGracePeriod(callId, user2Id);
-    }
 }
