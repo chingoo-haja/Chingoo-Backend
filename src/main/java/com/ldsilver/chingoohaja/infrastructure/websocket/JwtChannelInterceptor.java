@@ -42,16 +42,16 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
                             ((CustomUserDetails) authentication.getPrincipal()).getUserId());
 
 
-                    log.info("인증 설정 완료 - principal type: {}",
+                    log.debug("인증 설정 완료 - principal type: {}",
                             authentication.getPrincipal().getClass().getName());
-                    log.info("Principal is CustomUserDetails?: {}",
+                    log.debug("Principal is CustomUserDetails?: {}",
                             authentication.getPrincipal() instanceof CustomUserDetails);
 
                     if (authentication.getPrincipal() instanceof CustomUserDetails) {
                         CustomUserDetails details = (CustomUserDetails) authentication.getPrincipal();
-                        log.info("CustomUserDetails.user is null?: {}", details.getUser() == null);
+                        log.debug("CustomUserDetails.user is null?: {}", details.getUser() == null);
                         if (details.getUser() != null) {
-                            log.info("User ID: {}", details.getUser().getId());
+                            log.debug("User ID: {}", details.getUser().getId());
                         }
                     }
 
