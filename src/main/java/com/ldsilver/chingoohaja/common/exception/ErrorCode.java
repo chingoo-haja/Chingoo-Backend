@@ -167,8 +167,14 @@ public enum ErrorCode {
     SELF_REPORT_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "R001", "자기 자신을 신고할 수 없습니다."),
     DUPLICATE_REPORT_REQUEST(HttpStatus.BAD_REQUEST, "R002", "이미 해당 사용자를 신고했습니다."),
     FRIENDSHIP_YOU_BLOCKED(HttpStatus.BAD_REQUEST, "R003", "차단한 사용자에게는 친구 요청을 보낼 수 없습니다."),
-    ALREADY_FRIENDSHIP_BLOCKED(HttpStatus.BAD_REQUEST, "R004", "해당 사용자에게 친구 요청을 보낼 수 없습니다.");
+    ALREADY_FRIENDSHIP_BLOCKED(HttpStatus.BAD_REQUEST, "R004", "해당 사용자에게 친구 요청을 보낼 수 없습니다."),
 
+    // 개인정보 동의 관련 에러
+    CONSENT_REQUIRED(HttpStatus.BAD_REQUEST, "CO001", "필수 동의 항목에 동의하지 않았습니다."),
+    CONSENT_NOT_FOUND(HttpStatus.NOT_FOUND, "CO002", "동의 정보를 찾을 수 없습니다."),
+    CONSENT_ALREADY_WITHDRAWN(HttpStatus.CONFLICT, "CO003", "이미 철회된 동의입니다."),
+    INVALID_CONSENT_TYPE(HttpStatus.BAD_REQUEST, "CO004", "유효하지 않은 동의 타입입니다."),
+    INVALID_CONSENT_CHANNEL(HttpStatus.BAD_REQUEST, "CO005", "유효하지 않은 동의 채널입니다.");
     private final HttpStatus httpStatus;
     private final String code;
     private final String message;
