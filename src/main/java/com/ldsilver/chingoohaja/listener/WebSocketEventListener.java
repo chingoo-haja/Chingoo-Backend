@@ -31,8 +31,14 @@ public class WebSocketEventListener {
         Principal principal = headerAccessor.getUser();
 
         if (principal != null) {
-            Long userId = Long.parseLong(principal.getName());
-            log.info("WebSocket 연결 - userId: {}", userId);
+
+            Long userId;
+            try {
+                userId = Long.parseLong(principal.getName());
+            } catch (NumberFormatException ex) {
+                log.warn("WebSocket 사용자 ID 파싱 실패 - principal: {}", principal.getName(), ex);
+                return;
+            }
 
             // 활성 통화가 있으면 유예 기간 취소
             List<Call> activeCalls = callRepository.findActiveCallsByUserId(userId);
