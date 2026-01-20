@@ -84,6 +84,8 @@ app:
       long-running-check-delay: 3600000 # 장시간 녹음 체크: 1시간
       long-running-threshold-hours: 2   # 장시간 녹음 임계값: 2시간
       retry-failed-delay: 1800000       # 실패한 녹음 재시도: 30분
+  consent:
+    current-version: 2026-01-v1
 
 # 세션 관련 설정 (쿠키와는 별개지만 보안상 설정)
 server:
