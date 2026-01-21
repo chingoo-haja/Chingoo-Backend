@@ -45,14 +45,26 @@ public class CallService {
     public void startCall(Long callId) {
         log.debug("통화 시작 처리 - callId: {}", callId);
 
-        Call call = callRepository.findById(callId)
+        Call call = callRepository.findByIdWithLock(callId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
+
+        if (call.getCallStatus() == CallStatus.IN_PROGRESS) {
+            log.warn("이미 시작된 통화 - callId: {}, 중복 시작 요청 무시", callId);
+            return;
+        }
+
+        if (call.getCallStatus() != CallStatus.READY) {
+            log.error("통화 시작 불가 상태 - callId: {}, status: {}",
+                    callId, call.getCallStatus());
+            throw new CustomException(ErrorCode.CALL_START_FAILED,
+                    "현재 상태에서는 통화를 시작할 수 없습니다: " + call.getCallStatus());
+        }
 
         try {
             call.startCall(); //상태 변경
             callRepository.save(call);
 
-            // ✅ 녹음 설정 로그 추가
+            // 녹음 설정 로그 추가
             log.info("통화 시작 완료 - callId: {}, status: {}", callId, call.getCallStatus());
 
 //            if (shouldStartRecording(call)) {
@@ -68,8 +80,13 @@ public class CallService {
                 ));
                 log.debug("CallStartedEvent 발행 완료 - callId: {}", callId);
             }
+        } catch (CustomException ce) {
+            // Call 엔티티에서 발생한 비즈니스 예외
+            log.error("통화 시작 비즈니스 로직 실패 - callId: {}", callId, ce);
+            throw ce;
         } catch (Exception e) {
             log.error("통화 시작 처리 실패 - callId: {}", callId, e);
+
             if (call.getCallStatus() == CallStatus.IN_PROGRESS) {
                 log.warn("녹음 실패했지만 통화는 시작됨 - callId: {}", callId);
                 return;
@@ -86,16 +103,42 @@ public class CallService {
         Call call = callRepository.findById(callId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
 
+        if (call.getCallStatus() == CallStatus.COMPLETED) {
+            log.warn("이미 종료된 통화 - callId: {}, 중복 종료 요청 무시", callId);
+            return;
+        }
+
+        if (call.getCallStatus() == CallStatus.CANCELLED ||
+                call.getCallStatus() == CallStatus.FAILED) {
+            log.warn("종료할 수 없는 상태 - callId: {}, status: {}",
+                    callId, call.getCallStatus());
+            return;
+        }
+
         try {
             if (shouldStopRecording(callId)) {
-                stopRecordingAsync(callId);
+                try {
+                    stopRecordingAsync(callId);
+                } catch (Exception re) {
+                    log.warn("녹음 중지 실패 (통화 종료는 계속) - callId: {}", callId, re);
+                }
             }
 
-            updateAllSessionsToLeft(callId);
+            try {
+                updateAllSessionsToLeft(callId);
+            } catch (Exception se) {
+                log.warn("세션 상태 업데이트 실패 (통화 종료는 계속) - callId: {}", callId, se);
+            }
 
             call.endCall();
             callRepository.save(call);
-            log.info("통화 종료 완료 - callId: {}, duration: {}초", callId, call.getDurationSeconds());
+
+            log.info("통화 종료 완료 - callId: {}, duration: {}초",
+                    callId, call.getDurationSeconds());
+
+        } catch (CustomException ce) {
+            log.error("통화 종료 비즈니스 로직 실패 - callId: {}", callId, ce);
+            throw ce;
         } catch (Exception e) {
             log.error("통화 종료 처리 실패 - callId: {}", callId, e);
 
@@ -105,8 +148,9 @@ public class CallService {
                 callRepository.save(call);
                 log.warn("녹음 중지 실패했지만 통화는 종료됨 - callId: {}", callId);
             } catch (Exception saveEx) {
-                log.error("통화 종료 상태 저장 실패 - callId: {}", callId, saveEx);
-                throw saveEx;
+                log.error("통화 종료 상태 저장도 실패 - callId: {}", callId, saveEx);
+                throw new CustomException(ErrorCode.CALL_SESSION_ERROR,
+                        "통화 종료 처리 완전 실패", saveEx);
             }
         }
     }
