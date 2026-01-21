@@ -23,15 +23,17 @@ public interface UserConsentRepository extends JpaRepository<UserConsent, Long> 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT uc FROM UserConsent uc WHERE uc.user = :user " +
             "AND uc.consentType = :consentType " +
-            "AND uc.isActive = true")
+            "AND uc.activeFlag = true")
     Optional<UserConsent> findActiveConsentByUserAndType(
             @Param("user") User user,
             @Param("consentType") ConsentType consentType
     );
 
     @Query("SELECT CASE WHEN COUNT(uc) > 0 THEN true ELSE false END " +
-            "FROM UserConsent uc WHERE uc.user = :user AND uc.consentType = :consentType " +
-            "AND uc.agreed = true AND uc.withdrawnAt IS NULL")
+            "FROM UserConsent uc WHERE uc.user = :user " +
+            "AND uc.consentType = :consentType " +
+            "AND uc.activeFlag = true " +
+            "AND uc.withdrawnAt IS NULL")
     boolean hasActiveConsent(
             @Param("user") User user,
             @Param("consentType") ConsentType consentType

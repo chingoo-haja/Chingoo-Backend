@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
         uniqueConstraints = {
             @UniqueConstraint(
                     name = "uk_user_consent_type_active",
-                    columnNames = {"user_id", "consent_type"}
+                    columnNames = {"user_id", "consent_type", "active_flag"}
             )
         })
 @Getter
@@ -55,7 +55,7 @@ public class UserConsent extends BaseEntity {
     private ConsentChannel channel;
 
     @Column(nullable = false)
-    private Boolean isActive = true;
+    private Boolean activeFlag = true;
 
     public static UserConsent of(
             User user,
@@ -71,14 +71,14 @@ public class UserConsent extends BaseEntity {
         consent.version = version;
         consent.agreedAt = LocalDateTime.now();
         consent.channel = channel;
-        consent.isActive = true;
+        consent.activeFlag = true;
         return consent;
     }
 
     public void withdraw() {
         this.agreed = false;
         this.withdrawnAt = LocalDateTime.now();
-        this.isActive = false;
+        this.activeFlag = false;
     }
 
     public boolean isWithdrawn() {
@@ -86,7 +86,7 @@ public class UserConsent extends BaseEntity {
     }
 
     public boolean isActive() {
-        return this.agreed && !isWithdrawn();
+        return this.activeFlag && this.agreed && !isWithdrawn();
     }
 
     public void updateConsent(Boolean agreed, String version, ConsentChannel channel) {
@@ -94,7 +94,7 @@ public class UserConsent extends BaseEntity {
         this.version = version;
         this.channel = channel;
         this.agreedAt = LocalDateTime.now();  // 업데이트 시각 갱신
-        this.isActive = true;
+        this.activeFlag = true;
     }
 
 
