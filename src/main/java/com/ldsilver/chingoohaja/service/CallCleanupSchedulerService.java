@@ -31,7 +31,7 @@ public class CallCleanupSchedulerService {
     @Scheduled(fixedDelay = 300000) // 5분 = 300,000ms
     @Transactional
     public void cleanupStaleResources() {
-        log.info("🧹 고아 리소스 정리 스케줄러 실행");
+        log.debug("🧹 고아 리소스 정리 스케줄러 실행");
 
         try {
             LocalDateTime twoHoursAgo = LocalDateTime.now().minusHours(2);
@@ -48,7 +48,7 @@ public class CallCleanupSchedulerService {
             log.info("✅ 고아 리소스 정리 완료");
 
         } catch (Exception e) {
-            log.error("❌ 고아 리소스 정리 중 오류", e);
+            log.debug("❌ 고아 리소스 정리 중 오류", e);
         }
     }
 
