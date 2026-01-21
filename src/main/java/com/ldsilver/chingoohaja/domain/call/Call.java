@@ -58,6 +58,9 @@ public class Call extends BaseEntity {
     @Size(max = 64, message = "Agora 채널명은 64자를 초과할 수 없습니다.")
     private String agoraChannelName;
 
+    @Version
+    private Long version;
+
 
     public static Call of(
             User user1,
@@ -93,6 +96,11 @@ public class Call extends BaseEntity {
     }
 
     public void startCall() {
+        if (this.callStatus == null) {
+            throw new CustomException(ErrorCode.CALL_START_FAILED,
+                    "통화 상태가 초기화되지 않았습니다.");
+        }
+
         if (this.callStatus == CallStatus.READY) {
             this.callStatus = CallStatus.IN_PROGRESS;
             this.startAt = LocalDateTime.now();
@@ -110,6 +118,11 @@ public class Call extends BaseEntity {
 
 
     public void endCall() {
+        if (this.callStatus == null) {
+            throw new CustomException(ErrorCode.CALL_NOT_IN_PROGRESS,
+                    "통화 상태가 초기화되지 않았습니다.");
+        }
+
         if (this.callStatus == CallStatus.IN_PROGRESS) {
             this.callStatus = CallStatus.COMPLETED;
             this.endAt = LocalDateTime.now();
@@ -126,7 +139,8 @@ public class Call extends BaseEntity {
     }
 
     public void cancelCall() {
-        if (this.callStatus == CallStatus.READY || this.callStatus == CallStatus.IN_PROGRESS) {
+        if (this.callStatus == CallStatus.READY ||
+                this.callStatus == CallStatus.IN_PROGRESS) {
             this.callStatus = CallStatus.CANCELLED;
             this.endAt = LocalDateTime.now();
         } else {
