@@ -58,9 +58,6 @@ public class Call extends BaseEntity {
     @Size(max = 64, message = "Agora 채널명은 64자를 초과할 수 없습니다.")
     private String agoraChannelName;
 
-    @Version
-    private Long version;
-
 
     public static Call of(
             User user1,
