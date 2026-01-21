@@ -45,10 +45,10 @@ public class CallCleanupSchedulerService {
             // 3. 2시간 이상 PROCESSING인 Recording 정리
             cleanupStuckRecordings(twoHoursAgo);
 
-            log.info("✅ 고아 리소스 정리 완료");
+            log.debug("✅ 고아 리소스 정리 완료");
 
         } catch (Exception e) {
-            log.debug("❌ 고아 리소스 정리 중 오류", e);
+            log.error("❌ 고아 리소스 정리 중 오류", e);
         }
     }
 
