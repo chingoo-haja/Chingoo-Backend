@@ -4,6 +4,7 @@ import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.domain.user.UserConsent;
+import com.ldsilver.chingoohaja.domain.user.enums.ConsentChannel;
 import com.ldsilver.chingoohaja.domain.user.enums.ConsentType;
 import com.ldsilver.chingoohaja.dto.user.request.ConsentWithdrawRequest;
 import com.ldsilver.chingoohaja.dto.user.request.UserConsentRequest;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -46,25 +48,22 @@ public class UserConsentService {
         }
 
         // 필수 동의 저장
-        UserConsent requiredConsent = UserConsent.of(
+        saveOrUpdateConsent(
                 user,
                 ConsentType.REQUIRED_PRIVACY,
                 true,
-                currentConsentVersion,
                 request.getChannel()
         );
-        userConsentRepository.save(requiredConsent);
 
         // 선택 동의 저장
         if (request.getOptionalDataUsage() != null) {
-            UserConsent optionalConsent = UserConsent.of(
+            saveOrUpdateConsent(
                     user,
                     ConsentType.OPTIONAL_DATA_USAGE,
                     request.getOptionalDataUsage(),
-                    currentConsentVersion,
                     request.getChannel()
             );
-            userConsentRepository.save(optionalConsent);
+
             log.debug("선택 동의 저장 완료 - userId: {}, agreed: {}",
                     userId, request.getOptionalDataUsage());
         }
@@ -145,5 +144,49 @@ public class UserConsentService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         return userConsentRepository.hasActiveConsent(user, consentType);
+    }
+
+
+    private void saveOrUpdateConsent(
+            User user,
+            ConsentType consentType,
+            Boolean agreed,
+            ConsentChannel channel) {
+
+        Optional<UserConsent> existingConsent =
+                userConsentRepository.findActiveConsentByUserAndType(user, consentType);
+
+        if (existingConsent.isPresent()) {
+            UserConsent consent = existingConsent.get();
+
+            boolean isSameState = consent.getAgreed().equals(agreed) &&
+                    consent.getVersion().equals(currentConsentVersion) &&
+                    consent.getChannel().equals(channel);
+
+            if (isSameState) {
+                log.debug("동의 정보 변경 없음 - userId: {}, consentType: {}",
+                        user.getId(), consentType);
+                return;
+            }
+
+            // 기존 레코드 업데이트
+            consent.updateConsent(agreed, currentConsentVersion, channel);
+            userConsentRepository.save(consent);
+            log.debug("동의 정보 업데이트 - userId: {}, consentType: {}, agreed: {}",
+                    user.getId(), consentType, agreed);
+
+        } else {
+            // 신규 레코드 생성
+            UserConsent newConsent = UserConsent.of(
+                    user,
+                    consentType,
+                    agreed,
+                    currentConsentVersion,
+                    channel
+            );
+            userConsentRepository.save(newConsent);
+            log.debug("동의 정보 신규 생성 - userId: {}, consentType: {}, agreed: {}",
+                    user.getId(), consentType, agreed);
+        }
     }
 }

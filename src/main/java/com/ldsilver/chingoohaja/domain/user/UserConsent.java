@@ -76,4 +76,14 @@ public class UserConsent extends BaseEntity {
     public boolean isActive() {
         return this.agreed && !isWithdrawn();
     }
+
+    public void updateConsent(Boolean agreed, String version, ConsentChannel channel) {
+        this.agreed = agreed;
+        this.version = version;
+        this.channel = channel;
+        this.agreedAt = LocalDateTime.now();  // 업데이트 시각 갱신
+        this.withdrawnAt = null;  // 철회 상태 초기화
+    }
+
+
 }
