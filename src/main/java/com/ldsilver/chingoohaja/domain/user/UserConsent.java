@@ -11,10 +11,17 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "user_consents", indexes = {
-        @Index(name = "idx_user_consent_type", columnList = "user_id, consent_type"),
-        @Index(name = "idx_user_agreed_at", columnList = "user_id, agreed_at")
-})
+@Table(name = "user_consents",
+        indexes = {
+            @Index(name = "idx_user_consent_type", columnList = "user_id, consent_type"),
+            @Index(name = "idx_user_agreed_at", columnList = "user_id, agreed_at")
+        },
+        uniqueConstraints = {
+            @UniqueConstraint(
+                    name = "uk_user_consent_type_active",
+                    columnNames = {"user_id", "consent_type"}
+            )
+        })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class UserConsent extends BaseEntity {
@@ -47,6 +54,9 @@ public class UserConsent extends BaseEntity {
     @Column(nullable = false, length = 20)
     private ConsentChannel channel;
 
+    @Column(nullable = false)
+    private Boolean isActive = true;
+
     public static UserConsent of(
             User user,
             ConsentType consentType,
@@ -61,12 +71,14 @@ public class UserConsent extends BaseEntity {
         consent.version = version;
         consent.agreedAt = LocalDateTime.now();
         consent.channel = channel;
+        consent.isActive = true;
         return consent;
     }
 
     public void withdraw() {
         this.agreed = false;
         this.withdrawnAt = LocalDateTime.now();
+        this.isActive = false;
     }
 
     public boolean isWithdrawn() {
@@ -82,7 +94,7 @@ public class UserConsent extends BaseEntity {
         this.version = version;
         this.channel = channel;
         this.agreedAt = LocalDateTime.now();  // 업데이트 시각 갱신
-        this.withdrawnAt = null;  // 철회 상태 초기화
+        this.isActive = true;
     }
 
 
