@@ -139,13 +139,13 @@ public class AgoraRecordingService {
                             resourceId, sid
                     ).block();
 
-                    log.info("🔍 Query API 응답: {}", queryResponse);
+                    log.debug("🔍 Query API 응답: {}", queryResponse);
 
                     if (queryResponse != null) {
                         String fileUrl = extractFileUrl(queryResponse);
                         Long fileSize = extractFileSize(queryResponse);
 
-                        log.info("📁 파일 정보 - fileUrl: {}, fileSize: {}", fileUrl, fileSize);
+                        log.debug("📁 파일 정보 - fileUrl: {}, fileSize: {}", fileUrl, fileSize);
 
                         if (fileUrl != null && !fileUrl.isEmpty()) {
                             String finalFileUrl = downloadAndStoreRecordingFile(fileUrl, callId);
@@ -178,7 +178,7 @@ public class AgoraRecordingService {
             }
 
             // 정상 응답 처리
-            log.info("🔍 Stop Response: {}", stopResponse);
+            log.debug("🔍 Stop Response: {}", stopResponse);
 
             String fileUrl = extractFileUrl(stopResponse);
             Long fileSize = extractFileSize(stopResponse);
@@ -340,10 +340,10 @@ public class AgoraRecordingService {
     }
 
     private String extractFileUrl(Map<String, Object> response) {
-        log.info("=" .repeat(80));
-        log.info("🔍 파일 URL 추출 시작");
-        log.info("=" .repeat(80));
-        log.info("전체 응답: {}", response);
+        log.debug("=" .repeat(80));
+        log.debug("🔍 파일 URL 추출 시작");
+        log.debug("=" .repeat(80));
+        log.debug("전체 응답: {}", response);
 
         try {
             @SuppressWarnings("unchecked")
@@ -351,40 +351,40 @@ public class AgoraRecordingService {
 
             if (serverResponse == null) {
                 log.warn("⚠️ serverResponse가 null");
-                log.info("=" .repeat(80));
+                log.debug("=" .repeat(80));
                 return null;
             }
 
-            log.info("📦 serverResponse: {}", serverResponse);
+            log.debug("📦 serverResponse: {}", serverResponse);
 
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> fileList = (List<Map<String, Object>>) serverResponse.get("fileList");
 
             if (fileList == null) {
                 log.warn("⚠️ fileList가 null");
-                log.info("=" .repeat(80));
+                log.debug("=" .repeat(80));
                 return null;
             }
 
             if (fileList.isEmpty()) {
                 log.warn("⚠️ fileList가 비어있음");
-                log.info("=" .repeat(80));
+                log.debug("=" .repeat(80));
                 return null;
             }
 
-            log.info("✅ fileList 발견! 개수: {}", fileList.size());
+            log.debug("✅ fileList 발견! 개수: {}", fileList.size());
 
             for (int i = 0; i < fileList.size(); i++) {
                 Map<String, Object> file = fileList.get(i);
-                log.info("  📁 파일 [{}]: {}", i, file);
+                log.debug("  📁 파일 [{}]: {}", i, file);
             }
 
             Map<String, Object> firstFile = fileList.get(0);
             String fileName = (String) firstFile.get("fileName");
 
-            log.info("=" .repeat(80));
-            log.info("✅ 추출된 fileName: {}", fileName);
-            log.info("=" .repeat(80));
+            log.debug("=" .repeat(80));
+            log.debug("✅ 추출된 fileName: {}", fileName);
+            log.debug("=" .repeat(80));
 
             return fileName;
 
@@ -412,7 +412,7 @@ public class AgoraRecordingService {
 
                     if (fileSize instanceof Number) {
                         long size = ((Number) fileSize).longValue();
-                        log.info("📊 파일 크기: {} bytes", size);
+                        log.debug("📊 파일 크기: {} bytes", size);
                         return size;
                     }
                 }
