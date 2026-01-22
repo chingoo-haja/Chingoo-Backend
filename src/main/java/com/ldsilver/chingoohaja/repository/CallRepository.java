@@ -158,7 +158,7 @@ public interface CallRepository extends JpaRepository<Call, Long> {
 
     // 타임아웃 설정이 필요한 경우
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @QueryHints({@QueryHint(name = "javax.persistence.lock.timeout", value = "3000")}) // 3초
+    @QueryHints({@QueryHint(name = "jakarta.persistence.lock.timeout", value = "3000")}) // 3초
     @Query("SELECT c FROM Call c WHERE c.id = :callId")
     Optional<Call> findByIdWithLockAndTimeout(@Param("callId") Long callId);
 
