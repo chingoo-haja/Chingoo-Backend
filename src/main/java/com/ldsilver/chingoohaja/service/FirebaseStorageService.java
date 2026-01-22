@@ -9,7 +9,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
@@ -64,6 +67,112 @@ public class FirebaseStorageService {
             String safeUrl = fileUrl.replaceAll("(?i)([?&]token=)[^&]+", "$1***");
             log.warn("Firebase Storage 파일 삭제 실패 - url: {}", safeUrl, e);
         }
+    }
+
+    /**
+     * GCS에서 파일 다운로드 (녹음 파일용)
+     */
+    public byte[] downloadFile(String filePath) {
+        log.debug("Firebase Storage 파일 다운로드 - path: {}", filePath);
+
+        try {
+            Bucket bucket = StorageClient.getInstance().bucket();
+            Blob blob = bucket.get(filePath);
+
+            if (blob == null || !blob.exists()) {
+                throw new CustomException(ErrorCode.FILE_NOT_FOUND, filePath);
+            }
+
+            byte[] content = blob.getContent();
+            log.info("파일 다운로드 완료 - path: {}, size: {} bytes",
+                    filePath, content.length);
+
+            return content;
+
+        } catch (Exception e) {
+            log.error("파일 다운로드 실패 - path: {}", filePath, e);
+            throw new CustomException(ErrorCode.FILE_DOWNLOAD_FAILED,
+                    "파일 다운로드 실패: " + e.getMessage());
+        }
+    }
+
+    /**
+     * HTTP URL에서 파일 다운로드 (Agora 직접 제공 URL)
+     */
+    public byte[] downloadFromUrl(String fileUrl) {
+        log.debug("HTTP URL 다운로드 - url: {}", maskUrl(fileUrl));
+
+        try (InputStream in = new URL(fileUrl).openStream();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+
+            while ((bytesRead = in.read(buffer)) != -1) {
+                out.write(buffer, 0, bytesRead);
+            }
+
+            byte[] content = out.toByteArray();
+            log.info("HTTP 파일 다운로드 완료 - size: {} bytes", content.length);
+
+            return content;
+
+        } catch (IOException e) {
+            log.error("HTTP 파일 다운로드 실패 - url: {}", maskUrl(fileUrl), e);
+            throw new CustomException(ErrorCode.FILE_DOWNLOAD_FAILED,
+                    "파일 다운로드 실패: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 바이트 배열을 GCS에 업로드 (WAV 파일용)
+     */
+    public String uploadRecordingFile(
+            byte[] fileData, String filePath, String contentType) {
+        log.debug("녹음 파일 업로드 - path: {}, size: {} bytes",
+                filePath, fileData.length);
+
+        try {
+            Bucket bucket = StorageClient.getInstance().bucket();
+            BlobId blobId = BlobId.of(bucket.getName(), filePath);
+
+            BlobInfo blobInfo = BlobInfo.newBuilder(blobId)
+                    .setContentType(contentType)
+                    .build();
+
+            bucket.getStorage().create(blobInfo, fileData);
+
+            log.info("녹음 파일 업로드 완료 - path: {}", filePath);
+
+            // GCS 경로 반환
+            return String.format("gs://%s/%s", bucket.getName(), filePath);
+
+        } catch (Exception e) {
+            log.error("녹음 파일 업로드 실패 - path: {}", filePath, e);
+            throw new CustomException(ErrorCode.FILE_UPLOAD_FAILED,
+                    "파일 업로드 실패: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 파일 존재 여부 확인
+     */
+    public boolean fileExists(String filePath) {
+        try {
+            Bucket bucket = StorageClient.getInstance().bucket();
+            Blob blob = bucket.get(filePath);
+            return blob != null && blob.exists();
+        } catch (Exception e) {
+            log.warn("파일 존재 여부 확인 실패 - path: {}", filePath, e);
+            return false;
+        }
+    }
+
+    private String maskUrl(String url) {
+        if (url == null || url.length() < 20) {
+            return "***";
+        }
+        return url.substring(0, 20) + "...";
     }
 
     private String uploadFile(MultipartFile file, String folder, Long userId) {
