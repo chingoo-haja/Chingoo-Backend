@@ -110,11 +110,15 @@ public class AudioConverterService {
 
         Process process = processBuilder.start();
 
+        // ✅ FFmpeg 출력을 StringBuilder에 수집
+        StringBuilder output = new StringBuilder();
+
         // FFmpeg 출력 로그
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(process.getInputStream()))) {
             String line;
             while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
                 log.trace("FFmpeg: {}", line);
             }
         }
@@ -122,6 +126,9 @@ public class AudioConverterService {
         int exitCode = process.waitFor();
 
         if (exitCode != 0) {
+            log.error("FFmpeg 실패 - exit code: {}", exitCode);
+            log.error("FFmpeg 출력:\n{}", output);
+
             throw new CustomException(ErrorCode.FILE_CONVERSION_FAILED,
                     "FFmpeg 실패 - exit code: " + exitCode);
         }

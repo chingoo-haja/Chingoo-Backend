@@ -7,6 +7,7 @@ import com.ldsilver.chingoohaja.domain.call.CallRecording;
 import com.ldsilver.chingoohaja.domain.call.enums.RecordingStatus;
 import com.ldsilver.chingoohaja.dto.call.request.RecordingRequest;
 import com.ldsilver.chingoohaja.dto.call.response.RecordingResponse;
+import com.ldsilver.chingoohaja.event.RecordingCompletedEvent;
 import com.ldsilver.chingoohaja.infrastructure.agora.AgoraCloudRecordingClient;
 import com.ldsilver.chingoohaja.repository.CallRecordingRepository;
 import com.ldsilver.chingoohaja.repository.CallRepository;
@@ -179,6 +180,16 @@ public class AgoraRecordingService {
 
                 log.info("✅ Recording 중지 성공 - callId: {}, attempt: {}/{}",
                         callId, attempt, MAX_RETRY_ATTEMPTS);
+
+                if (recording.getRecordingDurationSeconds() != null) {
+                    eventPublisher.publishEvent(new RecordingCompletedEvent(
+                            callId,
+                            finalFileUrl,
+                            recording.getRecordingDurationSeconds(),
+                            fileSize
+                    ));
+                    log.debug("RecordingCompletedEvent 발행 - callId: {}", callId);
+                }
 
                 return RecordingResponse.stopped(
                         resourceId, sid, callId, channelName, finalFileUrl, fileSize,

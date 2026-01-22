@@ -104,16 +104,16 @@ public class RecordingProperties {
     }
 
     // AI 학습용 설정
-    private AiTrainingConfig aiTraining = new AiTrainingConfig();
+    private AiTrainingConfig aiTraining;
 
     @Getter
     @Setter
     public static class AiTrainingConfig {
-        private boolean autoConvert = true;
-        private int minDurationSeconds = 300; // 5분
-        private boolean keepOriginalHls = false;
-        private int wavSampleRate = 16000;
-        private int wavChannels = 1;
+        private boolean autoConvert;
+        private int minDurationSeconds;
+        private boolean keepOriginalHls;
+        private int wavSampleRate;
+        private int wavChannels;
     }
 
     // 녹음 Retry 설정
