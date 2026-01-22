@@ -33,6 +33,9 @@ public class AgoraRecordingService {
     private final RecordingProperties recordingProperties;
     private final AgoraService agoraService;
 
+    private static final int MAX_RETRY_ATTEMPTS = 2; // 최초 시도 + 1회 재시도
+    private static final int RETRY_DELAY_SECONDS = 3;
+
     @Transactional
     public RecordingResponse startRecording(RecordingRequest request) {
         log.debug("Cloud Recording 시작 - callId: {}, channel: {}",
@@ -66,40 +69,59 @@ public class AgoraRecordingService {
         log.debug("비동기 녹음 시작 - callId: {}", callId);
 
         return CompletableFuture.runAsync(() -> {
-            try {
-                Call call = callRepository.findById(callId).orElse(null);
-                if (call == null) {
-                    log.error("녹음 시작 실패: Call을 찾을 수 없음 - callId: {}", callId);
+            for (int attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
+                try {
+                    Call call = callRepository.findById(callId).orElse(null);
+                    if (call == null) {
+                        log.error("녹음 시작 실패: Call을 찾을 수 없음 - callId: {}", callId);
+                        return;
+                    }
+
+                    if (!call.isInProgress()) {
+                        log.warn("녹음 시작 실패: 통화가 진행 중이 아님 - callId: {}, status: {}",
+                                callId, call.getCallStatus());
+                        return;
+                    }
+
+                    String resourceId = cloudRecordingClient.acquireResource(channelName).block();
+                    if (resourceId == null) {
+                        throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "Resource 획득 실패");
+                    }
+
+                    RecordingRequest request = RecordingRequest.of(callId, channelName);
+                    String sid = cloudRecordingClient.startRecording(
+                            resourceId, channelName, request
+                    ).block();
+
+                    if (sid == null) {
+                        throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "Recording 시작 실패");
+                    }
+
+                    CallRecording recording = CallRecording.create(call, resourceId, sid);
+                    callRecordingRepository.save(recording);
+
+                    log.debug("녹음 시작 성공 - callId: {}, attempt: {}/{}",
+                            callId, attempt, MAX_RETRY_ATTEMPTS);
                     return;
+
+                } catch (Exception e) {
+                    log.error("❌ 녹음 시작 실패 - callId: {}, attempt: {}/{}",
+                            callId, attempt, MAX_RETRY_ATTEMPTS, e);
+
+                    if (attempt < MAX_RETRY_ATTEMPTS) {
+                        log.info("⏳ {}초 후 재시도 - callId: {}", RETRY_DELAY_SECONDS, callId);
+                        try {
+                            Thread.sleep(RETRY_DELAY_SECONDS * 1000L);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            log.warn("재시도 대기 중 인터럽트 - callId: {}", callId);
+                            return;
+                        }
+                    } else {
+                        log.error("❌ 녹음 시작 최종 실패 - callId: {}", callId);
+                        updateCallRecordingFailureStatus(callId);
+                    }
                 }
-
-                if (!call.isInProgress()) {
-                    log.warn("녹음 시작 실패: 통화가 진행 중이 아님 - callId: {}, status: {}",
-                            callId, call.getCallStatus());
-                    return;
-                }
-
-                String resourceId = cloudRecordingClient.acquireResource(channelName).block();
-                if (resourceId == null) {
-                    throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "Resource 획득 실패");
-                }
-
-                RecordingRequest request = RecordingRequest.of(callId, channelName);
-                String sid = cloudRecordingClient.startRecording(
-                        resourceId, channelName, request
-                ).block();
-
-                if (sid == null) {
-                    throw new CustomException(ErrorCode.CALL_SESSION_ERROR, "Recording 시작 실패");
-                }
-
-                CallRecording recording = CallRecording.create(call, resourceId, sid);
-                callRecordingRepository.save(recording);
-
-                log.debug("비동기 녹음 시작 완료 - callId: {}, resourceId: {}, sid: {}", callId, maskId(resourceId), maskId(sid));
-            } catch (Exception e) {
-                log.error("비동기 녹음 시작 실패 - callId: {}", callId, e);
-                updateCallRecordingFailureStatus(callId);
             }
         });
     }
