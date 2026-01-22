@@ -205,17 +205,15 @@ public class CallCleanupSchedulerService {
                 recording.getId(), recording.getCall().getId());
 
         try {
-            try {
-                agoraRecordingService.stopRecording(recording.getCall().getId());
-                log.info("멈춘 Recording 중지 성공 - recordingId: {}", recording.getId());
-            } catch (Exception e) {
-                log.warn("멈춘 Recording 중지 실패 - FAILED 처리 - recordingId: {}", recording.getId(), e);
-                recording.fail();
-                callRecordingRepository.save(recording);
-            }
+            agoraRecordingService.stopRecording(recording.getCall().getId());
+            log.info("멈춘 Recording 중지 성공 - recordingId: {}", recording.getId());
         } catch (Exception e) {
-            log.error("멈춘 Recording 정리 실패 - recordingId: {}", recording.getId(), e);
+            log.warn("멈춘 Recording 중지 실패 - FAILED 처리 - recordingId: {}",
+                    recording.getId(), e);
+            recording.fail();
+            callRecordingRepository.save(recording);
         }
+
     }
 
 }

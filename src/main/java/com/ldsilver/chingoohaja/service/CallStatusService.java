@@ -58,7 +58,7 @@ public class CallStatusService {
             throw new CustomException(ErrorCode.UNAUTHORIZED, "인증 정보가 없습니다.");
         }
 
-        Call call = callRepository.findById(callId)
+        Call call = callRepository.findByIdWithLock(callId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
 
         if (!call.isParticipant(userId)) {
@@ -67,6 +67,7 @@ public class CallStatusService {
 
         if (call.getCallStatus() == CallStatus.COMPLETED) {
             log.info("이미 종료된 통화 - callId: {}, userId: {}", callId, userId);
+
             CallStatusResponse baseResponse = CallStatusResponse.from(call, userId);
             boolean canEvaluate = evaluationService.canEvaluate(userId, callId);
             boolean hasEvaluated = evaluationService.hasUserEvaluatedCall(userId, callId);
@@ -79,7 +80,13 @@ public class CallStatusService {
             throw new CustomException(ErrorCode.CALL_ALREADY_ENDED);
         }
 
-        callService.endCall(callId);
+        try {
+            callService.endCall(callId);
+        } catch (Exception e) {
+            log.error("통화 종료 처리 중 오류 - callId: {}, userId: {}", callId, userId, e);
+            throw new CustomException(ErrorCode.CALL_SESSION_ERROR,
+                    "통화 종료 처리 실패: " + e.getMessage());
+        }
 
         Call updatedCall = callRepository.findById(callId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));

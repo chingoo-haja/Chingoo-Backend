@@ -4,11 +4,13 @@ import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.enums.CallStatus;
 import com.ldsilver.chingoohaja.domain.user.User;
 import jakarta.persistence.LockModeType;
+import jakarta.persistence.QueryHint;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -153,4 +155,18 @@ public interface CallRepository extends JpaRepository<Call, Long> {
     List<Call> findStaleInProgressCalls(@Param("threshold") LocalDateTime threshold);
 
     List<Call> findByCallStatus(CallStatus callStatus);
+
+    // 타임아웃 설정이 필요한 경우
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints({@QueryHint(name = "jakarta.persistence.lock.timeout", value = "3000")}) // 3초
+    @Query("SELECT c FROM Call c WHERE c.id = :callId")
+    Optional<Call> findByIdWithLockAndTimeout(@Param("callId") Long callId);
+
+    // 사용자별 활성 통화 조회 (락 필요)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Call c WHERE (c.user1.id = :userId OR c.user2.id = :userId) " +
+            "AND c.callStatus IN (com.ldsilver.chingoohaja.domain.call.enums.CallStatus.READY, " +
+            "com.ldsilver.chingoohaja.domain.call.enums.CallStatus.IN_PROGRESS) " +
+            "ORDER BY c.createdAt DESC")
+    List<Call> findActiveCallsByUserIdWithLock(@Param("userId") Long userId);
 }

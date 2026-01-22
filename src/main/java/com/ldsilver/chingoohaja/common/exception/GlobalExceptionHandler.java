@@ -1,6 +1,9 @@
 package com.ldsilver.chingoohaja.common.exception;
 
 import com.ldsilver.chingoohaja.dto.common.ErrorResponse;
+import jakarta.persistence.LockTimeoutException;
+import jakarta.persistence.OptimisticLockException;
+import jakarta.persistence.PessimisticLockException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -18,6 +21,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    // *******순서 유념해서 추가하기*********
+
     /**
      * 비즈니스 로직 예외 처리
      */
@@ -27,6 +32,60 @@ public class GlobalExceptionHandler {
         final ErrorCode errorCode = e.getErrorCode();
         final ErrorResponse response = ErrorResponse.of(errorCode, e.getMessage());
         return new ResponseEntity<>(response, errorCode.getHttpStatus());
+    }
+
+    /**
+     * 비관적 락 타임아웃 예외 처리 (가장 구체적인 락 예외)
+     */
+    @ExceptionHandler(LockTimeoutException.class)
+    protected ResponseEntity<ErrorResponse> handleLockTimeoutException(
+            LockTimeoutException e,
+            HttpServletRequest request) {
+
+        log.error("락 타임아웃 발생 - URI: {}, Method: {}, Message: {}",
+                request.getRequestURI(), request.getMethod(), e.getMessage());
+
+        final ErrorResponse response = ErrorResponse.of(
+                ErrorCode.INTERNAL_SERVER_ERROR,
+                "요청이 지연되고 있습니다. 잠시 후 다시 시도해주세요."
+        );
+        return new ResponseEntity<>(response, HttpStatus.REQUEST_TIMEOUT);
+    }
+
+    /**
+     * 비관적 락 획득 실패 예외 처리
+     */
+    @ExceptionHandler(PessimisticLockException.class)
+    protected ResponseEntity<ErrorResponse> handlePessimisticLockException(
+            PessimisticLockException e,
+            HttpServletRequest request) {
+
+        log.error("비관적 락 획득 실패 - URI: {}, Method: {}",
+                request.getRequestURI(), request.getMethod(), e);
+
+        final ErrorResponse response = ErrorResponse.of(
+                ErrorCode.INTERNAL_SERVER_ERROR,
+                "다른 요청 처리 중입니다. 잠시 후 다시 시도해주세요."
+        );
+        return new ResponseEntity<>(response, HttpStatus.CONFLICT);
+    }
+
+    /**
+     * 낙관적 락 충돌 예외 처리
+     */
+    @ExceptionHandler(OptimisticLockException.class)
+    protected ResponseEntity<ErrorResponse> handleOptimisticLockException(
+            OptimisticLockException e,
+            HttpServletRequest request) {
+
+        log.warn("낙관적 락 충돌 - URI: {}, Method: {}",
+                request.getRequestURI(), request.getMethod(), e);
+
+        final ErrorResponse response = ErrorResponse.of(
+                ErrorCode.INTERNAL_SERVER_ERROR,
+                "동시에 수정된 데이터입니다. 다시 시도해주세요."
+        );
+        return new ResponseEntity<>(response, HttpStatus.CONFLICT);
     }
 
     /**
