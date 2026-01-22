@@ -54,6 +54,10 @@ app:
       log-level: DEBUG         # 로그 레벨을 WARN으로 설정
   redis:
     blocked-users-ttl: 600  # 10분 (초 단위)
+  ai-training:
+    auto-convert: true  # 자동 변환 활성화
+    min-duration-seconds: 10  # local에선 10초 이상만 변환
+
 
 logging:
   level:
