@@ -2,7 +2,6 @@ package com.ldsilver.chingoohaja.service;
 
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
-import com.ldsilver.chingoohaja.config.RecordingProperties;
 import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.CallRecording;
 import com.ldsilver.chingoohaja.domain.call.enums.RecordingStatus;
@@ -14,6 +13,7 @@ import com.ldsilver.chingoohaja.repository.CallRepository;
 import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,8 +30,7 @@ public class AgoraRecordingService {
     private final AgoraCloudRecordingClient cloudRecordingClient;
     private final CallRepository callRepository;
     private final CallRecordingRepository callRecordingRepository;
-    private final RecordingProperties recordingProperties;
-    private final AgoraService agoraService;
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final int MAX_RETRY_ATTEMPTS = 2; // 최초 시도 + 1회 재시도
     private static final int RETRY_DELAY_SECONDS = 3;
