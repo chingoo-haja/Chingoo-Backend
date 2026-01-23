@@ -12,8 +12,12 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+
 
 @Slf4j
 @Service
@@ -40,16 +44,25 @@ public class RecordingPostProcessorService {
         log.debug("🔄 Recording 후처리 시작 - callId: {}", callId);
         log.debug("=" .repeat(80));
 
+        Path tempDir = null;
+
         try {
+            RecordingProperties.AiTrainingConfig aiConfig = recordingProperties.getAiTraining();
+
             // 1. 설정 확인
-            if (!recordingProperties.getAiTraining().isAutoConvert()) {
-                log.debug("자동 변환 비활성화 - callId: {}", callId);
+            if (aiConfig == null) {
+                log.warn("⚠️ AI Training 설정이 없습니다 - callId: {}", callId);
+                return;
+            }
+
+            if (!aiConfig.isAutoConvert()) {
+                log.info("⏭️ 자동 변환 비활성화 - callId: {}", callId);
                 return;
             }
 
             // 2. 통화 시간 확인 (5분 미만은 스킵)
             Integer durationSeconds = event.getDurationSeconds();
-            int minDuration = recordingProperties.getAiTraining().getMinDurationSeconds();
+            int minDuration = aiConfig.getMinDurationSeconds();
 
             if (durationSeconds == null || durationSeconds < minDuration) {
                 log.debug("통화 시간 부족으로 변환 스킵 - callId: {}, duration: {}초 (최소: {}초)",
@@ -79,67 +92,68 @@ public class RecordingPostProcessorService {
                 return;
             }
 
-            log.debug("📥 HLS 파일 다운로드 - path: {}", hlsPath);
-            byte[] hlsData = downloadHlsFile(hlsPath);
+            tempDir = Files.createTempDirectory("hls-convert-");
+            log.debug("임시 디렉토리 생성 - {}", tempDir);
 
-            // 5. 사용자별 WAV 변환 및 업로드
+            Path localM3u8 = firebaseStorageService.downloadHlsDirectory(hlsPath, tempDir);
+            log.debug("📥 HLS 디렉토리 다운로드 완료 - callId: {}", callId);
+
+            // 사용자별 WAV 변환
             Long user1Id = call.getUser1().getId();
             Long user2Id = call.getUser2().getId();
 
-            String user1WavPath = convertAndUploadWav(hlsData, callId, user1Id, "user1");
-            String user2WavPath = convertAndUploadWav(hlsData, callId, user2Id, "user2");
+            String user1WavPath = convertAndUploadWavFromLocal(localM3u8, callId, user1Id, "user1");
+            String user2WavPath = convertAndUploadWavFromLocal(localM3u8, callId, user2Id, "user2");
 
             log.info("✅ WAV 변환 완료 - callId: {}, user1: {}, user2: {}",
                     callId, user1WavPath, user2WavPath);
 
-            // 6. (옵션) HLS 원본 삭제
-            if (!recordingProperties.getAiTraining().isKeepOriginalHls()) {
+            // (옵션) HLS 원본 삭제
+            if (!aiConfig.isKeepOriginalHls()) {
                 deleteHlsFile(hlsPath, callId);
             }
 
+            log.debug("✅ Recording 후처리 완료 - callId: {}", callId);
 
         } catch (Exception e) {
+            log.error("=" .repeat(80));
             log.error("❌ Recording 후처리 실패 - callId: {}", callId, e);
+            log.error("=" .repeat(80));
+        } finally {
+            // ✅ 4. 임시 파일 정리
+            if (tempDir != null) {
+                cleanupTempDirectory(tempDir);
+            }
         }
     }
 
 
-    private byte[] downloadHlsFile(String filePath) {
-        // GCS 경로 (gs://bucket/path) 또는 HTTP URL 구분
-        if (filePath.startsWith("gs://")) {
-            String path = filePath.substring(filePath.indexOf("/", 5) + 1);
-            return firebaseStorageService.downloadFile(path);
-        } else if (filePath.startsWith("http")) {
-            return firebaseStorageService.downloadFromUrl(filePath);
-        } else {
-            // 상대 경로
-            return firebaseStorageService.downloadFile(filePath);
-        }
-    }
-
-
-    private String convertAndUploadWav(byte[] hlsData, Long callId, Long userId, String userLabel) {
+    /**
+     * 로컬 HLS에서 WAV 변환 후 업로드
+     */
+    private String convertAndUploadWavFromLocal(Path localM3u8, Long callId, Long userId, String userLabel) {
         try {
-            log.info("🔄 {} WAV 변환 시작 - callId: {}, userId: {}", userLabel, callId, userId);
+            log.info("🔄 {} WAV 변환 시작 (로컬 파일 사용) - callId: {}, userId: {}",
+                    userLabel, callId, userId);
 
-            // 1. HLS → WAV 변환
+            // 1. 로컬 HLS → WAV 변환
             String outputFileName = String.format("call_%d_%s", callId, userLabel);
-            byte[] wavData = audioConverterService.convertHlsToWav(hlsData, outputFileName);
+            byte[] wavData = audioConverterService.convertLocalHlsToWav(localM3u8, outputFileName);
 
             // 2. GCS 업로드 경로 생성
             String wavPath = generateWavPath(callId, userId, userLabel);
 
             // 3. GCS 업로드
-            String uploadedPath = firebaseStorageService.uploadRecordingFile(
+            String uploadedUrl = firebaseStorageService.uploadRecordingFile(
                     wavData,
                     wavPath,
                     "audio/wav"
             );
 
-            log.info("✅ {} WAV 업로드 완료 - callId: {}, path: {}",
-                    userLabel, callId, uploadedPath);
+            log.debug("✅ {} WAV 업로드 완료 - callId: {}, url: {}",
+                    userLabel, callId, maskUrl(uploadedUrl));
 
-            return uploadedPath;
+            return uploadedUrl;
 
         } catch (Exception e) {
             log.error("❌ {} WAV 변환 실패 - callId: {}, userId: {}",
@@ -148,6 +162,27 @@ public class RecordingPostProcessorService {
         }
     }
 
+    /**
+     * 임시 디렉토리 정리
+     */
+    private void cleanupTempDirectory(Path tempDir) {
+        try {
+            if (Files.exists(tempDir)) {
+                Files.walk(tempDir)
+                        .sorted(java.util.Comparator.reverseOrder())
+                        .forEach(path -> {
+                            try {
+                                Files.delete(path);
+                            } catch (IOException e) {
+                                log.warn("임시 파일 삭제 실패 - {}", path, e);
+                            }
+                        });
+                log.debug("임시 디렉토리 정리 완료 - {}", tempDir);
+            }
+        } catch (IOException e) {
+            log.warn("임시 디렉토리 정리 실패 - {}", tempDir, e);
+        }
+    }
 
     private String generateWavPath(Long callId, Long userId, String userLabel) {
         String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
@@ -172,5 +207,12 @@ public class RecordingPostProcessorService {
         } catch (Exception e) {
             log.warn("⚠️ HLS 원본 삭제 실패 (무시) - callId: {}", callId, e);
         }
+    }
+
+    private String maskUrl(String url) {
+        if (url == null || url.length() < 30) {
+            return "***";
+        }
+        return url.substring(0, 30) + "...";
     }
 }
