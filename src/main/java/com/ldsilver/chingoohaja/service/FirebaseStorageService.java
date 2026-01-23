@@ -42,7 +42,7 @@ public class FirebaseStorageService {
         try {
             String objectName;
 
-            // 1. URL인 경우 - 기존 로직
+            // 1. URL인 경우
             if (filePathOrUrl.startsWith("http")) {
                 objectName = extractObjectNameFromUrl(filePathOrUrl);
 
@@ -70,7 +70,7 @@ public class FirebaseStorageService {
                 objectName = filePathOrUrl;
             }
 
-            // 4. 실제 삭제
+
             Bucket bucket = StorageClient.getInstance().bucket();
             Blob blob = bucket.get(objectName);
 
@@ -82,13 +82,53 @@ public class FirebaseStorageService {
             boolean deleted = blob.delete();
 
             if (deleted) {
-                log.info("✅ 파일 삭제 성공 - objectName: {}", objectName);
+                log.info("파일 삭제 성공 - objectName: {}", objectName);
             } else {
-                log.warn("⚠️ 파일 삭제 실패 - objectName: {}", objectName);
+                log.warn("파일 삭제 실패 - objectName: {}", objectName);
             }
 
         } catch (Exception e) {
-            log.warn("⚠️ 파일 삭제 중 예외 발생 - path: {}", maskPath(filePathOrUrl), e);
+            log.warn("파일 삭제 중 예외 발생 - path: {}", maskPath(filePathOrUrl), e);
+        }
+    }
+
+    /**
+     * HLS 디렉토리 전체 삭제 (플레이리스트 + 세그먼트)
+     */
+    public void deleteHlsDirectory(String m3u8Path) {
+        log.info("HLS 디렉토리 삭제 시작 - m3u8: {}", m3u8Path);
+
+        try {
+            if (m3u8Path.startsWith("gs://")) {
+                m3u8Path = m3u8Path.substring(m3u8Path.indexOf("/", 5) + 1);
+            }
+
+            String directory = m3u8Path.substring(0, m3u8Path.lastIndexOf('/') + 1);
+
+            Bucket bucket = StorageClient.getInstance().bucket();
+
+            Iterable<Blob> blobs = bucket.list(
+                    Storage.BlobListOption.prefix(directory)
+            ).iterateAll();
+
+            int deletedCount = 0;
+            for (Blob blob : blobs) {
+                try {
+                    boolean deleted = blob.delete();
+                    if (deleted) {
+                        deletedCount++;
+                        log.debug("파일 삭제 - {}", blob.getName());
+                    }
+                } catch (Exception e) {
+                    log.warn("파일 삭제 실패 - {}", blob.getName(), e);
+                }
+            }
+
+            log.info("HLS 디렉토리 삭제 완료 - directory: {}, 삭제된 파일: {}개",
+                    directory, deletedCount);
+
+        } catch (Exception e) {
+            log.error("HLS 디렉토리 삭제 실패 - m3u8: {}", m3u8Path, e);
         }
     }
 

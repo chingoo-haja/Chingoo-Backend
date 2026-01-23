@@ -195,14 +195,16 @@ public class RecordingPostProcessorService {
         try {
             log.info("🗑️ HLS 원본 삭제 - callId: {}, path: {}", callId, filePath);
 
-            if (filePath.startsWith("gs://")) {
-                String path = filePath.substring(filePath.indexOf("/", 5) + 1);
-                firebaseStorageService.deleteFile(path);
-            } else if (!filePath.startsWith("http")) {
-                firebaseStorageService.deleteFile(filePath);
-            } else {
-                log.warn("⚠️ HTTP URL은 삭제 불가 - callId: {}", callId);
-            }
+//            if (filePath.startsWith("gs://")) {
+//                String path = filePath.substring(filePath.indexOf("/", 5) + 1);
+//                firebaseStorageService.deleteFile(path);
+//            } else if (!filePath.startsWith("http")) {
+//                firebaseStorageService.deleteFile(filePath);
+//            } else {
+//                log.warn("⚠️ HTTP URL은 삭제 불가 - callId: {}", callId);
+//            }
+            firebaseStorageService.deleteHlsDirectory(filePath);
+            log.info("✅ HLS 원본 삭제 완료 - callId: {}", callId);
 
         } catch (Exception e) {
             log.warn("⚠️ HLS 원본 삭제 실패 (무시) - callId: {}", callId, e);
