@@ -33,40 +33,62 @@ public class FirebaseStorageService {
         return uploadFile(file, "profiles", userId);
     }
 
-    public void deleteFile(String fileUrl) {
-        if (fileUrl == null || fileUrl.isBlank()) {
-            log.debug("파일 URL이 비어있어 삭제를 건너뜀");
+    public void deleteFile(String filePathOrUrl) {
+        if (filePathOrUrl == null || filePathOrUrl.isBlank()) {
+            log.debug("파일 경로가 비어있어 삭제를 건너뜀");
             return;
         }
 
         try {
-            String objectName = extractObjectNameFromUrl(fileUrl);
-            if (objectName != null) {
+            String objectName;
+
+            // 1. URL인 경우 - 기존 로직
+            if (filePathOrUrl.startsWith("http")) {
+                objectName = extractObjectNameFromUrl(filePathOrUrl);
+
+                if (objectName == null) {
+                    log.warn("URL에서 객체명 추출 실패 - url: {}", maskUrl(filePathOrUrl));
+                    return;
+                }
+
+                // 버킷 검증
                 Bucket bucket = StorageClient.getInstance().bucket();
-                if (fileUrl.contains("storage.googleapis.com") || fileUrl.contains("firebasestorage.googleapis.com")) {
-                    if (!fileUrl.contains(bucket.getName())) {
-                        String safeUrl = fileUrl.replaceAll("(?i)([?&]token=)[^&]+", "$1***");
-                        log.debug("버킷 불일치로 삭제 건너뜀 - url: {}, expectedBucket: {}", safeUrl, bucket.getName());
+                if (filePathOrUrl.contains("storage.googleapis.com")
+                        || filePathOrUrl.contains("firebasestorage.googleapis.com")) {
+                    if (!filePathOrUrl.contains(bucket.getName())) {
+                        log.debug("버킷 불일치로 삭제 건너뜀 - expectedBucket: {}", bucket.getName());
                         return;
                     }
                 }
-
-                Blob blob = bucket.get(objectName);
-                if (blob == null) {
-                    log.debug("Firebase Storage 객체를 찾을 수 없음 - objectName: {}", objectName);
-                    return;
-                }
-                boolean deleted = blob.delete();
-
-                if (deleted) {
-                    log.debug("Firebase Storage 파일 삭제 성공 - objectName: {}", objectName);
-                } else {
-                    log.debug("Firebase Storage 파일 삭제 실패 - objectName: {}", objectName);
-                }
             }
+            // 2. gs:// 형식인 경우
+            else if (filePathOrUrl.startsWith("gs://")) {
+                objectName = filePathOrUrl.substring(filePathOrUrl.indexOf("/", 5) + 1);
+            }
+            // 3. 경로인 경우 (예: recordings/20260123/1/xxx.m3u8)
+            else {
+                objectName = filePathOrUrl;
+            }
+
+            // 4. 실제 삭제
+            Bucket bucket = StorageClient.getInstance().bucket();
+            Blob blob = bucket.get(objectName);
+
+            if (blob == null) {
+                log.debug("파일을 찾을 수 없음 - objectName: {}", objectName);
+                return;
+            }
+
+            boolean deleted = blob.delete();
+
+            if (deleted) {
+                log.info("✅ 파일 삭제 성공 - objectName: {}", objectName);
+            } else {
+                log.warn("⚠️ 파일 삭제 실패 - objectName: {}", objectName);
+            }
+
         } catch (Exception e) {
-            String safeUrl = fileUrl.replaceAll("(?i)([?&]token=)[^&]+", "$1***");
-            log.warn("Firebase Storage 파일 삭제 실패 - url: {}", safeUrl, e);
+            log.warn("⚠️ 파일 삭제 중 예외 발생 - path: {}", maskPath(filePathOrUrl), e);
         }
     }
 
@@ -280,5 +302,20 @@ public class FirebaseStorageService {
             log.warn("URL에서 객체 이름 추출 실패: {}", fileUrl, e);
         }
         return null;
+    }
+
+    private String maskUrl(String url) {
+        if (url == null || url.length() < 30) {
+            return "***";
+        }
+        String masked = url.replaceAll("(?i)([?&]token=)[^&]+", "$1***");
+        return masked.substring(0, Math.min(50, masked.length())) + "...";
+    }
+
+    private String maskPath(String path) {
+        if (path == null || path.length() < 30) {
+            return path;
+        }
+        return path.substring(0, 30) + "...";
     }
 }
