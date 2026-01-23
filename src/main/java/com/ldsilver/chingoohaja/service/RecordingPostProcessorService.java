@@ -119,7 +119,6 @@ public class RecordingPostProcessorService {
             // 6. HLS 원본 삭제
             if (!aiConfig.isKeepOriginalHls()) {
                 deleteHlsFile(user1HlsPath, callId);
-                deleteHlsFile(user2HlsPath, callId);
             }
 
             log.debug("✅ Recording 후처리 완료 - callId: {}", callId);
