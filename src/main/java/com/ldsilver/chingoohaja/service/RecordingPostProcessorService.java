@@ -3,6 +3,7 @@ package com.ldsilver.chingoohaja.service;
 import com.ldsilver.chingoohaja.config.RecordingProperties;
 import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.CallRecording;
+import com.ldsilver.chingoohaja.dto.call.RecordingInfo;
 import com.ldsilver.chingoohaja.event.RecordingCompletedEvent;
 import com.ldsilver.chingoohaja.repository.CallRecordingRepository;
 import com.ldsilver.chingoohaja.repository.CallRepository;
@@ -36,7 +37,6 @@ public class RecordingPostProcessorService {
      * - 각 사용자별로 분리된 WAV 생성
      */
     @Async("recordingTaskExecutor")
-    @Transactional
     public void processRecordingForAI(RecordingCompletedEvent event) {
         Long callId = event.getCallId();
 
@@ -70,37 +70,29 @@ public class RecordingPostProcessorService {
                 return;
             }
 
-            log.info("✅ 변환 조건 충족 - callId: {}, duration: {}초", callId, durationSeconds);
-
-            // 3. Call 정보 조회
-            Call call = callRepository.findById(callId).orElse(null);
-            if (call == null) {
-                log.error("❌ Call 조회 실패 - callId: {}", callId);
-                return;
-            }
-
-            CallRecording recording = callRecordingRepository.findByCallId(callId).orElse(null);
-            if (recording == null) {
-                log.error("❌ CallRecording 조회 실패 - callId: {}", callId);
+            // 3. DB 조회
+            RecordingInfo recordingInfo = getRecordingInfo(callId);
+            if (recordingInfo == null) {
+                log.error("❌ Recording 정보 조회 실패 - callId: {}", callId);
                 return;
             }
 
             // 4. HLS 파일 다운로드
-            String hlsPath = event.getFilePath();
+            String hlsPath = recordingInfo.hlsPath();
             if (hlsPath == null || hlsPath.trim().isEmpty()) {
                 log.error("❌ HLS 파일 경로 없음 - callId: {}", callId);
                 return;
             }
 
-            tempDir = Files.createTempDirectory("hls-convert-");
-            log.debug("임시 디렉토리 생성 - {}", tempDir);
+            log.info("✅ 변환 조건 충족 - callId: {}, duration: {}초", callId, durationSeconds);
 
+            tempDir = Files.createTempDirectory("hls-convert-");
             Path localM3u8 = firebaseStorageService.downloadHlsDirectory(hlsPath, tempDir);
             log.debug("📥 HLS 디렉토리 다운로드 완료 - callId: {}", callId);
 
-            // 사용자별 WAV 변환
-            Long user1Id = call.getUser1().getId();
-            Long user2Id = call.getUser2().getId();
+            // 5. 사용자별 WAV 변환
+            Long user1Id = recordingInfo.user1Id();
+            Long user2Id = recordingInfo.user2Id();
 
             String user1WavPath = convertAndUploadWavFromLocal(localM3u8, callId, user1Id, "user1");
             String user2WavPath = convertAndUploadWavFromLocal(localM3u8, callId, user2Id, "user2");
@@ -108,7 +100,7 @@ public class RecordingPostProcessorService {
             log.info("✅ WAV 변환 완료 - callId: {}, user1: {}, user2: {}",
                     callId, user1WavPath, user2WavPath);
 
-            // (옵션) HLS 원본 삭제
+            // 6. HLS 원본 삭제
             if (!aiConfig.isKeepOriginalHls()) {
                 deleteHlsFile(hlsPath, callId);
             }
@@ -120,11 +112,31 @@ public class RecordingPostProcessorService {
             log.error("❌ Recording 후처리 실패 - callId: {}", callId, e);
             log.error("=" .repeat(80));
         } finally {
-            // ✅ 4. 임시 파일 정리
             if (tempDir != null) {
                 cleanupTempDirectory(tempDir);
             }
         }
+    }
+
+    @Transactional(readOnly = true)
+    public RecordingInfo getRecordingInfo(Long callId) {
+        Call call = callRepository.findById(callId).orElse(null);
+        if (call == null) {
+            log.error("❌ Call 조회 실패 - callId: {}", callId);
+            return null;
+        }
+
+        CallRecording recording = callRecordingRepository.findByCallId(callId).orElse(null);
+        if (recording == null) {
+            log.error("❌ CallRecording 조회 실패 - callId: {}", callId);
+            return null;
+        }
+
+        return new RecordingInfo(
+                recording.getFilePath(),
+                call.getUser1().getId(),
+                call.getUser2().getId()
+        );
     }
 
 
