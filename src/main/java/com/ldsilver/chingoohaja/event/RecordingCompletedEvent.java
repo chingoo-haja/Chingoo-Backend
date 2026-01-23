@@ -10,4 +10,6 @@ public class RecordingCompletedEvent {
     private final String filePath;
     private final Integer durationSeconds;
     private final Long fileSize;
+    private final String user1FilePath;
+    private final String user2FilePath;
 }

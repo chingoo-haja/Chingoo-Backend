@@ -44,6 +44,9 @@ public class RecordingPostProcessorService {
         log.debug("🔄 Recording 후처리 시작 - callId: {}", callId);
         log.debug("=" .repeat(80));
 
+        Path user1TempDir = null;
+        Path user2TempDir = null;
+
         Path tempDir = null;
 
         try {
@@ -77,32 +80,46 @@ public class RecordingPostProcessorService {
                 return;
             }
 
-            // 4. HLS 파일 다운로드
-            String hlsPath = recordingInfo.hlsPath();
-            if (hlsPath == null || hlsPath.trim().isEmpty()) {
-                log.error("❌ HLS 파일 경로 없음 - callId: {}", callId);
+            String user1HlsPath = event.getUser1FilePath();
+            String user2HlsPath = event.getUser2FilePath();
+
+            if (user1HlsPath == null || user2HlsPath == null) {
+                log.error("❌ 사용자별 HLS 경로 없음 - callId: {}", callId);
                 return;
             }
 
+            // 4. HLS 파일 다운로드
+//            String hlsPath = recordingInfo.hlsPath();
+//            if (hlsPath == null || hlsPath.trim().isEmpty()) {
+//                log.error("❌ HLS 파일 경로 없음 - callId: {}", callId);
+//                return;
+//            }
+
             log.info("✅ 변환 조건 충족 - callId: {}, duration: {}초", callId, durationSeconds);
 
-            tempDir = Files.createTempDirectory("hls-convert-");
-            Path localM3u8 = firebaseStorageService.downloadHlsDirectory(hlsPath, tempDir);
-            log.debug("📥 HLS 디렉토리 다운로드 완료 - callId: {}", callId);
+//            tempDir = Files.createTempDirectory("hls-convert-");
+//            Path localM3u8 = firebaseStorageService.downloadHlsDirectory(hlsPath, tempDir);
+//            log.debug("📥 HLS 디렉토리 다운로드 완료 - callId: {}", callId);
 
             // 5. 사용자별 WAV 변환
-            Long user1Id = recordingInfo.user1Id();
-            Long user2Id = recordingInfo.user2Id();
+            user1TempDir = Files.createTempDirectory("hls-user1-");
+            Path user1M3u8 = firebaseStorageService.downloadHlsDirectory(user1HlsPath, user1TempDir);
+            String user1WavPath = convertAndUploadWavFromLocal(
+                    user1M3u8, callId, recordingInfo.user1Id(), "user1");
 
-            String user1WavPath = convertAndUploadWavFromLocal(localM3u8, callId, user1Id, "user1");
-            String user2WavPath = convertAndUploadWavFromLocal(localM3u8, callId, user2Id, "user2");
+            user2TempDir = Files.createTempDirectory("hls-user2-");
+            Path user2M3u8 = firebaseStorageService.downloadHlsDirectory(user2HlsPath, user2TempDir);
+            String user2WavPath = convertAndUploadWavFromLocal(
+                    user2M3u8, callId, recordingInfo.user2Id(), "user2");
+
 
             log.info("✅ WAV 변환 완료 - callId: {}, user1: {}, user2: {}",
                     callId, user1WavPath, user2WavPath);
 
             // 6. HLS 원본 삭제
             if (!aiConfig.isKeepOriginalHls()) {
-                deleteHlsFile(hlsPath, callId);
+                deleteHlsFile(user1HlsPath, callId);
+                deleteHlsFile(user2HlsPath, callId);
             }
 
             log.debug("✅ Recording 후처리 완료 - callId: {}", callId);
@@ -112,8 +129,11 @@ public class RecordingPostProcessorService {
             log.error("❌ Recording 후처리 실패 - callId: {}", callId, e);
             log.error("=" .repeat(80));
         } finally {
-            if (tempDir != null) {
-                cleanupTempDirectory(tempDir);
+            if (user1TempDir != null) {
+                cleanupTempDirectory(user1TempDir);
+            }
+            if (user2TempDir != null) {
+                cleanupTempDirectory(user2TempDir);
             }
         }
     }
@@ -143,7 +163,8 @@ public class RecordingPostProcessorService {
     /**
      * 로컬 HLS에서 WAV 변환 후 업로드
      */
-    private String convertAndUploadWavFromLocal(Path localM3u8, Long callId, Long userId, String userLabel) {
+    private String convertAndUploadWavFromLocal(
+            Path localM3u8, Long callId, Long userId, String userLabel) {
         try {
             log.info("🔄 {} WAV 변환 시작 (로컬 파일 사용) - callId: {}, userId: {}",
                     userLabel, callId, userId);

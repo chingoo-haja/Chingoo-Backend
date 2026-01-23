@@ -19,6 +19,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -175,6 +176,10 @@ public class AgoraRecordingService {
                 Long fileSize = extractFileSize(stopResponse);
                 String finalFileUrl = downloadAndStoreRecordingFile(fileUrl, callId);
 
+                List<String> userFilePaths = extractUserFilePaths(stopResponse);
+                String user1Path = userFilePaths.size() > 0 ? userFilePaths.get(0) : null;
+                String user2Path = userFilePaths.size() > 1 ? userFilePaths.get(1) : null;
+
                 recording.complete(finalFileUrl, fileSize, "hls");
                 callRecordingRepository.saveAndFlush(recording);
 
@@ -186,7 +191,9 @@ public class AgoraRecordingService {
                             callId,
                             finalFileUrl,
                             recording.getRecordingDurationSeconds(),
-                            fileSize
+                            fileSize,
+                            user1Path,
+                            user2Path
                     ));
                     log.debug("RecordingCompletedEvent 발행 - callId: {}", callId);
                 }
@@ -317,6 +324,38 @@ public class AgoraRecordingService {
                 .toList();
     }
 
+
+    /**
+     * 사용자별 파일 경로 추출
+     */
+    private List<String> extractUserFilePaths(Map<String, Object> response) {
+        List<String> paths = new ArrayList<>();
+
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> serverResponse = (Map<String, Object>) response.get("serverResponse");
+
+            if (serverResponse != null) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> fileList = (List<Map<String, Object>>)
+                        serverResponse.get("fileList");
+
+                if (fileList != null) {
+                    for (Map<String, Object> file : fileList) {
+                        String fileName = (String) file.get("fileName");
+                        if (fileName != null) {
+                            paths.add(fileName);
+                            log.debug("사용자 파일 경로 추출: {}", fileName);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("사용자 파일 경로 추출 실패", e);
+        }
+
+        return paths;
+    }
 
 
     /**
