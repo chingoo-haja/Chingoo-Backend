@@ -87,21 +87,9 @@ public class RecordingPostProcessorService {
                 log.error("❌ 사용자별 HLS 경로 없음 - callId: {}", callId);
                 return;
             }
-
-            // 4. HLS 파일 다운로드
-//            String hlsPath = recordingInfo.hlsPath();
-//            if (hlsPath == null || hlsPath.trim().isEmpty()) {
-//                log.error("❌ HLS 파일 경로 없음 - callId: {}", callId);
-//                return;
-//            }
-
             log.info("✅ 변환 조건 충족 - callId: {}, duration: {}초", callId, durationSeconds);
 
-//            tempDir = Files.createTempDirectory("hls-convert-");
-//            Path localM3u8 = firebaseStorageService.downloadHlsDirectory(hlsPath, tempDir);
-//            log.debug("📥 HLS 디렉토리 다운로드 완료 - callId: {}", callId);
-
-            // 5. 사용자별 WAV 변환
+            // 4. 사용자별 WAV 변환
             user1TempDir = Files.createTempDirectory("hls-user1-");
             Path user1M3u8 = firebaseStorageService.downloadHlsDirectory(user1HlsPath, user1TempDir);
             String user1WavPath = convertAndUploadWavFromLocal(
@@ -116,9 +104,12 @@ public class RecordingPostProcessorService {
             log.info("✅ WAV 변환 완료 - callId: {}, user1: {}, user2: {}",
                     callId, user1WavPath, user2WavPath);
 
-            // 6. HLS 원본 삭제
+            // 5. HLS 원본 삭제
             if (!aiConfig.isKeepOriginalHls()) {
                 deleteHlsFile(user1HlsPath, callId);
+                if (!user1HlsPath.equals(user2HlsPath)) {
+                    deleteHlsFile(user2HlsPath, callId);
+                }
             }
 
             log.debug("✅ Recording 후처리 완료 - callId: {}", callId);
