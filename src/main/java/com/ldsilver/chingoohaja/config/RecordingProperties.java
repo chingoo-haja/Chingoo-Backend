@@ -33,59 +33,33 @@ public class RecordingProperties {
     @Max(value = 2, message = "오디오 프로필은 0-2 범위여야 합니다.")
     private int audioProfile = 0;
 
-    /**
-     * 오디오만 녹음 (비용 절약)
-     */
     private boolean audioOnly = true;
 
-    /**
-     * 자동 녹음 시작 (통화 시작 시)
-     */
     private boolean autoStart = true;
 
-    /**
-     * 자동 녹음 중지 (통화 종료 시)
-     */
     private boolean autoStop = true;
 
-    /**
-     * 파일 이름 접두어
-     */
     private String fileNamePrefix = "call_recording";
 
-    /**
-     * 녹음 파일 포맷 (hls, mp3, mp4)
-     */
-    private String[] fileFormats = {"hls"};
+    private String[] fileFormats = {"hls"}; //(hls, mp3, mp4)
 
-    /**
-     * 정리 스케줄러 활성화
-     */
-    private CleanupConfig cleanup = new CleanupConfig();
+    private CleanupConfig cleanup = new CleanupConfig(); //정리 스케줄러 활성화
 
     @Getter
     @Setter
     public static class CleanupConfig {
         private boolean enabled = true;
 
-        /**
-         * 고아 녹음 정리 주기 (밀리초)
-         */
+        // 고아 녹음 정리 주기 (밀리초)
         private long orphanCleanupDelay = 600000L; // 10분
 
-        /**
-         * 장시간 녹음 체크 주기 (밀리초)
-         */
+        // 장시간 녹음 체크 주기 (밀리초)
         private long longRunningCheckDelay = 3600000L; // 1시간
 
-        /**
-         * 장시간 녹음 임계값 (시간)
-         */
+        // 장시간 녹음 임계값 (시간)
         private int longRunningThresholdHours = 2;
 
-        /**
-         * 실패한 녹음 재시도 주기 (밀리초)
-         */
+        // 실패한 녹음 재시도 주기 (밀리초)
         private long retryFailedDelay = 1800000L; // 30분
     }
 
@@ -127,5 +101,28 @@ public class RecordingProperties {
             if (f == null || !allowed.contains(f.toLowerCase())) return false;
         }
         return true;
+    }
+
+    // AI 학습용 설정
+    private AiTrainingConfig aiTraining;
+
+    @Getter
+    @Setter
+    public static class AiTrainingConfig {
+        private boolean autoConvert;
+        private int minDurationSeconds;
+        private boolean keepOriginalHls;
+        private int wavSampleRate;
+        private int wavChannels;
+    }
+
+    // 녹음 Retry 설정
+    private RetryConfig retry = new RetryConfig();
+
+    @Getter
+    @Setter
+    public static class RetryConfig {
+        private int maxAttempts = 2;
+        private int delaySeconds = 3;
     }
 }

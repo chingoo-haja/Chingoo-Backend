@@ -75,7 +75,9 @@ public enum ErrorCode {
     INVALID_FILE_TYPE(HttpStatus.BAD_REQUEST, "FS002", "지원되지 않는 파일 형식입니다."),
     FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FS003", "파일 업로드에 실패했습니다."),
     FILE_READ_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FS004", "파일 읽기에 실패했습니다."),
-
+    FILE_DOWNLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FS005", "파일 다운로드 실패"),
+    FILE_CONVERSION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "FS006", "파일 변환 실패"),
+    FILE_NOT_FOUND(HttpStatus.BAD_REQUEST, "FS007", "파일을 찾을 수 없습니다."),
     // 매칭 관련 에러
     ALREADY_IN_QUEUE(HttpStatus.CONFLICT, "M001", "이미 매칭 대기열에 참가하고 있습니다."),
     QUEUE_NOT_FOUND(HttpStatus.NOT_FOUND, "M002", "매칭 대기열 정보를 찾을 수 없습니다."),

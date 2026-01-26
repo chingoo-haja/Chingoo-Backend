@@ -84,8 +84,16 @@ app:
       long-running-check-delay: 3600000 # 장시간 녹음 체크: 1시간
       long-running-threshold-hours: 2   # 장시간 녹음 임계값: 2시간
       retry-failed-delay: 1800000       # 실패한 녹음 재시도: 30분
+    ai-training:
+      auto-convert: true  # 자동 변환 활성화
+      min-duration-seconds: 300  # 5분 (300초) 이상만 변환
+      keep-original-hls: false  # 변환 후 HLS 원본 삭제 여부
+      wav-sample-rate: 16000  # 16kHz (AI 학습용 최적)
+      wav-channels: 1  # Mono
   consent:
     current-version: 2026-01-v1
+
+
 
 # 세션 관련 설정 (쿠키와는 별개지만 보안상 설정)
 server:

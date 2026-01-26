@@ -2,22 +2,24 @@ package com.ldsilver.chingoohaja.service;
 
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
-import com.ldsilver.chingoohaja.config.RecordingProperties;
 import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.CallRecording;
 import com.ldsilver.chingoohaja.domain.call.enums.RecordingStatus;
 import com.ldsilver.chingoohaja.dto.call.request.RecordingRequest;
 import com.ldsilver.chingoohaja.dto.call.response.RecordingResponse;
+import com.ldsilver.chingoohaja.event.RecordingCompletedEvent;
 import com.ldsilver.chingoohaja.infrastructure.agora.AgoraCloudRecordingClient;
 import com.ldsilver.chingoohaja.repository.CallRecordingRepository;
 import com.ldsilver.chingoohaja.repository.CallRepository;
 import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -30,8 +32,7 @@ public class AgoraRecordingService {
     private final AgoraCloudRecordingClient cloudRecordingClient;
     private final CallRepository callRepository;
     private final CallRecordingRepository callRecordingRepository;
-    private final RecordingProperties recordingProperties;
-    private final AgoraService agoraService;
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final int MAX_RETRY_ATTEMPTS = 2; // 최초 시도 + 1회 재시도
     private static final int RETRY_DELAY_SECONDS = 3;
@@ -175,11 +176,27 @@ public class AgoraRecordingService {
                 Long fileSize = extractFileSize(stopResponse);
                 String finalFileUrl = downloadAndStoreRecordingFile(fileUrl, callId);
 
+                List<String> userFilePaths = extractUserFilePaths(stopResponse);
+                String user1Path = userFilePaths.size() > 0 ? userFilePaths.get(0) : null;
+                String user2Path = userFilePaths.size() > 1 ? userFilePaths.get(1) : null;
+
                 recording.complete(finalFileUrl, fileSize, "hls");
                 callRecordingRepository.saveAndFlush(recording);
 
                 log.info("✅ Recording 중지 성공 - callId: {}, attempt: {}/{}",
                         callId, attempt, MAX_RETRY_ATTEMPTS);
+
+                if (recording.getRecordingDurationSeconds() != null) {
+                    eventPublisher.publishEvent(new RecordingCompletedEvent(
+                            callId,
+                            finalFileUrl,
+                            recording.getRecordingDurationSeconds(),
+                            fileSize,
+                            user1Path,
+                            user2Path
+                    ));
+                    log.debug("RecordingCompletedEvent 발행 - callId: {}", callId);
+                }
 
                 return RecordingResponse.stopped(
                         resourceId, sid, callId, channelName, finalFileUrl, fileSize,
@@ -307,6 +324,38 @@ public class AgoraRecordingService {
                 .toList();
     }
 
+
+    /**
+     * 사용자별 파일 경로 추출
+     */
+    private List<String> extractUserFilePaths(Map<String, Object> response) {
+        List<String> paths = new ArrayList<>();
+
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> serverResponse = (Map<String, Object>) response.get("serverResponse");
+
+            if (serverResponse != null) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> fileList = (List<Map<String, Object>>)
+                        serverResponse.get("fileList");
+
+                if (fileList != null) {
+                    for (Map<String, Object> file : fileList) {
+                        String fileName = (String) file.get("fileName");
+                        if (fileName != null) {
+                            paths.add(fileName);
+                            log.debug("사용자 파일 경로 추출: {}", fileName);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("사용자 파일 경로 추출 실패", e);
+        }
+
+        return paths;
+    }
 
 
     /**
