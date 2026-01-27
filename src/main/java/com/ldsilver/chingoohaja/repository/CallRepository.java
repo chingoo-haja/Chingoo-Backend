@@ -175,4 +175,9 @@ public interface CallRepository extends JpaRepository<Call, Long> {
     @Query("SELECT c FROM Call c WHERE c.callStatus = 'COMPLETED' " +
             "AND c.endAt >= :since ORDER BY c.endAt DESC")
     List<Call> findRecentEndedCalls(@Param("since") LocalDateTime since);
+
+    @Query("SELECT COUNT(c) FROM Call c WHERE " +
+            "(c.user1 = :user OR c.user2 = :user) " +
+            "AND c.callStatus = 'COMPLETED'")
+    int countCompletedCallsByUser(@Param("user") User user);
 }

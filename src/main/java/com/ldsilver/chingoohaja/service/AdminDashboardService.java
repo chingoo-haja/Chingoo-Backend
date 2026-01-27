@@ -250,7 +250,7 @@ public class AdminDashboardService {
 
     private AdminUserListResponse.UserSummary toUserSummary(User user) {
         // TODO: 실제 통화 수, 신고 수, 마지막 로그인 시간 계산
-        int totalCalls = 0; // callRepository.countByUser(user);
+        int totalCalls = callRepository.countCompletedCallsByUser(user);
         int reportCount = (int) reportRepository.countByReportedUser(user);
 
         return new AdminUserListResponse.UserSummary(
@@ -260,10 +260,10 @@ public class AdminDashboardService {
                 user.getUserType().name(),
                 user.getProvider(),
                 user.getCreatedAt(),
-                null, // lastLogin - TODO: 구현 필요
+                user.getLastLoginAt(),
                 totalCalls,
                 reportCount,
-                false // isSuspended - TODO: 구현 필요
+                user.isCurrentlySuspended()
         );
     }
 

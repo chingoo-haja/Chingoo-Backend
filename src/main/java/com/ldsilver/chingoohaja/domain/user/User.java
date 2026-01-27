@@ -14,6 +14,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static com.ldsilver.chingoohaja.validation.CommonValidationConstants.MAX_PROFILE_IMAGE_URL_LENGTH;
 
@@ -66,6 +67,15 @@ public class User extends BaseEntity {
 
     @Column(nullable = false)
     private String providerId;
+
+    @Column(nullable = false)
+    private Boolean isSuspended = false;
+
+    @Column
+    private LocalDateTime suspendedUntil;
+
+    @Column
+    private LocalDateTime lastLoginAt;
 
     public static User of(
             String email,
@@ -234,6 +244,27 @@ public class User extends BaseEntity {
             return realName;
         }
         return nickname;
+    }
+
+    public void suspend(LocalDateTime until) {
+        this.isSuspended = true;
+        this.suspendedUntil = until;
+    }
+
+    public void unsuspend() {
+        this.isSuspended = false;
+        this.suspendedUntil = null;
+    }
+
+    public boolean isCurrentlySuspended() {
+        if (!isSuspended) return false;
+        if (suspendedUntil == null) return true; // 영구 정지
+        return LocalDateTime.now().isBefore(suspendedUntil);
+    }
+
+    // ✅ 추가: 마지막 로그인 시간 업데이트
+    public void updateLastLogin() {
+        this.lastLoginAt = LocalDateTime.now();
     }
 
     @Override
