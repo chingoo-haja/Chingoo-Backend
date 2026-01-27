@@ -4,7 +4,11 @@ import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.enums.CallStatus;
 import com.ldsilver.chingoohaja.domain.report.Report;
 import com.ldsilver.chingoohaja.domain.user.User;
-import com.ldsilver.chingoohaja.dto.admin.response.*;
+import com.ldsilver.chingoohaja.domain.user.enums.UserType;
+import com.ldsilver.chingoohaja.dto.admin.response.AdminUserListResponse;
+import com.ldsilver.chingoohaja.dto.admin.response.CallMonitoringResponse;
+import com.ldsilver.chingoohaja.dto.admin.response.DashboardOverviewResponse;
+import com.ldsilver.chingoohaja.dto.admin.response.ReportListResponse;
 import com.ldsilver.chingoohaja.dto.call.AgoraHealthStatus;
 import com.ldsilver.chingoohaja.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -75,9 +79,13 @@ public class AdminDashboardService {
 
         Pageable pageable = PageRequest.of(page - 1, limit, sort);
 
-        // TODO: 검색 및 필터링 로직 구현
-        // 현재는 전체 조회
-        Page<User> userPage = userRepository.findAll(pageable);
+        String searchTerm = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
+        UserType userTypeEnum = parseUserType(userType);
+        Page<User> userPage = userRepository.findBySearchAndUserType(
+                searchTerm,
+                userTypeEnum,
+                pageable
+        );
 
         List<AdminUserListResponse.UserSummary> userSummaries = userPage.getContent().stream()
                 .map(this::toUserSummary)
@@ -186,6 +194,20 @@ public class AdminDashboardService {
                 activeCalls, usersInQueue, activeUsersNow, recordingsInProgress
         );
     }
+
+    private UserType parseUserType(String userType) {
+        if (userType == null || userType.trim().isEmpty()) {
+            return null;
+        }
+
+        try {
+            return UserType.valueOf(userType.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            log.warn("잘못된 UserType: {}", userType);
+            return null;
+        }
+    }
+
 
     private DashboardOverviewResponse.TodaySummary getTodaySummary() {
         LocalDateTime todayStart = LocalDate.now().atStartOfDay();
