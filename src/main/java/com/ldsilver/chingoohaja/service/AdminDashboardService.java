@@ -57,6 +57,8 @@ public class AdminDashboardService {
         // 최근 알림 (예: 에러, 경고 등)
         List<DashboardOverviewResponse.Alert> recentAlerts = getRecentAlerts();
 
+        log.info("대시보드 개요 생성 완료");
+
         return new DashboardOverviewResponse(
                 systemHealth,
                 realTimeStats,
