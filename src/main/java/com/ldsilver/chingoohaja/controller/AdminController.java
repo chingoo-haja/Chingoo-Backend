@@ -2,15 +2,18 @@ package com.ldsilver.chingoohaja.controller;
 
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
+import com.ldsilver.chingoohaja.domain.user.CustomUserDetails;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.dto.setting.OperatingHoursInfo;
 import com.ldsilver.chingoohaja.service.OperatingHoursService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 
@@ -19,12 +22,10 @@ import java.time.format.DateTimeParseException;
 @RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
 @Tag(name = "관리자", description = "관리자 전용 API")
+@SecurityRequirement(name = "Bearer Authentication")
 public class AdminController {
 
     private final OperatingHoursService operatingHoursService;
-
-    @Value("${admin.token:change-this-to-secure-token}")
-    private String adminToken;
 
     @Operation(
             summary = "운영 시간 변경",
@@ -32,13 +33,11 @@ public class AdminController {
     )
     @PutMapping("/operating-hours")
     public ApiResponse<String> updateOperatingHours(
-            @RequestHeader("Admin-Token") String token,
             @RequestParam(name = "start_time") String startTime,
-            @RequestParam(name = "end_time") String endTime) {
+            @RequestParam(name = "end_time") String endTime,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        validateAdminToken(token);
         validateTimeFormat(startTime, endTime);
-
         operatingHoursService.updateOperatingHours(startTime, endTime);
 
         log.info("운영 시간 변경 완료 - {} ~ {}", startTime, endTime);
@@ -54,10 +53,8 @@ public class AdminController {
     )
     @PutMapping("/service-toggle")
     public ApiResponse<String> toggleService(
-            @RequestHeader("Admin-Token") String token,
-            @RequestParam boolean enabled) {
-
-        validateAdminToken(token);
+            @RequestParam boolean enabled,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
 
         operatingHoursService.toggleService(enabled);
 
@@ -69,25 +66,17 @@ public class AdminController {
     }
 
     @Operation(
-            summary = "현재 운영 설정 조회",
+            summary = "현재 운영 시간 조회",
             description = "현재 운영 시간 설정을 조회합니다. (관리자 전용)"
     )
     @GetMapping("/operating-hours")
     public ApiResponse<OperatingHoursInfo> getOperatingHours(
-            @RequestHeader("Admin-Token") String token) {
-
-        validateAdminToken(token);
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
 
         OperatingHoursInfo info = operatingHoursService.getOperatingHoursInfo();
         return ApiResponse.ok("운영 설정 조회 성공", info);
     }
 
-    private void validateAdminToken(String token) {
-        if (!adminToken.equals(token)) {
-            log.warn("유효하지 않은 관리자 토큰 시도");
-            throw new CustomException(ErrorCode.ACCESS_DENIED);
-        }
-    }
 
     private void validateTimeFormat(String startTime, String endTime) {
         try {
