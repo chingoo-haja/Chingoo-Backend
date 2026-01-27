@@ -169,4 +169,10 @@ public interface CallRepository extends JpaRepository<Call, Long> {
             "com.ldsilver.chingoohaja.domain.call.enums.CallStatus.IN_PROGRESS) " +
             "ORDER BY c.createdAt DESC")
     List<Call> findActiveCallsByUserIdWithLock(@Param("userId") Long userId);
+
+    int countByCallStatus(CallStatus callStatus);
+
+    @Query("SELECT c FROM Call c WHERE c.callStatus = 'COMPLETED' " +
+            "AND c.endAt >= :since ORDER BY c.endAt DESC")
+    List<Call> findRecentEndedCalls(@Param("since") LocalDateTime since);
 }

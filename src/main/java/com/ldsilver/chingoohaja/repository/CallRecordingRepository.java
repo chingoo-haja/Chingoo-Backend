@@ -25,4 +25,8 @@ public interface CallRecordingRepository extends JpaRepository<CallRecording, Lo
     @Query("SELECT cr FROM CallRecording cr WHERE cr.recordingStatus = 'PROCESSING' " +
             "AND cr.recordingStartedAt < :threshold")
     List<CallRecording> findStuckProcessingRecordings(@Param("threshold") LocalDateTime threshold);
+
+    @Query("SELECT COUNT(cr) FROM CallRecording cr " +
+            "WHERE cr.recordingStatus = 'PROCESSING'")
+    int countActiveRecordings();
 }
