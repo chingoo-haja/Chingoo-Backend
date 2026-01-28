@@ -281,8 +281,12 @@ public class AdminDashboardService {
         long negativeCount = 0;
 
         for (Object[] stat : feedbackStats) {
-            String feedbackType = stat[0].toString();
+            String feedbackType = stat[0] != null ? stat[0].toString() : null;
             long count = ((Number) stat[1]).longValue();
+
+            if (feedbackType == null) {
+                continue;
+            }
 
             switch (feedbackType) {
                 case "POSITIVE" -> positiveCount = count;
@@ -324,9 +328,13 @@ public class AdminDashboardService {
         long totalCount = 0;
 
         for (Object[] stat : feedbackStats) {
-            String feedbackType = stat[0].toString();
+            String feedbackType = stat[0] != null ? stat[0].toString() : null;
             long count = ((Number) stat[1]).longValue();
             totalCount += count;
+
+            if (feedbackType == null) {
+                continue;
+            }
 
             if ("POSITIVE".equals(feedbackType)) {
                 positiveCount = count;
