@@ -81,4 +81,24 @@ public interface EvaluationRepository extends JpaRepository<Evaluation, Long> {
                                            @Param("monthEnd") LocalDateTime monthEnd,
                                            @Param("minEvaluations") long minEvaluations);
 
+    // 특정 기간 동안의 총 평가 수
+    @Query("SELECT COUNT(e) FROM Evaluation e " +
+            "WHERE e.createdAt BETWEEN :startDate AND :endDate")
+    long countEvaluationsBetween(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    // 특정 기간 동안의 피드백 타입별 개수
+    @Query("SELECT e.feedbackType, COUNT(e) FROM Evaluation e " +
+            "WHERE e.createdAt BETWEEN :startDate AND :endDate " +
+            "GROUP BY e.feedbackType")
+    List<Object[]> countByFeedbackTypeBetween(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    // 특정 Call에 대한 평가 존재 여부
+    boolean existsByCall(Call call);
+
 }

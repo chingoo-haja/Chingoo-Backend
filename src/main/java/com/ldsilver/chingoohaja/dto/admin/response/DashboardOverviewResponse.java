@@ -8,6 +8,7 @@ public record DashboardOverviewResponse(
         @JsonProperty("system_health") SystemHealth systemHealth,
         @JsonProperty("real_time_stats") RealTimeStats realTimeStats,
         @JsonProperty("today_summary") TodaySummary todaySummary,
+        @JsonProperty("evaluation_stats") EvaluationStats evaluationStats,
         @JsonProperty("recent_alerts") List<Alert> recentAlerts,
         @JsonProperty("timestamp") LocalDateTime timestamp
 ) {
@@ -29,7 +30,19 @@ public record DashboardOverviewResponse(
             @JsonProperty("total_calls") long totalCalls,
             @JsonProperty("new_users") long newUsers,
             @JsonProperty("reports_count") long reportsCount,
-            @JsonProperty("success_rate") double successRate
+            @JsonProperty("matching_success_rate") double matchingSuccessRate,
+            @JsonProperty("evaluation_rate") double evaluationRate,
+            @JsonProperty("positive_rate") double positiveRate
+    ) {}
+
+    public record EvaluationStats(
+            @JsonProperty("total_evaluations") long totalEvaluations,
+            @JsonProperty("evaluation_participation_rate") double evaluationParticipationRate,
+            @JsonProperty("positive_count") long positiveCount,
+            @JsonProperty("neutral_count") long neutralCount,
+            @JsonProperty("negative_count") long negativeCount,
+            @JsonProperty("positive_percentage") double positivePercentage,
+            @JsonProperty("negative_percentage") double negativePercentage
     ) {}
 
     public record Alert(

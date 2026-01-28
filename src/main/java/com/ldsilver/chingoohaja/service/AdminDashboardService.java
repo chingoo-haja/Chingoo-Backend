@@ -38,6 +38,7 @@ public class AdminDashboardService {
     private final ReportRepository reportRepository;
     private final CallRecordingRepository callRecordingRepository;
     private final MatchingQueueRepository matchingQueueRepository;
+    private final EvaluationRepository evaluationRepository;
     private final AgoraService agoraService;
     private final DataSource dataSource;
     private final RedisMatchingQueueService redisMatchingQueueService;
@@ -54,6 +55,9 @@ public class AdminDashboardService {
         // 오늘의 요약
         DashboardOverviewResponse.TodaySummary todaySummary = getTodaySummary();
 
+        // 오늘의 평가 비율
+        DashboardOverviewResponse.EvaluationStats evaluationStats = getEvaluationStats(); // ✅ 추가
+
         // 최근 알림 (예: 에러, 경고 등)
         List<DashboardOverviewResponse.Alert> recentAlerts = getRecentAlerts();
 
@@ -63,6 +67,7 @@ public class AdminDashboardService {
                 systemHealth,
                 realTimeStats,
                 todaySummary,
+                evaluationStats,
                 recentAlerts,
                 LocalDateTime.now()
         );
@@ -222,20 +227,114 @@ public class AdminDashboardService {
 
         long reportsCount = reportRepository.countByCreatedAtBetween(todayStart, now);
 
-        // 성공률 계산
+        // 매칭 성공률 계산
         List<Object[]> successRateData = matchingQueueRepository
                 .getMatchingSuccessRate(todayStart, now);
-        double successRate = 0.0;
+        double matchingSuccessRate = 0.0;
         if (!successRateData.isEmpty()) {
             Object[] data = successRateData.get(0);
             long matched = ((Number) data[0]).longValue();
             long total = ((Number) data[1]).longValue();
-            successRate = total > 0 ? (double) matched / total * 100 : 0.0;
+            matchingSuccessRate = total > 0 ? (double) matched / total * 100 : 0.0;
         }
 
+        // 오늘의 평가 참여율 계산
+        long todayEvaluations = evaluationRepository.countEvaluationsBetween(todayStart, now);
+        double evaluationRate = totalCalls > 0 ?
+                (double) todayEvaluations / (totalCalls * 2) * 100 : 0.0; // 통화당 2명이 평가 가능
+        evaluationRate = Math.round(evaluationRate * 10.0) / 10.0; // 소수점 1자리
+
+        List<Object[]> feedbackStats = evaluationRepository
+                .countByFeedbackTypeBetween(todayStart, now);
+        double positiveRate = calculatePositiveRate(feedbackStats);
+
         return new DashboardOverviewResponse.TodaySummary(
-                totalCalls, newUsers, reportsCount, successRate
+                totalCalls, newUsers, reportsCount,
+                matchingSuccessRate, evaluationRate, positiveRate
         );
+    }
+
+    private DashboardOverviewResponse.EvaluationStats getEvaluationStats() {
+        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
+        LocalDateTime now = LocalDateTime.now();
+
+        // 총 평가 수
+        long totalEvaluations = evaluationRepository.countEvaluationsBetween(todayStart, now);
+
+        // 평가 가능한 총 기회 수 (완료된 통화 * 2)
+        long completedCalls = callRepository.countCompletedCallsBetween(
+                todayStart, now, CallStatus.COMPLETED
+        );
+        long totalEvaluationOpportunities = completedCalls * 2;
+
+        // 평가 참여율
+        double participationRate = totalEvaluationOpportunities > 0 ?
+                (double) totalEvaluations / totalEvaluationOpportunities * 100 : 0.0;
+        participationRate = Math.round(participationRate * 10.0) / 10.0;
+
+        // 피드백 타입별 개수
+        List<Object[]> feedbackStats = evaluationRepository
+                .countByFeedbackTypeBetween(todayStart, now);
+
+        long positiveCount = 0;
+        long neutralCount = 0;
+        long negativeCount = 0;
+
+        for (Object[] stat : feedbackStats) {
+            String feedbackType = stat[0].toString();
+            long count = ((Number) stat[1]).longValue();
+
+            switch (feedbackType) {
+                case "POSITIVE" -> positiveCount = count;
+                case "NEUTRAL" -> neutralCount = count;
+                case "NEGATIVE" -> negativeCount = count;
+            }
+        }
+
+        // 긍정/부정 비율
+        double positivePercentage = totalEvaluations > 0 ?
+                (double) positiveCount / totalEvaluations * 100 : 0.0;
+        double negativePercentage = totalEvaluations > 0 ?
+                (double) negativeCount / totalEvaluations * 100 : 0.0;
+
+        positivePercentage = Math.round(positivePercentage * 10.0) / 10.0;
+        negativePercentage = Math.round(negativePercentage * 10.0) / 10.0;
+
+        log.debug("평가 통계 - 총: {}, 참여율: {}%, 긍정: {}%, 부정: {}%",
+                totalEvaluations, participationRate, positivePercentage, negativePercentage);
+
+        return new DashboardOverviewResponse.EvaluationStats(
+                totalEvaluations,
+                participationRate,
+                positiveCount,
+                neutralCount,
+                negativeCount,
+                positivePercentage,
+                negativePercentage
+        );
+    }
+
+    // 긍정 평가 비율 계산
+    private double calculatePositiveRate(List<Object[]> feedbackStats) {
+        if (feedbackStats.isEmpty()) {
+            return 0.0;
+        }
+
+        long positiveCount = 0;
+        long totalCount = 0;
+
+        for (Object[] stat : feedbackStats) {
+            String feedbackType = stat[0].toString();
+            long count = ((Number) stat[1]).longValue();
+            totalCount += count;
+
+            if ("POSITIVE".equals(feedbackType)) {
+                positiveCount = count;
+            }
+        }
+
+        double rate = totalCount > 0 ? (double) positiveCount / totalCount * 100 : 0.0;
+        return Math.round(rate * 10.0) / 10.0; // 소수점 1자리
     }
 
     private List<DashboardOverviewResponse.Alert> getRecentAlerts() {
@@ -316,8 +415,7 @@ public class AdminDashboardService {
         int durationMinutes = call.getDurationSeconds() != null ?
                 call.getDurationSeconds() / 60 : 0;
 
-        // TODO: 평가 여부 확인 로직 추가
-        boolean hadEvaluation = false;
+        boolean hadEvaluation = evaluationRepository.existsByCall(call);
 
         return new CallMonitoringResponse.EndedCallInfo(
                 call.getId(),
