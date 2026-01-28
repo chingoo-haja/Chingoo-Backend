@@ -35,4 +35,12 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
      * 특정 사용자가 받은 신고 목록 (관리자용)
      */
     List<Report> findByReportedUserOrderByCreatedAtDesc(User reportedUser);
+
+    @Query("SELECT COUNT(r) FROM Report r " +
+            "WHERE r.createdAt BETWEEN :startDate AND :endDate")
+    long countByCreatedAtBetween(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
 }

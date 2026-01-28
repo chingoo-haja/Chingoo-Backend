@@ -112,7 +112,6 @@ public class AdminDashboardService {
                 Sort.by(Sort.Direction.DESC, "createdAt")
         );
 
-        // TODO: 상태별 필터링 구현
         Page<Report> reportPage = reportRepository.findAll(pageable);
 
         List<ReportListResponse.ReportDetail> reportDetails = reportPage.getContent().stream()
@@ -221,7 +220,7 @@ public class AdminDashboardService {
 
         long newUsers = userRepository.findUsersCreatedBetween(todayStart, now).size();
 
-        long reportsCount = reportRepository.count(); // TODO: 오늘 신고 수로 변경
+        long reportsCount = reportRepository.countByCreatedAtBetween(todayStart, now);
 
         // 성공률 계산
         List<Object[]> successRateData = matchingQueueRepository
@@ -290,7 +289,7 @@ public class AdminDashboardService {
                 report.getReason().name(),
                 report.getDetails(),
                 report.getCreatedAt(),
-                "PENDING" // TODO: Report 엔티티에 status 필드 추가 필요
+                "BLOCKED" //고정값: 이미 차단됨
         );
     }
 
