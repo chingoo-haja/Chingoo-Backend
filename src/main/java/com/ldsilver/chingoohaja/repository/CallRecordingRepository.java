@@ -29,4 +29,9 @@ public interface CallRecordingRepository extends JpaRepository<CallRecording, Lo
     @Query("SELECT COUNT(cr) FROM CallRecording cr " +
             "WHERE cr.recordingStatus = 'PROCESSING'")
     int countActiveRecordings();
+
+    @Query("SELECT COUNT(cr) FROM CallRecording cr " +
+            "WHERE cr.recordingStatus = 'FAILED' " +
+            "AND cr.createdAt >= :since")
+    int countFailedRecordingsSince(@Param("since") LocalDateTime since);
 }

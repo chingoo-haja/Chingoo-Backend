@@ -339,9 +339,38 @@ public class AdminDashboardService {
 
     private List<DashboardOverviewResponse.Alert> getRecentAlerts() {
         List<DashboardOverviewResponse.Alert> alerts = new ArrayList<>();
+        LocalDateTime recentTime = LocalDateTime.now().minusHours(1);
 
-        // TODO: 실제 시스템 로그/이벤트 기반 알림 생성
-        // 예: 녹음 실패, API 에러, 비정상 종료 등
+        // 1. 녹음 실패 체크
+        int failedRecordings = callRecordingRepository.countFailedRecordingsSince(recentTime);
+        if (failedRecordings > 0) {
+            alerts.add(new DashboardOverviewResponse.Alert(
+                    "WARNING",
+                    String.format("최근 1시간 내 %d건의 녹음 실패 발생", failedRecordings),
+                    LocalDateTime.now()
+            ));
+        }
+
+        // 2. 비정상 종료 통화 체크 (5분 이하 통화가 많은 경우)
+        long shortCalls = callRepository.countShortCallsSince(recentTime, 300); // 5분 = 300초
+        if (shortCalls > 10) {
+            alerts.add(new DashboardOverviewResponse.Alert(
+                    "WARNING",
+                    String.format("최근 1시간 내 %d건의 짧은 통화(5분 이하) 발생", shortCalls),
+                    LocalDateTime.now()
+            ));
+        }
+
+         // 3. 평가 참여율 경고
+         DashboardOverviewResponse.EvaluationStats evalStats = getEvaluationStats();
+         if (evalStats.evaluationParticipationRate() < 50.0) {
+             alerts.add(new DashboardOverviewResponse.Alert(
+                     "WARNING",
+                     String.format("평가 참여율이 낮습니다: %.1f%%",
+                             evalStats.evaluationParticipationRate()),
+                     LocalDateTime.now()
+             ));
+         }
 
         return alerts;
     }

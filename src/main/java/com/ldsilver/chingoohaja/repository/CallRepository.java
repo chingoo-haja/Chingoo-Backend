@@ -170,6 +170,9 @@ public interface CallRepository extends JpaRepository<Call, Long> {
             "ORDER BY c.createdAt DESC")
     List<Call> findActiveCallsByUserIdWithLock(@Param("userId") Long userId);
 
+
+    // ======= 관리자 대시보드 관련 메서드들 =======
+
     int countByCallStatus(CallStatus callStatus);
 
     @Query("SELECT c FROM Call c WHERE c.callStatus = 'COMPLETED' " +
@@ -198,5 +201,14 @@ public interface CallRepository extends JpaRepository<Call, Long> {
     List<Object[]> getCallCountByHour(
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate
+    );
+
+    @Query("SELECT COUNT(c) FROM Call c " +
+            "WHERE c.endAt >= :since " +
+            "AND c.callStatus = 'COMPLETED' " +
+            "AND c.durationSeconds < :maxDuration")
+    long countShortCallsSince(
+            @Param("since") LocalDateTime since,
+            @Param("maxDuration") int maxDuration
     );
 }
