@@ -69,6 +69,7 @@ public class CorsConfig {
                 "https://chingoohaja.app",
                 "https://www.chingoohaja.app",
                 "https://api.chingoohaja.app",
+                "https://admin.chingoohaja.app",
                 "https://silverld.site",
                 "https://localhost",
                 "http://localhost",
