@@ -51,7 +51,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
             "(:search IS NULL OR :search = '' OR " +
             "LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
             "LOWER(u.nickname) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-            "AND (:userType IS NULL OR :userType = '' OR u.userType = :userType)")
+            "AND (:userType IS NULL OR u.userType = :userType)")
     Page<User> findBySearchAndUserType(
             @Param("search") String search,
             @Param("userType") UserType userType,
