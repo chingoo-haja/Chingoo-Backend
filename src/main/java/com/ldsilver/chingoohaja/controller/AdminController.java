@@ -11,15 +11,15 @@ import com.ldsilver.chingoohaja.dto.setting.OperatingHoursInfo;
 import com.ldsilver.chingoohaja.service.MatchingStatsService;
 import com.ldsilver.chingoohaja.service.OperatingHoursService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 
@@ -55,6 +55,7 @@ public class AdminController {
         );
     }
 
+
     @Operation(
             summary = "서비스 활성화/비활성화",
             description = "통화 서비스를 활성화하거나 비활성화합니다. (관리자 전용)"
@@ -73,6 +74,7 @@ public class AdminController {
         );
     }
 
+
     @Operation(
             summary = "현재 운영 시간 조회",
             description = "현재 운영 시간 설정을 조회합니다. (관리자 전용)"
@@ -85,18 +87,22 @@ public class AdminController {
         return ApiResponse.ok("운영 설정 조회 성공", info);
     }
 
+
     @Operation(
             summary = "실시간 매칭 통계 조회",
             description = "현재 카테고리별 대기 인원, 예상 대기시간, 매칭률 등의 실시간 통계를 조회합니다. " +
                     "매칭 대기열에 참가하기 전 참고 정보로 활용할 수 있습니다."
     )
     @GetMapping("/matching/realtime")
-    public ApiResponse<RealtimeMatchingStatsResponse> getRealtimeStats() {
-        log.debug("실시간 매칭 통계 조회 요청");
+    public ApiResponse<RealtimeMatchingStatsResponse> getRealtimeStats(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        log.debug("관리자 실시간 매칭 통계 조회 - adminId: {}", userDetails.getUserId());
 
         RealtimeMatchingStatsResponse stats = matchingStatsService.getRealtimeMatchingStats();
         return ApiResponse.ok("실시간 매칭 통계 조회 성공", stats);
     }
+
 
     @Operation(
             summary = "카테고리별 상세 매칭 통계",
@@ -105,20 +111,30 @@ public class AdminController {
     )
     @GetMapping("/matching/category/{categoryId}")
     public ApiResponse<MatchingStatsResponse> getCategoryStats(
-            @Parameter(description = "카테고리 ID", example = "1")
             @PathVariable Long categoryId,
-            @Valid MatchingStatsRequest request,
+            @RequestParam(defaultValue = "DAILY") String period,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(defaultValue = "true") Boolean includeTrends,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        if (userDetails == null) {
-            log.warn("인증되지 않은 사용자의 카테고리 통계 요청 - categoryId: {}", categoryId);
-            throw new CustomException(ErrorCode.UNAUTHORIZED, "로그인이 필요한 서비스입니다.");
-        }
+        log.debug("관리자 카테고리 매칭 통계 조회 - adminId: {}, categoryId: {}, period: {}",
+                userDetails.getUserId(), categoryId, period);
 
-        log.debug("카테고리별 매칭 통계 조회 - categoryId: {}, userId: {}", categoryId, userDetails.getUserId());
+        MatchingStatsRequest request = new MatchingStatsRequest(
+                period, startDate, endDate,
+                categoryId,
+                10, 0,
+                "RECENT", "DESC",
+                false, includeTrends,
+                "Asia/Seoul"
+        );
 
         MatchingStatsResponse stats = matchingStatsService.getCategoryMatchingStats(
-                categoryId, request, userDetails.getUserId());
+                categoryId, request, userDetails.getUserId()
+        );
 
         return ApiResponse.ok("카테고리별 매칭 통계 조회 성공", stats);
     }
