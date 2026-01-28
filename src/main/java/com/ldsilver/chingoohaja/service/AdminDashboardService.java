@@ -178,8 +178,8 @@ public class AdminDashboardService {
     }
 
     private boolean checkDatabaseHealth() {
-        try {
-            return dataSource.getConnection().isValid(5);
+        try (var conn = dataSource.getConnection()) {
+            return conn.isValid(5);
         } catch (Exception e) {
             log.error("데이터베이스 헬스 체크 실패", e);
             return false;
