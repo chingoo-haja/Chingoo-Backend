@@ -277,7 +277,7 @@ public class AuthService {
             UserLoginResult userLoginResult = findOrCreateUser(oAuthUserInfo);
 
             User user = userLoginResult.user();
-            user.updateLastLogin();;
+            user.updateLastLogin();
             userRepository.save(user);
 
             // JWT 토큰 생성

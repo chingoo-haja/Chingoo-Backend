@@ -44,3 +44,5 @@ docker/.env
 .env.*
 
 deploy.sh
+
+src/main/resources/sql/admin_user.sql
