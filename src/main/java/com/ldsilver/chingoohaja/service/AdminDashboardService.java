@@ -186,7 +186,7 @@ public class AdminDashboardService {
         int usersInQueue = (int) redisMatchingQueueService.getAllCategoryStats().values()
                 .stream().mapToLong(Long::longValue).sum();
 
-        // TODO: 실제 활성 사용자 수 계산 (WebSocket 연결 등)
+        // 통화 중 + 대기 중 = 현재 활성 사용자
         int activeUsersNow = activeCalls * 2 + usersInQueue;
 
         int recordingsInProgress = callRecordingRepository.countActiveRecordings();
@@ -248,7 +248,6 @@ public class AdminDashboardService {
     }
 
     private AdminUserListResponse.UserSummary toUserSummary(User user) {
-        // TODO: 실제 통화 수, 신고 수, 마지막 로그인 시간 계산
         int totalCalls = callRepository.countCompletedCallsByUser(user);
         int reportCount = (int) reportRepository.countByReportedUser(user);
 
