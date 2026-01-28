@@ -169,4 +169,46 @@ public interface CallRepository extends JpaRepository<Call, Long> {
             "com.ldsilver.chingoohaja.domain.call.enums.CallStatus.IN_PROGRESS) " +
             "ORDER BY c.createdAt DESC")
     List<Call> findActiveCallsByUserIdWithLock(@Param("userId") Long userId);
+
+
+    // ======= 관리자 대시보드 관련 메서드들 =======
+
+    int countByCallStatus(CallStatus callStatus);
+
+    @Query("SELECT c FROM Call c WHERE c.callStatus = 'COMPLETED' " +
+            "AND c.endAt >= :since ORDER BY c.endAt DESC")
+    List<Call> findRecentEndedCalls(@Param("since") LocalDateTime since);
+
+    @Query("SELECT COUNT(c) FROM Call c WHERE " +
+            "(c.user1 = :user OR c.user2 = :user) " +
+            "AND c.callStatus = 'COMPLETED'")
+    int countCompletedCallsByUser(@Param("user") User user);
+
+    @Query("SELECT AVG(c.durationSeconds) / 60.0 FROM Call c " +
+            "WHERE c.callStatus = 'COMPLETED' " +
+            "AND c.durationSeconds IS NOT NULL " +
+            "AND c.createdAt BETWEEN :startDate AND :endDate")
+    Double getAverageDurationMinutesBetween(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    @Query("SELECT HOUR(c.createdAt) as hour, COUNT(c) as count " +
+            "FROM Call c " +
+            "WHERE c.createdAt BETWEEN :startDate AND :endDate " +
+            "GROUP BY HOUR(c.createdAt) " +
+            "ORDER BY count DESC")
+    List<Object[]> getCallCountByHour(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    @Query("SELECT COUNT(c) FROM Call c " +
+            "WHERE c.endAt >= :since " +
+            "AND c.callStatus = 'COMPLETED' " +
+            "AND c.durationSeconds < :maxDuration")
+    long countShortCallsSince(
+            @Param("since") LocalDateTime since,
+            @Param("maxDuration") int maxDuration
+    );
 }

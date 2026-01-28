@@ -51,6 +51,10 @@ public class AuthService {
 
             UserLoginResult userLoginResult = findOrCreateUser(oAuthUserInfo);
 
+            User user = userLoginResult.user();
+            user.updateLastLogin();
+            userRepository.save(user);
+
             TokenResponse tokenResponse = tokenService.generateTokens(
                     userLoginResult.user().getId(),
                     request.getSafeDeviceInfo()
@@ -216,6 +220,10 @@ public class AuthService {
             // 사용자 찾기 또는 생성
             UserLoginResult userLoginResult = findOrCreateUser(oAuthUserInfo);
 
+            User user = userLoginResult.user();
+            user.updateLastLogin();
+            userRepository.save(user);
+
             // JWT 토큰 생성
             TokenResponse tokenResponse = tokenService.generateTokens(
                     userLoginResult.user().getId(),
@@ -267,6 +275,10 @@ public class AuthService {
 
             // 사용자 찾기 또는 생성
             UserLoginResult userLoginResult = findOrCreateUser(oAuthUserInfo);
+
+            User user = userLoginResult.user();
+            user.updateLastLogin();
+            userRepository.save(user);
 
             // JWT 토큰 생성
             TokenResponse tokenResponse = tokenService.generateTokens(

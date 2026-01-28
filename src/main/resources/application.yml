@@ -112,5 +112,3 @@ logging:
     org.hibernate.orm.jdbc.bind: WARN
     org.hibernate: WARN  # 전체 hibernate 로그를 WARN으로
 
-admin:
-  token: ${ADMIN_TOKEN:default-token-change-me}

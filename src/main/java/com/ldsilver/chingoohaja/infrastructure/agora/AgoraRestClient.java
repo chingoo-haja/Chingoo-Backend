@@ -52,8 +52,8 @@ public class AgoraRestClient {
         try {
 
             String fullUrl = agoraProperties.getRestApiBaseUrl() + "/dev/v1/projects";
-            log.info("🔍 실제 요청 URL: {}", fullUrl);
-            log.info("🔍 AgoraProperties.restApiBaseUrl: {}", agoraProperties.getRestApiBaseUrl());
+            log.debug("🔍 실제 요청 URL: {}", fullUrl);
+            log.debug("🔍 AgoraProperties.restApiBaseUrl: {}", agoraProperties.getRestApiBaseUrl());
 
             return webClient
                     .get()

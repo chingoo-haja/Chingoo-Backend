@@ -100,6 +100,8 @@ public class LocalAuthService {
                 throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
             }
 
+            user.updateLastLogin();
+            userRepository.save(user);
             log.info("로그인 성공 - userId: {}, email: {}", user.getId(), user.getEmail());
 
             // 토큰 생성

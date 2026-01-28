@@ -27,7 +27,7 @@ spring:
       mode: always
       continue-on-error: false
       encoding: UTF-8
-      data-locations: classpath:sql/category.sql
+      data-locations: classpath:sql/category.sql, classpath:sql/admin_user.sql
 
 
 # JWT 로컬 환경 설정 (개발용 짧은 만료시간)

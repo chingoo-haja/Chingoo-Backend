@@ -1,6 +1,9 @@
 package com.ldsilver.chingoohaja.repository;
 
 import com.ldsilver.chingoohaja.domain.user.User;
+import com.ldsilver.chingoohaja.domain.user.enums.UserType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -43,5 +46,16 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByNickname(String nickname);
 
     Optional<User> findByPhoneNumber(String phoneNumber);
+
+    @Query("SELECT u FROM User u WHERE " +
+            "(:search IS NULL OR :search = '' OR " +
+            "LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "LOWER(u.nickname) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+            "AND (:userType IS NULL OR u.userType = :userType)")
+    Page<User> findBySearchAndUserType(
+            @Param("search") String search,
+            @Param("userType") UserType userType,
+            Pageable pageable
+    );
 
 }

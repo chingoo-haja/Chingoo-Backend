@@ -2,15 +2,24 @@ package com.ldsilver.chingoohaja.controller;
 
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
+import com.ldsilver.chingoohaja.domain.user.CustomUserDetails;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
+import com.ldsilver.chingoohaja.dto.matching.request.MatchingStatsRequest;
+import com.ldsilver.chingoohaja.dto.matching.response.MatchingStatsResponse;
+import com.ldsilver.chingoohaja.dto.matching.response.RealtimeMatchingStatsResponse;
 import com.ldsilver.chingoohaja.dto.setting.OperatingHoursInfo;
+import com.ldsilver.chingoohaja.service.MatchingStatsService;
 import com.ldsilver.chingoohaja.service.OperatingHoursService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 
@@ -19,12 +28,12 @@ import java.time.format.DateTimeParseException;
 @RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
 @Tag(name = "관리자", description = "관리자 전용 API")
+@SecurityRequirement(name = "Bearer Authentication")
 public class AdminController {
 
     private final OperatingHoursService operatingHoursService;
+    private final MatchingStatsService matchingStatsService;
 
-    @Value("${admin.token:change-this-to-secure-token}")
-    private String adminToken;
 
     @Operation(
             summary = "운영 시간 변경",
@@ -32,13 +41,11 @@ public class AdminController {
     )
     @PutMapping("/operating-hours")
     public ApiResponse<String> updateOperatingHours(
-            @RequestHeader("Admin-Token") String token,
             @RequestParam(name = "start_time") String startTime,
-            @RequestParam(name = "end_time") String endTime) {
+            @RequestParam(name = "end_time") String endTime,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        validateAdminToken(token);
         validateTimeFormat(startTime, endTime);
-
         operatingHoursService.updateOperatingHours(startTime, endTime);
 
         log.info("운영 시간 변경 완료 - {} ~ {}", startTime, endTime);
@@ -48,16 +55,15 @@ public class AdminController {
         );
     }
 
+
     @Operation(
             summary = "서비스 활성화/비활성화",
             description = "통화 서비스를 활성화하거나 비활성화합니다. (관리자 전용)"
     )
     @PutMapping("/service-toggle")
     public ApiResponse<String> toggleService(
-            @RequestHeader("Admin-Token") String token,
-            @RequestParam boolean enabled) {
-
-        validateAdminToken(token);
+            @RequestParam boolean enabled,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
 
         operatingHoursService.toggleService(enabled);
 
@@ -68,26 +74,71 @@ public class AdminController {
         );
     }
 
+
     @Operation(
-            summary = "현재 운영 설정 조회",
+            summary = "현재 운영 시간 조회",
             description = "현재 운영 시간 설정을 조회합니다. (관리자 전용)"
     )
     @GetMapping("/operating-hours")
     public ApiResponse<OperatingHoursInfo> getOperatingHours(
-            @RequestHeader("Admin-Token") String token) {
-
-        validateAdminToken(token);
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
 
         OperatingHoursInfo info = operatingHoursService.getOperatingHoursInfo();
         return ApiResponse.ok("운영 설정 조회 성공", info);
     }
 
-    private void validateAdminToken(String token) {
-        if (!adminToken.equals(token)) {
-            log.warn("유효하지 않은 관리자 토큰 시도");
-            throw new CustomException(ErrorCode.ACCESS_DENIED);
-        }
+
+    @Operation(
+            summary = "실시간 매칭 통계 조회",
+            description = "현재 카테고리별 대기 인원, 예상 대기시간, 매칭률 등의 실시간 통계를 조회합니다. " +
+                    "매칭 대기열에 참가하기 전 참고 정보로 활용할 수 있습니다."
+    )
+    @GetMapping("/matching/realtime")
+    public ApiResponse<RealtimeMatchingStatsResponse> getRealtimeStats(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        log.debug("관리자 실시간 매칭 통계 조회 - adminId: {}", userDetails.getUserId());
+
+        RealtimeMatchingStatsResponse stats = matchingStatsService.getRealtimeMatchingStats();
+        return ApiResponse.ok("실시간 매칭 통계 조회 성공", stats);
     }
+
+
+    @Operation(
+            summary = "카테고리별 상세 매칭 통계",
+            description = "특정 카테고리의 상세한 매칭 통계를 조회합니다. " +
+                    "시간대별 매칭 성공률, 평균 대기시간 등의 분석 데이터를 제공합니다."
+    )
+    @GetMapping("/matching/category/{categoryId}")
+    public ApiResponse<MatchingStatsResponse> getCategoryStats(
+            @PathVariable Long categoryId,
+            @RequestParam(defaultValue = "DAILY") String period,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(defaultValue = "true") Boolean includeTrends,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        log.debug("관리자 카테고리 매칭 통계 조회 - adminId: {}, categoryId: {}, period: {}",
+                userDetails.getUserId(), categoryId, period);
+
+        MatchingStatsRequest request = new MatchingStatsRequest(
+                period, startDate, endDate,
+                categoryId,
+                10, 0,
+                "RECENT", "DESC",
+                false, includeTrends,
+                "Asia/Seoul"
+        );
+
+        MatchingStatsResponse stats = matchingStatsService.getCategoryMatchingStats(
+                categoryId, request, userDetails.getUserId()
+        );
+
+        return ApiResponse.ok("카테고리별 매칭 통계 조회 성공", stats);
+    }
+
 
     private void validateTimeFormat(String startTime, String endTime) {
         try {
