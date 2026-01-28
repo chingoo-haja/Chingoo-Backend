@@ -180,4 +180,23 @@ public interface CallRepository extends JpaRepository<Call, Long> {
             "(c.user1 = :user OR c.user2 = :user) " +
             "AND c.callStatus = 'COMPLETED'")
     int countCompletedCallsByUser(@Param("user") User user);
+
+    @Query("SELECT AVG(c.durationSeconds) / 60.0 FROM Call c " +
+            "WHERE c.callStatus = 'COMPLETED' " +
+            "AND c.durationSeconds IS NOT NULL " +
+            "AND c.createdAt BETWEEN :startDate AND :endDate")
+    Double getAverageDurationMinutesBetween(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    @Query("SELECT HOUR(c.createdAt) as hour, COUNT(c) as count " +
+            "FROM Call c " +
+            "WHERE c.createdAt BETWEEN :startDate AND :endDate " +
+            "GROUP BY HOUR(c.createdAt) " +
+            "ORDER BY count DESC")
+    List<Object[]> getCallCountByHour(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
 }

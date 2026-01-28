@@ -339,14 +339,64 @@ public class AdminDashboardService {
                 todayStart, now, CallStatus.COMPLETED
         );
 
-        // TODO: 평균 통화 시간, 성공률, 피크 시간대 계산
-        double averageDurationMinutes = 8.0;
-        double successRate = 85.0;
-        int peakHour = 20;
+        Double avgDuration = callRepository.getAverageDurationMinutesBetween(todayStart, now);
+        double averageDurationMinutes = avgDuration != null ?
+                Math.round(avgDuration * 10.0) / 10.0 : 0.0; // 소수점 1자리
+
+        double successRate = calculateSuccessRate(todayStart, now);
+
+        int peakHour = calculatePeakHour(todayStart, now);
+
+        log.debug("오늘 통화 통계 - 총: {}, 평균시간: {}분, 성공률: {}%, 피크: {}시",
+                totalToday, averageDurationMinutes, successRate, peakHour);
 
         return new CallMonitoringResponse.CallStatistics(
                 totalToday, averageDurationMinutes, successRate, peakHour
         );
+    }
+
+    private double calculateSuccessRate(LocalDateTime startDate, LocalDateTime endDate) {
+        try {
+            List<Object[]> successRateData = matchingQueueRepository
+                    .getMatchingSuccessRate(startDate, endDate);
+
+            if (successRateData == null || successRateData.isEmpty()) {
+                return 0.0;
+            }
+
+            Object[] data = successRateData.get(0);
+            long matched = ((Number) data[0]).longValue();
+            long total = ((Number) data[1]).longValue();
+
+            if (total == 0) {
+                return 0.0;
+            }
+
+            double rate = (double) matched / total * 100.0;
+            return Math.round(rate * 10.0) / 10.0; // 소수점 1자리
+
+        } catch (Exception e) {
+            log.warn("매칭 성공률 계산 실패", e);
+            return 0.0;
+        }
+    }
+
+    private int calculatePeakHour(LocalDateTime startDate, LocalDateTime endDate) {
+        try {
+            List<Object[]> hourlyData = callRepository.getCallCountByHour(startDate, endDate);
+
+            if (hourlyData == null || hourlyData.isEmpty()) {
+                return 20; // 기본값: 저녁 8시
+            }
+
+            // 첫 번째 결과가 가장 많은 통화 수를 가진 시간대
+            Object[] peakData = hourlyData.get(0);
+            return ((Number) peakData[0]).intValue();
+
+        } catch (Exception e) {
+            log.warn("피크 시간대 계산 실패", e);
+            return 20; // 기본값
+        }
     }
 
     private String mapSortField(String sortBy) {
