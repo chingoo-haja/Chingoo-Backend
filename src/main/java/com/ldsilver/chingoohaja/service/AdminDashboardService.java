@@ -526,8 +526,8 @@ public class AdminDashboardService {
 
     private String mapSortField(String sortBy) {
         return switch (sortBy) {
-            case "last_login" -> "updatedAt"; // TODO: 실제 lastLogin 필드 추가 시 수정
-            case "report_count" -> "id"; // TODO: Report와 조인 후 count로 정렬
+            case "last_login" -> "lastLoginAt";
+            case "report_count" -> "createdAt"; // 신고 수 정렬 미지원
             default -> "createdAt";
         };
     }
