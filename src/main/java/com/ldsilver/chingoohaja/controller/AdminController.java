@@ -2,15 +2,22 @@ package com.ldsilver.chingoohaja.controller;
 
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
+import com.ldsilver.chingoohaja.domain.category.Category;
+import com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus;
 import com.ldsilver.chingoohaja.domain.user.CustomUserDetails;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.dto.matching.request.MatchingStatsRequest;
+import com.ldsilver.chingoohaja.dto.matching.response.MatchingQueueHealthResponse;
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingStatsResponse;
 import com.ldsilver.chingoohaja.dto.matching.response.RealtimeMatchingStatsResponse;
 import com.ldsilver.chingoohaja.dto.setting.OperatingHoursInfo;
+import com.ldsilver.chingoohaja.repository.CategoryRepository;
+import com.ldsilver.chingoohaja.repository.MatchingQueueRepository;
 import com.ldsilver.chingoohaja.service.MatchingStatsService;
 import com.ldsilver.chingoohaja.service.OperatingHoursService;
+import com.ldsilver.chingoohaja.service.RedisMatchingQueueService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -20,8 +27,11 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -33,7 +43,9 @@ public class AdminController {
 
     private final OperatingHoursService operatingHoursService;
     private final MatchingStatsService matchingStatsService;
-
+    private final RedisMatchingQueueService redisMatchingQueueService;
+    private final MatchingQueueRepository matchingQueueRepository;
+    private final CategoryRepository categoryRepository;
 
     @Operation(
             summary = "운영 시간 변경",
@@ -140,6 +152,86 @@ public class AdminController {
     }
 
 
+    @Operation(
+            summary = "매칭 큐 헬스 체크",
+            description = "특정 카테고리의 매칭 대기열 현재 상태를 실시간으로 점검합니다."
+    )
+    @GetMapping("/matching/health/{categoryId}")
+    public ApiResponse<MatchingQueueHealthResponse> checkMatchingHealth(
+            @Parameter(description = "점검할 카테고리 ID", example = "4")
+            @PathVariable Long categoryId
+    ) {
+        log.info("매칭 큐 헬스 체크 - categoryId: {}", categoryId);
+
+        // 카테고리 검증
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new CustomException(ErrorCode.CATEGORY_NOT_FOUND));
+
+        // === Redis 상태 ===
+        long redisWaiting = redisMatchingQueueService.getWaitingCount(categoryId);
+        boolean redisAvailable = redisMatchingQueueService.isRedisAvailable();
+
+        MatchingQueueHealthResponse.RedisQueueStatus redisStatus =
+                new MatchingQueueHealthResponse.RedisQueueStatus(
+                        redisWaiting,
+                        redisAvailable
+                );
+
+        // === DB 상태 ===
+        long dbWaiting = matchingQueueRepository.countByCategoryIdAndStatus(
+                categoryId, QueueStatus.WAITING
+        );
+        long dbExpired = matchingQueueRepository.countByCategoryIdAndStatus(
+                categoryId, QueueStatus.EXPIRED
+        );
+
+        boolean consistent = (redisWaiting == dbWaiting);
+        long gap = Math.abs(redisWaiting - dbWaiting);
+
+        MatchingQueueHealthResponse.DatabaseQueueStatus databaseStatus =
+                new MatchingQueueHealthResponse.DatabaseQueueStatus(
+                        dbWaiting,
+                        dbExpired,
+                        consistent,
+                        gap
+                );
+
+        // === 헬스 상태 판정 ===
+        MatchingQueueHealthResponse.HealthStatus healthStatus =
+                determineHealthStatus(consistent, dbExpired, gap);
+
+        // === 경고 메시지 ===
+        List<String> warnings = new ArrayList<>();
+
+        if (!consistent) {
+            warnings.add(String.format("Redis-DB 불일치 (gap: %d)", gap));
+        }
+        if (dbExpired > 0) {
+            warnings.add(String.format("정리 필요한 EXPIRED 레코드 %d건", dbExpired));
+        }
+        if (dbExpired > 100) {
+            warnings.add("⚠️ 과다 EXPIRED 레코드 - 즉시 정리 권장");
+        }
+        if (!redisAvailable) {
+            warnings.add("❌ Redis 서버 연결 불가");
+        }
+
+        // === 응답 ===
+        MatchingQueueHealthResponse response = new MatchingQueueHealthResponse(
+                new MatchingQueueHealthResponse.CategoryInfo(
+                        categoryId, category.getName(), category.isActive()
+                ),
+                redisStatus,
+                databaseStatus,
+                healthStatus,
+                warnings,
+                LocalDateTime.now()
+        );
+
+        return ApiResponse.ok("매칭 큐 헬스 체크 완료", response);
+    }
+
+
     private void validateTimeFormat(String startTime, String endTime) {
         try {
             LocalTime.parse(startTime);
@@ -148,5 +240,16 @@ public class AdminController {
             throw new CustomException(ErrorCode.INVALID_INPUT_VALUE,
                     "시간 형식이 올바르지 않습니다. (HH:mm 형식을 사용하세요)");
         }
+    }
+
+    private MatchingQueueHealthResponse.HealthStatus determineHealthStatus(
+            boolean consistent, long dbExpired, long gap) {
+        if (gap > 10 || dbExpired > 100) {
+            return MatchingQueueHealthResponse.HealthStatus.CRITICAL;
+        }
+        if (!consistent || dbExpired > 0) {
+            return MatchingQueueHealthResponse.HealthStatus.WARNING;
+        }
+        return MatchingQueueHealthResponse.HealthStatus.HEALTHY;
     }
 }
