@@ -13,6 +13,7 @@ import com.ldsilver.chingoohaja.dto.matching.response.RealtimeMatchingStatsRespo
 import com.ldsilver.chingoohaja.dto.setting.OperatingHoursInfo;
 import com.ldsilver.chingoohaja.repository.CategoryRepository;
 import com.ldsilver.chingoohaja.repository.MatchingQueueRepository;
+import com.ldsilver.chingoohaja.service.AdminMatchingService;
 import com.ldsilver.chingoohaja.service.MatchingStatsService;
 import com.ldsilver.chingoohaja.service.OperatingHoursService;
 import com.ldsilver.chingoohaja.service.RedisMatchingQueueService;
@@ -32,6 +33,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -46,6 +48,7 @@ public class AdminController {
     private final RedisMatchingQueueService redisMatchingQueueService;
     private final MatchingQueueRepository matchingQueueRepository;
     private final CategoryRepository categoryRepository;
+    private final AdminMatchingService adminMatchingService;
 
     @Operation(
             summary = "운영 시간 변경",
@@ -149,6 +152,22 @@ public class AdminController {
         );
 
         return ApiResponse.ok("카테고리별 매칭 통계 조회 성공", stats);
+    }
+
+    @Operation(
+            summary = "매칭 큐 긴급 정리",
+            description = "특정 카테고리의 매칭 대기열을 강제로 정리합니다." +
+                    "Redis 대기열 전체 삭제 후 DB WAITING 상태를 EXPIRED로 일괄 변경합니다.")
+    @PostMapping("/matching/cleanup/{categoryId}")
+    public ApiResponse<Map<String, Object>> cleanupMatchingQueue(
+            @PathVariable Long categoryId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        log.warn("⚠️ 관리자 매칭 큐 긴급 정리 - adminId: {}, categoryId: {}",
+                userDetails.getUserId(), categoryId);
+
+        Map<String, Object> result = adminMatchingService.cleanupMatchingQueue(categoryId);
+        return ApiResponse.ok("매칭 큐 정리 완료", result);
     }
 
 
