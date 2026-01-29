@@ -170,7 +170,7 @@ public class AdminController {
             @PathVariable Long categoryId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        log.info("매칭 큐 헬스 체크 - adminId: {}, categoryId: {}",
+        log.debug("매칭 큐 헬스 체크 - adminId: {}, categoryId: {}",
                 userDetails.getUserId(), categoryId);
 
         MatchingQueueHealthResponse response = adminMatchingService.checkMatchingHealth(categoryId);

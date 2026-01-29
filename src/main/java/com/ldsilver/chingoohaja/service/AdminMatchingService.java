@@ -3,9 +3,11 @@ package com.ldsilver.chingoohaja.service;
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.category.Category;
+import com.ldsilver.chingoohaja.domain.matching.MatchingQueue;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus;
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingQueueCleanupResponse;
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingQueueHealthResponse;
+import com.ldsilver.chingoohaja.infrastructure.redis.RedisMatchingConstants;
 import com.ldsilver.chingoohaja.repository.CategoryRepository;
 import com.ldsilver.chingoohaja.repository.MatchingQueueRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -45,18 +48,54 @@ public class AdminMatchingService {
                     categoryId, QueueStatus.WAITING
             );
 
-            log.info("정리 전 상태 - categoryId: {}, Redis: {}, DB: {}",
+            log.info("정리 전 상태 - categoryId: {}, Redis: {}, DB WAITING: {}",
                     categoryId, redisBeforeCount, dbBeforeCount);
 
-            // 2. Redis 대기열 삭제
-            String queueKey = "matching:queue:" + categoryId;
-            Boolean redisDeleted = redisTemplate.delete(queueKey);
+            // ✅ 2. 올바른 Redis 키 사용
+            String queueKey = RedisMatchingConstants.KeyBuilder.queueKey(categoryId);
+            log.info("정리할 Redis 키: {}", queueKey);
 
-            // 3. DB WAITING → EXPIRED 일괄 변경
-            int dbUpdated = matchingQueueRepository.updateExpiredQueues(
-                    QueueStatus.EXPIRED,
-                    LocalDateTime.now()
+            // 2-1. 사용자 큐 메타데이터 정리
+            Set<String> userIds = redisTemplate.opsForZSet().range(queueKey, 0, -1);
+            if (userIds != null && !userIds.isEmpty()) {
+                log.info("대기열 사용자 IDs: {}", userIds);
+
+                for (String userId : userIds) {
+                    String userQueueKey = RedisMatchingConstants.KeyBuilder.userQueueKey(Long.parseLong(userId));
+                    redisTemplate.delete(userQueueKey);
+                    log.info("사용자 큐 삭제: {}", userQueueKey);
+                }
+            }
+
+            // 2-2. 대기열 키 삭제
+            Boolean redisDeleted = redisTemplate.delete(queueKey);
+            log.info("Redis 대기열 삭제 결과: {}", redisDeleted);
+
+            // ✅ 3. DB 정리
+            int dbUpdated = 0;
+
+            // WAITING → EXPIRED
+            int waitingToExpired = matchingQueueRepository.updateExpiredQueues(
+                    QueueStatus.EXPIRED, LocalDateTime.now()
             );
+            log.info("DB WAITING → EXPIRED: {}건", waitingToExpired);
+
+            // EXPIRED 물리 삭제
+            List<MatchingQueue> allExpired = matchingQueueRepository.findExpiredQueues(
+                    LocalDateTime.now().plusYears(100)
+            );
+
+            List<MatchingQueue> categoryExpired = allExpired.stream()
+                    .filter(q -> q.getCategory() != null &&
+                            q.getCategory().getId().equals(categoryId))
+                    .toList();
+
+            if (!categoryExpired.isEmpty()) {
+                matchingQueueRepository.deleteAll(categoryExpired);
+                log.info("DB EXPIRED 물리 삭제: {}건", categoryExpired.size());
+            }
+
+            dbUpdated = waitingToExpired + categoryExpired.size();
 
             // 4. 정리 후 현황 확인
             long redisAfterCount = redisMatchingQueueService.getWaitingCount(categoryId);
@@ -64,8 +103,8 @@ public class AdminMatchingService {
                     categoryId, QueueStatus.WAITING
             );
 
-            log.info("✅ 매칭 큐 정리 완료 - categoryId: {}, Redis: {} → {}, DB: {} → {}",
-                    categoryId, redisBeforeCount, redisAfterCount, dbBeforeCount, dbAfterCount);
+            log.info("✅ 정리 완료 - Redis: {} → {}, DB: {} → {}",
+                    redisBeforeCount, redisAfterCount, dbBeforeCount, dbAfterCount);
 
             return MatchingQueueCleanupResponse.of(
                     categoryId,
@@ -74,7 +113,7 @@ public class AdminMatchingService {
                     dbBeforeCount,
                     redisAfterCount,
                     dbAfterCount,
-                    redisDeleted != null && redisDeleted,
+                    Boolean.TRUE.equals(redisDeleted),
                     dbUpdated
             );
 
@@ -88,7 +127,7 @@ public class AdminMatchingService {
      * 매칭 큐 헬스 체크
      */
     public MatchingQueueHealthResponse checkMatchingHealth(Long categoryId) {
-        log.info("매칭 큐 헬스 체크 시작 - categoryId: {}", categoryId);
+        log.debug("매칭 큐 헬스 체크 시작 - categoryId: {}", categoryId);
 
         // 카테고리 검증
         Category category = categoryRepository.findById(categoryId)
