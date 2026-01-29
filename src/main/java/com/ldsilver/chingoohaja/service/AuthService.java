@@ -104,6 +104,9 @@ public class AuthService {
 
             User user = userToken.getUser();
 
+            user.updateLastLogin();
+            userRepository.save(user);
+
             String newAccessToken = jwtTokenProvider.generateAccessToken(
                     user.getId(),
                     user.getEmail(),
