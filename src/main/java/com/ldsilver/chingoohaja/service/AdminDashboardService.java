@@ -43,11 +43,15 @@ public class AdminDashboardService {
     private final DataSource dataSource;
     private final RedisMatchingQueueService redisMatchingQueueService;
 
+    private volatile DashboardOverviewResponse.SystemHealth cachedHealth;
+    private volatile long lastHealthCheckTime = 0;
+    private static final long HEALTH_CHECK_CACHE_DURATION = 10_000; // 10초
+
     public DashboardOverviewResponse getDashboardOverview() {
         log.debug("대시보드 개요 생성 시작");
 
         // 시스템 헬스 체크
-        DashboardOverviewResponse.SystemHealth systemHealth = checkSystemHealth();
+        DashboardOverviewResponse.SystemHealth systemHealth = getCachedSystemHealth();
 
         // 실시간 통계
         DashboardOverviewResponse.RealTimeStats realTimeStats = getRealTimeStats();
@@ -156,6 +160,32 @@ public class AdminDashboardService {
 
     // ===== Private Helper Methods ===== //
 
+    private DashboardOverviewResponse.SystemHealth getCachedSystemHealth() {
+        long now = System.currentTimeMillis();
+
+        // 캐시가 유효하면 반환
+        if (cachedHealth != null && (now - lastHealthCheckTime) < HEALTH_CHECK_CACHE_DURATION) {
+            log.debug("캐시된 헬스체크 사용");
+            return cachedHealth;
+        }
+
+        // 캐시가 없거나 만료되면 새로 체크
+        try {
+            DashboardOverviewResponse.SystemHealth newHealth = checkSystemHealth();
+            cachedHealth = newHealth;
+            lastHealthCheckTime = now;
+            log.debug("헬스체크 갱신 완료");
+            return newHealth;
+        } catch (Exception e) {
+            log.error("헬스체크 실패", e);
+            // 이전 캐시가 있으면 반환, 없으면 UNKNOWN
+            return cachedHealth != null ? cachedHealth :
+                    new DashboardOverviewResponse.SystemHealth(
+                            "UNKNOWN", "UNKNOWN", "UNKNOWN", "DOWN"
+                    );
+        }
+    }
+
     private DashboardOverviewResponse.SystemHealth checkSystemHealth() {
         // 데이터베이스 상태
         String dbStatus = checkDatabaseHealth() ? "HEALTHY" : "DOWN";
@@ -179,7 +209,7 @@ public class AdminDashboardService {
 
     private boolean checkDatabaseHealth() {
         try (var conn = dataSource.getConnection()) {
-            return conn.isValid(5);
+            return conn.isValid(2);
         } catch (Exception e) {
             log.error("데이터베이스 헬스 체크 실패", e);
             return false;
