@@ -150,6 +150,32 @@ public class Call extends BaseEntity {
         this.endAt = LocalDateTime.now();
     }
 
+    /**
+     * 관리자에 의한 강제 종료
+     * - READY, IN_PROGRESS 상태 모두 강제 종료 가능
+     * - 이미 종료된 상태(COMPLETED, CANCELLED, FAILED)는 예외 발생
+     */
+    public void forceEndCall() {
+        if (this.callStatus == CallStatus.COMPLETED ||
+                this.callStatus == CallStatus.CANCELLED ||
+                this.callStatus == CallStatus.FAILED) {
+            throw new CustomException(ErrorCode.CALL_ALREADY_ENDED,
+                    "이미 종료된 통화입니다. 현재 상태: " + this.callStatus);
+        }
+
+        this.callStatus = CallStatus.COMPLETED;
+        this.endAt = LocalDateTime.now();
+
+        if (this.startAt != null) {
+            this.durationSeconds = (int) java.time.Duration.between(
+                    this.startAt,
+                    this.endAt
+            ).getSeconds();
+        } else {
+            this.durationSeconds = 0;
+        }
+    }
+
     // ========== 검증 메서드 ==========
 
     private void validateChannelName(String channelName) {
