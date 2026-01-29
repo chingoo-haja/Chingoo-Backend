@@ -12,11 +12,13 @@ import java.time.LocalDateTime;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ApiResponse<T> {
 
+    private Boolean success;
     private T data;
     private String message;
     private LocalDateTime timestamp;
 
-    private ApiResponse(T data, String message) {
+    private ApiResponse(Boolean success, T data, String message) {
+        this.success = success;
         this.data = data;
         this.message = message;
         this.timestamp = LocalDateTime.now();
@@ -24,27 +26,36 @@ public class ApiResponse<T> {
 
     // === 성공 응답 (2xx) ==
     public static <T> ApiResponse<T> of (T data) {
-        return new ApiResponse<>(data, null);
+        return new ApiResponse<>(true, data, null);
     }
 
     public static <T> ApiResponse<T> ok() {
-        return new ApiResponse<>(null, null);
+        return new ApiResponse<>(true, null, null);
     }
 
     public static <T> ApiResponse<T> ok(String message) {
-        return new ApiResponse<>(null, message);
+        return new ApiResponse<>(true, null, message);
     }
 
     public static <T> ApiResponse<T> ok(String message, T data) {
-        return new ApiResponse<>(data, message);
+        return new ApiResponse<>(true, data, message);
     }
 
     // === 생성 응답 (201) ===
     public static <T> ApiResponse<T> created(T data) {
-        return new ApiResponse<>(data, null);
+        return new ApiResponse<>(true, data, null);
     }
 
     public static <T> ApiResponse<T> created(T data, String message) {
-        return new ApiResponse<>(data, message);
+        return new ApiResponse<>(true, data, message);
+    }
+
+    // === 실패 응답 ===
+    public static <T> ApiResponse<T> fail(String message) {
+        return new ApiResponse<>(false, null, message);
+    }
+
+    public static <T> ApiResponse<T> fail(String message, T data) {
+        return new ApiResponse<>(false, data, message);
     }
 }
