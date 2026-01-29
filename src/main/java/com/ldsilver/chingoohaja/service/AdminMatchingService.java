@@ -4,6 +4,7 @@ import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.category.Category;
 import com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus;
+import com.ldsilver.chingoohaja.dto.matching.response.MatchingQueueCleanupResponse;
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingQueueHealthResponse;
 import com.ldsilver.chingoohaja.repository.CategoryRepository;
 import com.ldsilver.chingoohaja.repository.MatchingQueueRepository;
@@ -16,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -32,54 +32,57 @@ public class AdminMatchingService {
      * 특정 카테고리의 매칭 대기열 강제 정리
      */
     @Transactional
-    public Map<String, Object> cleanupMatchingQueue(Long categoryId) {
+    public MatchingQueueCleanupResponse cleanupMatchingQueue(Long categoryId) {
         log.warn("⚠️ 매칭 큐 긴급 정리 시작 - categoryId: {}", categoryId);
 
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CATEGORY_NOT_FOUND));
 
-        // 정리 전 현황
-        long redisBeforeCount = redisMatchingQueueService.getWaitingCount(categoryId);
-        long dbBeforeCount = matchingQueueRepository.countByCategoryIdAndStatus(
-                categoryId, QueueStatus.WAITING
-        );
+        try {
+            // 1. 정리 전 현황 기록
+            long redisBeforeCount = redisMatchingQueueService.getWaitingCount(categoryId);
+            long dbBeforeCount = matchingQueueRepository.countByCategoryIdAndStatus(
+                    categoryId, QueueStatus.WAITING
+            );
 
-        // Redis 정리
-        String queueKey = "matching:queue:" + categoryId;
-        Boolean redisDeleted = redisTemplate.delete(queueKey);
+            log.info("정리 전 상태 - categoryId: {}, Redis: {}, DB: {}",
+                    categoryId, redisBeforeCount, dbBeforeCount);
 
-        // DB 정리
-        int dbUpdated = matchingQueueRepository.updateExpiredQueues(
-                QueueStatus.EXPIRED,
-                LocalDateTime.now()
-        );
+            // 2. Redis 대기열 삭제
+            String queueKey = "matching:queue:" + categoryId;
+            Boolean redisDeleted = redisTemplate.delete(queueKey);
 
-        // 정리 후 현황
-        long redisAfterCount = redisMatchingQueueService.getWaitingCount(categoryId);
-        long dbAfterCount = matchingQueueRepository.countByCategoryIdAndStatus(
-                categoryId, QueueStatus.WAITING
-        );
+            // 3. DB WAITING → EXPIRED 일괄 변경
+            int dbUpdated = matchingQueueRepository.updateExpiredQueues(
+                    QueueStatus.EXPIRED,
+                    LocalDateTime.now()
+            );
 
-        log.info("✅ 매칭 큐 정리 완료 - categoryId: {}, Redis: {} → {}, DB: {} → {}",
-                categoryId, redisBeforeCount, redisAfterCount, dbBeforeCount, dbAfterCount);
+            // 4. 정리 후 현황 확인
+            long redisAfterCount = redisMatchingQueueService.getWaitingCount(categoryId);
+            long dbAfterCount = matchingQueueRepository.countByCategoryIdAndStatus(
+                    categoryId, QueueStatus.WAITING
+            );
 
-        return Map.of(
-                "categoryId", categoryId,
-                "categoryName", category.getName(),
-                "before", Map.of(
-                        "redisWaiting", redisBeforeCount,
-                        "dbWaiting", dbBeforeCount
-                ),
-                "after", Map.of(
-                        "redisWaiting", redisAfterCount,
-                        "dbWaiting", dbAfterCount
-                ),
-                "cleaned", Map.of(
-                        "redisDeleted", redisDeleted != null && redisDeleted,
-                        "dbUpdatedCount", dbUpdated
-                ),
-                "timestamp", LocalDateTime.now()
-        );
+            log.info("✅ 매칭 큐 정리 완료 - categoryId: {}, Redis: {} → {}, DB: {} → {}",
+                    categoryId, redisBeforeCount, redisAfterCount, dbBeforeCount, dbAfterCount);
+
+            // ✅ 수정된 부분: of() 팩토리 메서드 사용
+            return MatchingQueueCleanupResponse.of(
+                    categoryId,
+                    category.getName(),
+                    redisBeforeCount,
+                    dbBeforeCount,
+                    redisAfterCount,
+                    dbAfterCount,
+                    redisDeleted != null && redisDeleted,
+                    dbUpdated
+            );
+
+        } catch (Exception e) {
+            log.error("❌ 매칭 큐 정리 실패 - categoryId: {}", categoryId, e);
+            throw new CustomException(ErrorCode.INTERNAL_SERVER_ERROR, "매칭 큐 정리 중 오류 발생");
+        }
     }
 
     /**

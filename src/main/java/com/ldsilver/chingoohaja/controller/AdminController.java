@@ -5,6 +5,7 @@ import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.user.CustomUserDetails;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.dto.matching.request.MatchingStatsRequest;
+import com.ldsilver.chingoohaja.dto.matching.response.MatchingQueueCleanupResponse;
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingQueueHealthResponse;
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingStatsResponse;
 import com.ldsilver.chingoohaja.dto.matching.response.RealtimeMatchingStatsResponse;
@@ -25,7 +26,6 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
-import java.util.Map;
 
 @Slf4j
 @RestController
@@ -148,14 +148,14 @@ public class AdminController {
             description = "특정 카테고리의 매칭 대기열을 강제로 정리합니다." +
                     "Redis 대기열 전체 삭제 후 DB WAITING 상태를 EXPIRED로 일괄 변경합니다.")
     @PostMapping("/matching/cleanup/{categoryId}")
-    public ApiResponse<Map<String, Object>> cleanupMatchingQueue(
+    public ApiResponse<MatchingQueueCleanupResponse> cleanupMatchingQueue(
             @PathVariable Long categoryId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         log.warn("⚠️ 관리자 매칭 큐 긴급 정리 - adminId: {}, categoryId: {}",
                 userDetails.getUserId(), categoryId);
 
-        Map<String, Object> result = adminMatchingService.cleanupMatchingQueue(categoryId);
+        MatchingQueueCleanupResponse result = adminMatchingService.cleanupMatchingQueue(categoryId);
         return ApiResponse.ok("매칭 큐 정리 완료", result);
     }
 
