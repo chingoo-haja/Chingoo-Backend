@@ -465,6 +465,8 @@ public class MatchingStatsService {
         // 카테고리별 평균 통화 시간
         Double avgDuration = callRepository.getAverageCallDurationByCategory(category.getId(), start, end);
 
+        double safeAvgDuration = (avgDuration != null) ? avgDuration : 0.0;
+
         // 실제 성공률 계산
         double successRate = getCategorySuccessRate(category.getId(), start, end);
 
@@ -485,7 +487,7 @@ public class MatchingStatsService {
                         categoryCallCount,
                         successRate,
                         avgWaitTime,
-                        avgDuration,
+                        safeAvgDuration,
                         popularityScore,
                         peakHours,
                         4.2, // user_satisfaction (선택적 - 평가 시스템 연동 필요)
