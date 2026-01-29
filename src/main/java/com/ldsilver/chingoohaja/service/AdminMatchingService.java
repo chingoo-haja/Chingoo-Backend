@@ -67,7 +67,6 @@ public class AdminMatchingService {
             log.info("✅ 매칭 큐 정리 완료 - categoryId: {}, Redis: {} → {}, DB: {} → {}",
                     categoryId, redisBeforeCount, redisAfterCount, dbBeforeCount, dbAfterCount);
 
-            // ✅ 수정된 부분: of() 팩토리 메서드 사용
             return MatchingQueueCleanupResponse.of(
                     categoryId,
                     category.getName(),
@@ -99,12 +98,6 @@ public class AdminMatchingService {
         long redisWaiting = redisMatchingQueueService.getWaitingCount(categoryId);
         boolean redisAvailable = redisMatchingQueueService.isRedisAvailable();
 
-        MatchingQueueHealthResponse.RedisQueueStatus redisStatus =
-                new MatchingQueueHealthResponse.RedisQueueStatus(
-                        redisWaiting,
-                        redisAvailable
-                );
-
         // === DB 상태 ===
         long dbWaiting = matchingQueueRepository.countByCategoryIdAndStatus(
                 categoryId, QueueStatus.WAITING
@@ -116,14 +109,6 @@ public class AdminMatchingService {
         boolean consistent = (redisWaiting == dbWaiting);
         long gap = Math.abs(redisWaiting - dbWaiting);
 
-        MatchingQueueHealthResponse.DatabaseQueueStatus databaseStatus =
-                new MatchingQueueHealthResponse.DatabaseQueueStatus(
-                        dbWaiting,
-                        dbExpired,
-                        consistent,
-                        gap
-                );
-
         // === 헬스 상태 판정 ===
         MatchingQueueHealthResponse.HealthStatus healthStatus =
                 determineHealthStatus(consistent, dbExpired, gap);
@@ -131,22 +116,22 @@ public class AdminMatchingService {
         // === 경고 메시지 ===
         List<String> warnings = buildWarnings(consistent, dbExpired, gap, redisAvailable);
 
-        // === 응답 생성 ===
-        MatchingQueueHealthResponse response = new MatchingQueueHealthResponse(
-                new MatchingQueueHealthResponse.CategoryInfo(
-                        categoryId, category.getName(), category.isActive()
-                ),
-                redisStatus,
-                databaseStatus,
-                healthStatus,
-                warnings,
-                LocalDateTime.now()
-        );
-
         log.info("매칭 큐 헬스 체크 완료 - categoryId: {}, status: {}, warnings: {}",
                 categoryId, healthStatus, warnings.size());
 
-        return response;
+        return MatchingQueueHealthResponse.of(
+                categoryId,
+                category.getName(),
+                category.isActive(),
+                redisWaiting,
+                redisAvailable,
+                dbWaiting,
+                dbExpired,
+                consistent,
+                gap,
+                healthStatus,
+                warnings
+        );
     }
 
     // ========== Private Helper Methods ========== //
