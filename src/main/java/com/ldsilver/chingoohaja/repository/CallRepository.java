@@ -211,4 +211,53 @@ public interface CallRepository extends JpaRepository<Call, Long> {
             @Param("since") LocalDateTime since,
             @Param("maxDuration") int maxDuration
     );
+
+    // ======= UserAnalytics 관련 메서드들 =======
+
+    /**
+     * Provider별 사용자들의 통화 성공률 조회
+     * 성공 = COMPLETED, 실패 = CANCELLED 또는 FAILED
+     */
+    @Query("SELECT u.provider, " +
+            "COUNT(CASE WHEN c.callStatus = 'COMPLETED' THEN 1 END) as completed, " +
+            "COUNT(c) as total " +
+            "FROM Call c " +
+            "JOIN User u ON (c.user1.id = u.id OR c.user2.id = u.id) " +
+            "WHERE c.createdAt BETWEEN :start AND :end " +
+            "GROUP BY u.provider")
+    List<Object[]> getSuccessRateByProvider(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    /**
+     * Provider별 선호 카테고리 조회 (가장 많이 통화한 카테고리 Top N)
+     */
+    @Query("SELECT u.provider, c.category.name, COUNT(c) as callCount " +
+            "FROM Call c " +
+            "JOIN User u ON (c.user1.id = u.id OR c.user2.id = u.id) " +
+            "WHERE c.callStatus = 'COMPLETED' " +
+            "AND c.createdAt BETWEEN :start AND :end " +
+            "GROUP BY u.provider, c.category.name " +
+            "ORDER BY u.provider, callCount DESC")
+    List<Object[]> getPreferredCategoriesByProvider(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    /**
+     * 특정 기간 동안 사용자당 평균 통화 수 조회
+     */
+    @Query(value = "SELECT AVG(call_count) FROM (" +
+            "SELECT COUNT(*) as call_count " +
+            "FROM calls c " +
+            "JOIN users u ON (c.user1_id = u.id OR c.user2_id = u.id) " +
+            "WHERE c.call_status = 'COMPLETED' " +
+            "AND c.created_at BETWEEN :start AND :end " +
+            "GROUP BY u.id" +
+            ") as user_call_counts", nativeQuery = true)
+    Double getAverageCallsPerUser(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
 }

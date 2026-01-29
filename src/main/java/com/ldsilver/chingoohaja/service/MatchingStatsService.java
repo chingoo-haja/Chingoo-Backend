@@ -434,24 +434,87 @@ public class MatchingStatsService {
         LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
         long activeUsersLast30Days = userRepository.countActiveUsers(thirtyDaysAgo);
 
+        // Provider별 성공률 조회
+        Map<String, Double> providerSuccessRates = getProviderSuccessRates(start, end);
+
+        // Provider별 선호 카테고리 조회
+        Map<String, List<String>> providerPreferredCategories = getProviderPreferredCategories(start, end);
+
         // 사용자 세그먼트 (Provider별 통계)
         List<Object[]> providerStats = userRepository.getProviderStatistics();
         List<MatchingStatsResponse.UserSegment> segments = providerStats.stream()
-                .map(data -> new MatchingStatsResponse.UserSegment(
-                        (String) data[0] + " 사용자", // segment_name
-                        ((Number) data[1]).intValue(), // user_count
-                        88.0, // success_rate (추정)
-                        List.of("취미", "음악") // preferred_categories (기본값)
-                ))
+                .map(data -> {
+                    String provider = (String) data[0];
+                    int userCount = ((Number) data[1]).intValue();
+                    double successRate = providerSuccessRates.getOrDefault(provider, 0.0);
+                    List<String> preferredCategories = providerPreferredCategories.getOrDefault(provider, List.of());
+
+                    return new MatchingStatsResponse.UserSegment(
+                            provider + " 사용자",
+                            userCount,
+                            successRate,
+                            preferredCategories
+                    );
+                })
                 .toList();
+
+        // 사용자당 평균 세션(통화) 수 조회
+        Double averageSessionsPerUser = callRepository.getAverageCallsPerUser(start, end);
+        double avgSessions = averageSessionsPerUser != null ? averageSessionsPerUser : 0.0;
 
         return new MatchingStatsResponse.UserAnalytics(
                 newUsers.size(),
                 (int) activeUsersLast30Days,
                 activeUsersLast30Days > 0 ? (double) newUsers.size() / activeUsersLast30Days * 100 : 0.0,
-                2.5, // average_sessions_per_user (추정 - 선택적 구현)
+                avgSessions,
                 segments
         );
+    }
+
+    /**
+     * Provider별 통화 성공률 계산
+     */
+    private Map<String, Double> getProviderSuccessRates(LocalDateTime start, LocalDateTime end) {
+        try {
+            List<Object[]> results = callRepository.getSuccessRateByProvider(start, end);
+            return results.stream().collect(Collectors.toMap(
+                    data -> (String) data[0], // provider
+                    data -> {
+                        long completed = ((Number) data[1]).longValue();
+                        long total = ((Number) data[2]).longValue();
+                        return total > 0 ? (completed * 100.0 / total) : 0.0;
+                    },
+                    (existing, replacement) -> existing // 중복 키 처리
+            ));
+        } catch (Exception e) {
+            log.warn("Provider별 성공률 계산 실패", e);
+            return Map.of();
+        }
+    }
+
+    /**
+     * Provider별 선호 카테고리 조회 (상위 3개)
+     */
+    private Map<String, List<String>> getProviderPreferredCategories(LocalDateTime start, LocalDateTime end) {
+        try {
+            List<Object[]> results = callRepository.getPreferredCategoriesByProvider(start, end);
+
+            // Provider별로 그룹화하고 상위 3개 카테고리만 추출
+            return results.stream()
+                    .collect(Collectors.groupingBy(
+                            data -> (String) data[0], // provider
+                            Collectors.collectingAndThen(
+                                    Collectors.toList(),
+                                    list -> list.stream()
+                                            .limit(3) // 상위 3개만
+                                            .map(data -> (String) data[1]) // category name
+                                            .toList()
+                            )
+                    ));
+        } catch (Exception e) {
+            log.warn("Provider별 선호 카테고리 조회 실패", e);
+            return Map.of();
+        }
     }
 
     private List<MatchingStatsResponse.CategoryStatsDetail> buildCategoryBreakdown(
