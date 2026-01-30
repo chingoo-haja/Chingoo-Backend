@@ -375,16 +375,18 @@ public class MatchingStatsService {
             LocalDateTime start,
             LocalDateTime end
     ) {
+        // 일별 성공률을 한 번에 조회 (N+1 쿼리 방지)
+        Map<java.time.LocalDate, Double> dailySuccessRateMap = getDailySuccessRateMap(start, end);
+
         return dailyStats.stream()
                 .map(data -> {
                     LocalDateTime date = toLocalDateTime(data[0]);
                     int matchCount = ((Number) data[1]).intValue();
                     double avgWaitTime = ((Number) data[2]).doubleValue();
 
-                    // 해당 날짜의 성공률 계산
-                    LocalDateTime dayStart = date.truncatedTo(ChronoUnit.DAYS);
-                    LocalDateTime dayEnd = dayStart.plusDays(1);
-                    double successRate = getDailySuccessRate(dayStart, dayEnd);
+                    // Map에서 성공률 조회 (O(1))
+                    java.time.LocalDate localDate = date.toLocalDate();
+                    double successRate = dailySuccessRateMap.getOrDefault(localDate, 0.0);
 
                     // 대기 사용자 수 (매칭 수 기반 추정)
                     int waitingUsers = matchCount * 2; // 매칭 1건당 2명
@@ -401,26 +403,33 @@ public class MatchingStatsService {
     }
 
     /**
-     * 특정 날짜의 매칭 성공률 계산
+     * 일별 매칭 성공률을 한 번에 조회하여 Map으로 반환 (N+1 쿼리 방지)
      */
-    private double getDailySuccessRate(LocalDateTime dayStart, LocalDateTime dayEnd) {
+    private Map<java.time.LocalDate, Double> getDailySuccessRateMap(LocalDateTime start, LocalDateTime end) {
         try {
-            List<Object[]> successRateData = matchingQueueRepository.getMatchingSuccessRate(dayStart, dayEnd);
+            List<Object[]> dailySuccessRates = matchingQueueRepository.getDailyMatchingSuccessRates(start, end);
 
-            if (successRateData.isEmpty()) {
-                return 0.0;
-            }
-
-            Object[] data = successRateData.get(0);
-            long matched = ((Number) data[0]).longValue();
-            long total = ((Number) data[1]).longValue();
-
-            return total > 0 ? (double) matched / total * 100 : 0.0;
-
+            return dailySuccessRates.stream()
+                    .collect(Collectors.toMap(
+                            data -> toLocalDate(data[0]),
+                            data -> {
+                                long matched = ((Number) data[1]).longValue();
+                                long total = ((Number) data[2]).longValue();
+                                return total > 0 ? (double) matched / total * 100 : 0.0;
+                            },
+                            (existing, replacement) -> existing // 중복 키 처리
+                    ));
         } catch (Exception e) {
-            log.warn("일별 성공률 계산 실패", e);
-            return 85.0; // 기본값
+            log.warn("일별 성공률 배치 조회 실패", e);
+            return Collections.emptyMap();
         }
+    }
+
+    private static java.time.LocalDate toLocalDate(Object value) {
+        if (value instanceof java.time.LocalDate ld) return ld;
+        if (value instanceof LocalDateTime ldt) return ldt.toLocalDate();
+        if (value instanceof java.sql.Date sd) return sd.toLocalDate();
+        throw new IllegalArgumentException("Unsupported date type: " + value.getClass());
     }
 
     private static LocalDateTime toLocalDateTime(Object value) {

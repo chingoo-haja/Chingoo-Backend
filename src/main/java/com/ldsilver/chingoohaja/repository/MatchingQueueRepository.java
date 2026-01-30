@@ -63,6 +63,22 @@ public interface MatchingQueueRepository extends JpaRepository<MatchingQueue, Lo
                                           @Param("endDate") LocalDateTime endDate);
 
     /**
+     * 일별 매칭 성공률 배치 조회 (N+1 쿼리 방지)
+     * @return [날짜, 매칭 성공 수, 전체 수]
+     */
+    @Query("SELECT DATE(mq.createdAt) as date, " +
+            "COUNT(CASE WHEN mq.queueStatus = 'MATCHING' THEN 1 END) as matched, " +
+            "COUNT(mq) as total " +
+            "FROM MatchingQueue mq " +
+            "WHERE mq.createdAt BETWEEN :startDate AND :endDate " +
+            "GROUP BY DATE(mq.createdAt) " +
+            "ORDER BY DATE(mq.createdAt)")
+    List<Object[]> getDailyMatchingSuccessRates(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    /**
      * 사용자의 대기 중인 매칭을 취소 상태로 변경
      */
     @Modifying
