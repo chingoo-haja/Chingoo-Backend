@@ -133,6 +133,9 @@ public class MatchingStatsService {
         List<Long> categoryIds = categoryStatsMap.keySet().stream().toList();
         Map<Long, Double> successRateMap = getCategorySuccessRatesMap(categoryIds, todayStart, now);
 
+        // 카테고리별 트렌드를 한 번에 계산 (N+1 쿼리 방지)
+        Map<Long, String> trendMap = getCategoryTrendMap(categoryIds, todayStart, now);
+
         // 인기도 순위 계산 (대기 인원 기준)
         List<Long> sortedCategoryIds = categoryStatsMap.values().stream()
                 .sorted((a, b) -> Long.compare(b.waitingCount(), a.waitingCount()))
@@ -145,8 +148,8 @@ public class MatchingStatsService {
                     int estimatedWaitTime = (int) Math.min(stats.waitingCount() * 30, 600);
                     int popularityRank = sortedCategoryIds.indexOf(stats.categoryId()) + 1;
 
-                    // 트렌드 계산 (전날 대비)
-                    String trend = calculateCategoryTrend(stats.categoryId(), todayStart);
+                    // Map에서 트렌드 조회 (O(1))
+                    String trend = trendMap.getOrDefault(stats.categoryId(), "STABLE");
 
                     return new RealtimeMatchingStatsResponse.CategoryRealTimeStats(
                             stats.categoryId(),
@@ -163,33 +166,62 @@ public class MatchingStatsService {
     }
 
     /**
-     * 카테고리 트렌드 계산 (전날 대비)
+     * 카테고리별 트렌드를 한 번에 계산하여 Map으로 반환 (N+1 쿼리 방지)
      */
-    private String calculateCategoryTrend(Long categoryId, LocalDateTime todayStart) {
+    private Map<Long, String> getCategoryTrendMap(List<Long> categoryIds, LocalDateTime todayStart, LocalDateTime now) {
+        if (categoryIds == null || categoryIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
         try {
             LocalDateTime yesterdayStart = todayStart.minusDays(1);
 
-            long todayCalls = callRepository.countCallsByCategoryBetween(
-                    categoryId, todayStart, LocalDateTime.now()
-            );
-            long yesterdayCalls = callRepository.countCallsByCategoryBetween(
-                    categoryId, yesterdayStart, todayStart
-            );
+            // 오늘과 어제의 통화 수를 각각 한 번에 조회 (2번 쿼리로 최적화)
+            Map<Long, Long> todayCallsMap = getCallCountMapByCategories(categoryIds, todayStart, now);
+            Map<Long, Long> yesterdayCallsMap = getCallCountMapByCategories(categoryIds, yesterdayStart, todayStart);
 
-            if (yesterdayCalls == 0) {
-                return todayCalls > 0 ? "UP" : "STABLE";
-            }
-
-            double changeRate = ((double) (todayCalls - yesterdayCalls) / yesterdayCalls) * 100;
-
-            if (changeRate > 20) return "UP";
-            if (changeRate < -20) return "DOWN";
-            return "STABLE";
-
+            // 트렌드 계산
+            return categoryIds.stream()
+                    .collect(Collectors.toMap(
+                            categoryId -> categoryId,
+                            categoryId -> {
+                                long todayCalls = todayCallsMap.getOrDefault(categoryId, 0L);
+                                long yesterdayCalls = yesterdayCallsMap.getOrDefault(categoryId, 0L);
+                                return calculateTrendFromCounts(todayCalls, yesterdayCalls);
+                            }
+                    ));
         } catch (Exception e) {
-            log.warn("카테고리 트렌드 계산 실패 - categoryId: {}", categoryId, e);
-            return "STABLE";
+            log.warn("카테고리 트렌드 배치 계산 실패", e);
+            return Collections.emptyMap();
         }
+    }
+
+    /**
+     * 여러 카테고리의 통화 수를 한 번에 조회하여 Map으로 반환
+     */
+    private Map<Long, Long> getCallCountMapByCategories(List<Long> categoryIds, LocalDateTime start, LocalDateTime end) {
+        List<Object[]> results = callRepository.countCallsByCategoryIdsBetween(categoryIds, start, end);
+
+        return results.stream()
+                .collect(Collectors.toMap(
+                        data -> ((Number) data[0]).longValue(),
+                        data -> ((Number) data[1]).longValue()
+                ));
+    }
+
+    /**
+     * 통화 수 기반 트렌드 계산
+     */
+    private String calculateTrendFromCounts(long todayCalls, long yesterdayCalls) {
+        if (yesterdayCalls == 0) {
+            return todayCalls > 0 ? "UP" : "STABLE";
+        }
+
+        double changeRate = ((double) (todayCalls - yesterdayCalls) / yesterdayCalls) * 100;
+
+        if (changeRate > 20) return "UP";
+        if (changeRate < -20) return "DOWN";
+        return "STABLE";
     }
 
     private Map<Long, Double> getCategorySuccessRatesMap(List<Long> categoryIds, LocalDateTime todayStart, LocalDateTime now) {

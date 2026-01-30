@@ -68,6 +68,21 @@ public interface CallRepository extends JpaRepository<Call, Long> {
                                      @Param("start") LocalDateTime start,
                                      @Param("end") LocalDateTime end);
 
+    /**
+     * 여러 카테고리의 통화 수를 한 번에 조회 (N+1 쿼리 방지)
+     * @return [categoryId, callCount]
+     */
+    @Query("SELECT c.category.id, COUNT(c) FROM Call c " +
+            "WHERE c.category.id IN :categoryIds " +
+            "AND c.callStatus = 'COMPLETED' " +
+            "AND c.createdAt BETWEEN :start AND :end " +
+            "GROUP BY c.category.id")
+    List<Object[]> countCallsByCategoryIdsBetween(
+            @Param("categoryIds") List<Long> categoryIds,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
     @Query("SELECT AVG(c.durationSeconds) FROM Call c WHERE c.category.id = :categoryId " +
             "AND c.createdAt BETWEEN :start AND :end AND c.callStatus = com.ldsilver.chingoohaja.domain.call.enums.CallStatus.COMPLETED")
     Double getAverageCallDurationByCategory(@Param("categoryId") Long categoryId,
