@@ -585,14 +585,14 @@ public class MatchingStatsService {
      */
     private List<Integer> calculateCategoryPeakHours(Long categoryId, LocalDateTime start, LocalDateTime end) {
         try {
-            List<Object[]> hourlyData = callRepository.getCallCountByHour(start, end);
+            List<Object[]> hourlyData = callRepository.getCallCountByHourByCategory(categoryId, start, end);
 
-            // 상위 3개 시간대 추출
+            if (hourlyData.isEmpty()) {
+                return List.of(19, 20, 21); // 기본값
+            }
+
+            // 상위 3개 시간대 추출 (이미 ORDER BY count DESC로 정렬됨)
             return hourlyData.stream()
-                    .sorted((a, b) -> Long.compare(
-                            ((Number) b[1]).longValue(),
-                            ((Number) a[1]).longValue()
-                    ))
                     .limit(3)
                     .map(data -> ((Number) data[0]).intValue())
                     .toList();

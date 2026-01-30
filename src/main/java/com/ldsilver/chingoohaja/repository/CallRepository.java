@@ -203,6 +203,21 @@ public interface CallRepository extends JpaRepository<Call, Long> {
             @Param("endDate") LocalDateTime endDate
     );
 
+    /**
+     * 특정 카테고리의 시간대별 통화 수 조회
+     */
+    @Query("SELECT HOUR(c.createdAt) as hour, COUNT(c) as count " +
+            "FROM Call c " +
+            "WHERE c.category.id = :categoryId " +
+            "AND c.createdAt BETWEEN :startDate AND :endDate " +
+            "GROUP BY HOUR(c.createdAt) " +
+            "ORDER BY count DESC")
+    List<Object[]> getCallCountByHourByCategory(
+            @Param("categoryId") Long categoryId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
     @Query("SELECT COUNT(c) FROM Call c " +
             "WHERE c.endAt >= :since " +
             "AND c.callStatus = 'COMPLETED' " +
