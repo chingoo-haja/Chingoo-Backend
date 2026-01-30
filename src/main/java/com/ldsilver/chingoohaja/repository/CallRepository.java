@@ -151,6 +151,18 @@ public interface CallRepository extends JpaRepository<Call, Long> {
     @Query("SELECT c FROM Call c WHERE c.id = :callId")
     Optional<Call> findByIdWithLock(@Param("callId") Long callId);
 
+    /**
+     * User, Category를 함께 조회하는 fetch join 메서드 (관리자용)
+     * LazyInitializationException 방지 및 N+1 쿼리 문제 해결
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Call c " +
+            "JOIN FETCH c.user1 " +
+            "JOIN FETCH c.user2 " +
+            "LEFT JOIN FETCH c.category " +
+            "WHERE c.id = :callId")
+    Optional<Call> findByIdWithLockAndFetchUsers(@Param("callId") Long callId);
+
     @Query("SELECT c FROM Call c WHERE c.callStatus = 'IN_PROGRESS' AND c.startAt < :threshold")
     List<Call> findStaleInProgressCalls(@Param("threshold") LocalDateTime threshold);
 

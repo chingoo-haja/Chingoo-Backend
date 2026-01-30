@@ -284,7 +284,8 @@ public class CallService {
     public AdminForceEndCallResponse forceEndCallByAdmin(Long callId, Long adminId) {
         log.warn("⚠️ 관리자 통화 강제 종료 - callId: {}, adminId: {}", callId, adminId);
 
-        Call call = callRepository.findByIdWithLock(callId)
+        // User, Category를 함께 fetch join으로 조회 (LazyInitializationException 방지)
+        Call call = callRepository.findByIdWithLockAndFetchUsers(callId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
 
         CallStatus previousStatus = call.getCallStatus();
