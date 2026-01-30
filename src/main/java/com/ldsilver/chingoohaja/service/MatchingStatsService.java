@@ -214,6 +214,11 @@ public class MatchingStatsService {
         try {
             List<Object[]> hourlyData = callRepository.getCallCountByHour(todayStart, now);
 
+            // 전체 통화 수를 한 번만 조회 (성능 최적화)
+            long totalCalls = callRepository.countCompletedCallsBetween(
+                    todayStart, now, CallStatus.COMPLETED
+            );
+
             // 시간대별 통화 수를 기반으로 상위 3개 추출
             return hourlyData.stream()
                     .map(data -> {
@@ -221,9 +226,6 @@ public class MatchingStatsService {
                         long count = ((Number) data[1]).longValue();
 
                         // 전체 대비 비율 계산
-                        long totalCalls = callRepository.countCompletedCallsBetween(
-                                todayStart, now, CallStatus.COMPLETED
-                        );
                         double percentage = totalCalls > 0 ? (count * 100.0 / totalCalls) : 0.0;
 
                         // 성공률 (해당 시간대)
