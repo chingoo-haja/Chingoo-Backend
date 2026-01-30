@@ -101,4 +101,20 @@ public interface EvaluationRepository extends JpaRepository<Evaluation, Long> {
     // 특정 Call에 대한 평가 존재 여부
     boolean existsByCall(Call call);
 
+    /**
+     * 카테고리별 사용자 만족도 조회 (긍정 평가 비율, 0~5 스케일로 변환)
+     * - 긍정 평가 비율을 0~100%에서 0~5 스케일로 변환
+     * - 예: 80% 긍정 → 4.0점
+     */
+    @Query("SELECT " +
+            "CASE WHEN COUNT(e) = 0 THEN NULL ELSE " +
+            "(COUNT(CASE WHEN e.feedbackType = 'POSITIVE' THEN 1 END) * 5.0 / COUNT(e)) END " +
+            "FROM Evaluation e " +
+            "WHERE e.call.category.id = :categoryId " +
+            "AND e.createdAt BETWEEN :start AND :end")
+    Double getAverageSatisfactionByCategory(
+            @Param("categoryId") Long categoryId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
 }

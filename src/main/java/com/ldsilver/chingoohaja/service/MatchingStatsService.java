@@ -11,6 +11,7 @@ import com.ldsilver.chingoohaja.dto.matching.response.MatchingStatsResponse;
 import com.ldsilver.chingoohaja.dto.matching.response.RealtimeMatchingStatsResponse;
 import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.repository.CategoryRepository;
+import com.ldsilver.chingoohaja.repository.EvaluationRepository;
 import com.ldsilver.chingoohaja.repository.MatchingQueueRepository;
 import com.ldsilver.chingoohaja.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class MatchingStatsService {
     private final CallRepository callRepository;
     private final MatchingQueueRepository matchingQueueRepository;
     private final UserRepository userRepository;
+    private final EvaluationRepository evaluationRepository;
 
     public RealtimeMatchingStatsResponse getRealtimeMatchingStats() {
         log.debug("실시간 매칭 통계 조회 시작");
@@ -535,8 +537,8 @@ public class MatchingStatsService {
         // 실제 성공률 계산
         double successRate = getCategorySuccessRate(category.getId(), start, end);
 
-        // 평균 대기시간 (추정)
-        double avgWaitTime = categoryCallCount > 0 ? 110.0 : 0.0;
+        // 평균 대기시간 (실제 DB 데이터 기반)
+        double avgWaitTime = getCategoryAverageWaitTime(category.getId(), start, end);
 
         // 인기도 점수 (전체 대비 비율)
         long totalCalls = callRepository.countCompletedCallsBetween(start, end, CallStatus.COMPLETED);
@@ -544,6 +546,9 @@ public class MatchingStatsService {
 
         // 피크 시간대 계산
         List<Integer> peakHours = calculateCategoryPeakHours(category.getId(), start, end);
+
+        // 사용자 만족도 (실제 DB 데이터 기반)
+        double userSatisfaction = getCategoryUserSatisfaction(category.getId(), start, end);
 
         return List.of(
                 new MatchingStatsResponse.CategoryStatsDetail(
@@ -555,10 +560,36 @@ public class MatchingStatsService {
                         safeAvgDuration,
                         popularityScore,
                         peakHours,
-                        4.2, // user_satisfaction (선택적 - 평가 시스템 연동 필요)
+                        userSatisfaction,
                         calculateGrowthRate(category.getId(), start, end)
                 )
         );
+    }
+
+    /**
+     * 카테고리별 평균 대기시간 조회 (초 단위)
+     */
+    private double getCategoryAverageWaitTime(Long categoryId, LocalDateTime start, LocalDateTime end) {
+        try {
+            Double avgWaitTime = callRepository.getAverageWaitTimeByCategory(categoryId, start, end);
+            return avgWaitTime != null ? avgWaitTime : 0.0;
+        } catch (Exception e) {
+            log.warn("카테고리 평균 대기시간 조회 실패 - categoryId: {}", categoryId, e);
+            return 0.0;
+        }
+    }
+
+    /**
+     * 카테고리별 사용자 만족도 조회 (0~5 스케일)
+     */
+    private double getCategoryUserSatisfaction(Long categoryId, LocalDateTime start, LocalDateTime end) {
+        try {
+            Double satisfaction = evaluationRepository.getAverageSatisfactionByCategory(categoryId, start, end);
+            return satisfaction != null ? satisfaction : 0.0;
+        } catch (Exception e) {
+            log.warn("카테고리 사용자 만족도 조회 실패 - categoryId: {}", categoryId, e);
+            return 0.0;
+        }
     }
 
     /**

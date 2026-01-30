@@ -242,7 +242,10 @@ public interface CallRepository extends JpaRepository<Call, Long> {
     // ======= UserAnalytics 관련 메서드들 =======
 
     /**
-     * Provider별 사용자들의 통화 성공률 조회
+     * Provider별 사용자들의 통화 성공률 조회 (사용자 참여 기준)
+     * - 각 사용자가 참여한 통화를 해당 사용자의 provider로 집계
+     * - user1과 user2가 다른 provider인 경우, 양쪽 provider 모두에 집계됨 (의도된 동작)
+     * - 예: 카카오 사용자와 네이버 사용자의 통화 → 카카오 1건, 네이버 1건으로 집계
      * 성공 = COMPLETED, 실패 = CANCELLED 또는 FAILED
      */
     @Query("SELECT u.provider, " +
@@ -258,7 +261,9 @@ public interface CallRepository extends JpaRepository<Call, Long> {
     );
 
     /**
-     * Provider별 선호 카테고리 조회 (가장 많이 통화한 카테고리 Top N)
+     * Provider별 선호 카테고리 조회 (사용자 참여 기준)
+     * - 각 사용자가 참여한 통화를 해당 사용자의 provider로 집계
+     * - user1과 user2가 다른 provider인 경우, 양쪽 provider 모두에 집계됨 (의도된 동작)
      */
     @Query("SELECT u.provider, c.category.name, COUNT(c) as callCount " +
             "FROM Call c " +
@@ -284,6 +289,24 @@ public interface CallRepository extends JpaRepository<Call, Long> {
             "GROUP BY u.id" +
             ") as user_call_counts", nativeQuery = true)
     Double getAverageCallsPerUser(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    /**
+     * 카테고리별 평균 대기시간 조회 (초 단위)
+     * MatchingQueue 생성 시점(대기 시작)부터 Call 생성 시점(매칭 완료)까지의 시간 차이
+     */
+    @Query(value = "SELECT AVG(TIMESTAMPDIFF(SECOND, mq.created_at, c.created_at)) " +
+            "FROM calls c " +
+            "JOIN matching_queue mq ON mq.user_id = c.user1_id OR mq.user_id = c.user2_id " +
+            "WHERE c.category_id = :categoryId " +
+            "AND c.call_status = 'COMPLETED' " +
+            "AND mq.queue_status = 'MATCHING' " +
+            "AND c.created_at BETWEEN :start AND :end " +
+            "AND mq.created_at <= c.created_at", nativeQuery = true)
+    Double getAverageWaitTimeByCategory(
+            @Param("categoryId") Long categoryId,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
