@@ -143,7 +143,7 @@ public class AdminMatchingService {
 
         // === 헬스 상태 판정 ===
         MatchingQueueHealthResponse.HealthStatus healthStatus =
-                determineHealthStatus(consistent, dbExpired, gap);
+                determineHealthStatus(consistent, dbExpired, gap, redisAvailable);
 
         // === 경고 메시지 ===
         List<String> warnings = buildWarnings(consistent, dbExpired, gap, redisAvailable);
@@ -172,7 +172,10 @@ public class AdminMatchingService {
      * 헬스 상태 판정
      */
     private MatchingQueueHealthResponse.HealthStatus determineHealthStatus(
-            boolean consistent, long dbExpired, long gap) {
+            boolean consistent, long dbExpired, long gap, boolean redisAvailable) {
+        if (!redisAvailable) {
+            return MatchingQueueHealthResponse.HealthStatus.CRITICAL;
+        }
         if (gap > 10 || dbExpired > 100) {
             return MatchingQueueHealthResponse.HealthStatus.CRITICAL;
         }
