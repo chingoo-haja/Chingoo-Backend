@@ -468,6 +468,7 @@ public class MatchingStatsService {
         if (value instanceof LocalDateTime ldt) return ldt;
         if (value instanceof java.time.LocalDate ld) return ld.atStartOfDay();
         if (value instanceof java.sql.Timestamp ts) return ts.toLocalDateTime();
+        if (value instanceof java.sql.Date sd) return sd.toLocalDate().atStartOfDay();
         throw new IllegalArgumentException("Unsupported timestamp type: " + value.getClass());
     }
 
