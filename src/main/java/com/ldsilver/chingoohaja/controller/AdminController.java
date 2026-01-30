@@ -2,8 +2,6 @@ package com.ldsilver.chingoohaja.controller;
 
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
-import com.ldsilver.chingoohaja.domain.call.Call;
-import com.ldsilver.chingoohaja.domain.call.enums.CallStatus;
 import com.ldsilver.chingoohaja.domain.user.CustomUserDetails;
 import com.ldsilver.chingoohaja.dto.admin.response.AdminForceEndCallResponse;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
@@ -13,7 +11,6 @@ import com.ldsilver.chingoohaja.dto.matching.response.MatchingQueueHealthRespons
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingStatsResponse;
 import com.ldsilver.chingoohaja.dto.matching.response.RealtimeMatchingStatsResponse;
 import com.ldsilver.chingoohaja.dto.setting.OperatingHoursInfo;
-import com.ldsilver.chingoohaja.repository.CallRepository;
 import com.ldsilver.chingoohaja.service.AdminMatchingService;
 import com.ldsilver.chingoohaja.service.CallService;
 import com.ldsilver.chingoohaja.service.MatchingStatsService;
@@ -44,7 +41,6 @@ public class AdminController {
     private final MatchingStatsService matchingStatsService;
     private final AdminMatchingService adminMatchingService;
     private final CallService callService;
-    private final CallRepository callRepository;
 
     @Operation(
             summary = "운영 시간 변경",
@@ -212,25 +208,10 @@ public class AdminController {
         log.warn("⚠️ 관리자 통화 강제 종료 요청 - adminId: {}, callId: {}",
                 userDetails.getUserId(), callId);
 
-        // 통화 조회 (종료 전 상태 확인용)
-        Call call = callRepository.findById(callId)
-                .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
-
-        // 강제 종료 실행
-        CallStatus previousStatus = callService.forceEndCallByAdmin(callId);
-
-        // 종료 후 통화 정보 다시 조회
-        Call endedCall = callRepository.findById(callId)
-                .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
-
-        AdminForceEndCallResponse response = AdminForceEndCallResponse.of(
-                endedCall,
-                previousStatus,
-                userDetails.getUserId()
-        );
+        AdminForceEndCallResponse response = callService.forceEndCallByAdmin(callId, userDetails.getUserId());
 
         log.info("✅ 통화 강제 종료 완료 - adminId: {}, callId: {}, previousStatus: {}",
-                userDetails.getUserId(), callId, previousStatus);
+                userDetails.getUserId(), callId, response.previousStatus());
 
         return ApiResponse.ok("통화가 강제 종료되었습니다.", response);
     }

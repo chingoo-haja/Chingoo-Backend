@@ -9,6 +9,7 @@ import com.ldsilver.chingoohaja.domain.call.enums.CallStatus;
 import com.ldsilver.chingoohaja.domain.call.enums.CallType;
 import com.ldsilver.chingoohaja.domain.category.Category;
 import com.ldsilver.chingoohaja.domain.user.User;
+import com.ldsilver.chingoohaja.dto.admin.response.AdminForceEndCallResponse;
 import com.ldsilver.chingoohaja.dto.call.request.RecordingRequest;
 import com.ldsilver.chingoohaja.event.CallStartedEvent;
 import com.ldsilver.chingoohaja.repository.CallRecordingRepository;
@@ -278,13 +279,10 @@ public class CallService {
      * 관리자용 통화 강제 종료
      * - 권한 체크 없이 통화 종료 가능
      * - 모든 상태의 통화를 강제 종료 가능 (이미 종료된 통화 제외)
-     *
-     * @param callId 종료할 통화 ID
-     * @return 종료 전 상태
      */
     @Transactional
-    public CallStatus forceEndCallByAdmin(Long callId) {
-        log.warn("⚠️ 관리자 통화 강제 종료 - callId: {}", callId);
+    public AdminForceEndCallResponse forceEndCallByAdmin(Long callId, Long adminId) {
+        log.warn("⚠️ 관리자 통화 강제 종료 - callId: {}, adminId: {}", callId, adminId);
 
         Call call = callRepository.findByIdWithLock(callId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
@@ -324,7 +322,7 @@ public class CallService {
             log.info("✅ 통화 강제 종료 완료 - callId: {}, previousStatus: {}, duration: {}초",
                     callId, previousStatus, call.getDurationSeconds());
 
-            return previousStatus;
+            return AdminForceEndCallResponse.of(call, previousStatus, adminId);
 
         } catch (CustomException ce) {
             throw ce;
