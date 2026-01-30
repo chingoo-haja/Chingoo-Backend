@@ -79,6 +79,22 @@ public interface MatchingQueueRepository extends JpaRepository<MatchingQueue, Lo
     );
 
     /**
+     * 시간대별 매칭 성공률 조회 (N+1 쿼리 방지)
+     * @return [시간(0-23), 매칭 성공 수, 전체 수]
+     */
+    @Query("SELECT HOUR(mq.createdAt) as hour, " +
+            "COUNT(CASE WHEN mq.queueStatus = 'MATCHING' THEN 1 END) as matched, " +
+            "COUNT(mq) as total " +
+            "FROM MatchingQueue mq " +
+            "WHERE mq.createdAt BETWEEN :startDate AND :endDate " +
+            "GROUP BY HOUR(mq.createdAt) " +
+            "ORDER BY HOUR(mq.createdAt)")
+    List<Object[]> getHourlyMatchingSuccessRates(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    /**
      * 사용자의 대기 중인 매칭을 취소 상태로 변경
      */
     @Modifying

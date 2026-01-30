@@ -253,6 +253,9 @@ public class MatchingStatsService {
                     todayStart, now, CallStatus.COMPLETED
             );
 
+            // 시간대별 성공률을 한 번에 조회 (N+1 쿼리 방지)
+            Map<Integer, Double> hourlySuccessRateMap = getHourlySuccessRateMap(todayStart, now);
+
             // 시간대별 통화 수를 기반으로 상위 3개 추출
             return hourlyData.stream()
                     .map(data -> {
@@ -262,8 +265,8 @@ public class MatchingStatsService {
                         // 전체 대비 비율 계산
                         double percentage = totalCalls > 0 ? (count * 100.0 / totalCalls) : 0.0;
 
-                        // 성공률 (해당 시간대)
-                        double successRate = 85.0; // 기본값 (실제로는 시간대별 성공률 계산 가능)
+                        // 성공률 (실제 DB 데이터 기반)
+                        double successRate = hourlySuccessRateMap.getOrDefault(hour, 0.0);
 
                         return new RealtimeMatchingStatsResponse.PeakHour(hour, percentage, successRate);
                     })
@@ -275,10 +278,33 @@ public class MatchingStatsService {
             log.warn("피크 시간대 조회 실패", e);
             // 기본값 반환
             return List.of(
-                    new RealtimeMatchingStatsResponse.PeakHour(20, 30.0, 85.0),
-                    new RealtimeMatchingStatsResponse.PeakHour(21, 25.0, 88.0),
-                    new RealtimeMatchingStatsResponse.PeakHour(19, 20.0, 82.0)
+                    new RealtimeMatchingStatsResponse.PeakHour(20, 30.0, 0.0),
+                    new RealtimeMatchingStatsResponse.PeakHour(21, 25.0, 0.0),
+                    new RealtimeMatchingStatsResponse.PeakHour(19, 20.0, 0.0)
             );
+        }
+    }
+
+    /**
+     * 시간대별 매칭 성공률을 한 번에 조회하여 Map으로 반환 (N+1 쿼리 방지)
+     */
+    private Map<Integer, Double> getHourlySuccessRateMap(LocalDateTime start, LocalDateTime end) {
+        try {
+            List<Object[]> hourlySuccessRates = matchingQueueRepository.getHourlyMatchingSuccessRates(start, end);
+
+            return hourlySuccessRates.stream()
+                    .collect(Collectors.toMap(
+                            data -> ((Number) data[0]).intValue(),
+                            data -> {
+                                long matched = ((Number) data[1]).longValue();
+                                long total = ((Number) data[2]).longValue();
+                                return total > 0 ? (double) matched / total * 100 : 0.0;
+                            },
+                            (existing, replacement) -> existing // 중복 키 처리
+                    ));
+        } catch (Exception e) {
+            log.warn("시간대별 성공률 배치 조회 실패", e);
+            return Collections.emptyMap();
         }
     }
 
