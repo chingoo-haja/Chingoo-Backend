@@ -124,4 +124,26 @@ public interface MatchingQueueRepository extends JpaRepository<MatchingQueue, Lo
             @Param("categoryId") Long categoryId,
             @Param("status") QueueStatus status
     );
+
+    /**
+     * 특정 카테고리의 만료된 대기열 상태를 일괄 업데이트
+     */
+    @Modifying
+    @Query("UPDATE MatchingQueue mq SET mq.queueStatus = :newStatus " +
+            "WHERE mq.category.id = :categoryId " +
+            "AND mq.queueStatus = 'WAITING' " +
+            "AND mq.createdAt < :expiredTime")
+    int updateExpiredQueuesByCategory(
+            @Param("categoryId") Long categoryId,
+            @Param("newStatus") QueueStatus newStatus,
+            @Param("expiredTime") LocalDateTime expiredTime
+    );
+
+    /**
+     * 특정 카테고리의 만료된 대기열 조회
+     */
+    @Query("SELECT mq FROM MatchingQueue mq " +
+            "WHERE mq.category.id = :categoryId " +
+            "AND mq.queueStatus = 'EXPIRED'")
+    List<MatchingQueue> findExpiredQueuesByCategory(@Param("categoryId") Long categoryId);
 }

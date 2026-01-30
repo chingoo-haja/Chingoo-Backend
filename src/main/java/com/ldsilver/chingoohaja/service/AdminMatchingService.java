@@ -71,28 +71,21 @@ public class AdminMatchingService {
             Boolean redisDeleted = redisTemplate.delete(queueKey);
             log.info("Redis 대기열 삭제 결과: {}", redisDeleted);
 
-            // ✅ 3. DB 정리
+            // ✅ 3. DB 정리 (해당 카테고리만)
             int dbUpdated = 0;
 
-            // WAITING → EXPIRED
-            int waitingToExpired = matchingQueueRepository.updateExpiredQueues(
-                    QueueStatus.EXPIRED, LocalDateTime.now()
+            // WAITING → EXPIRED (해당 카테고리만)
+            int waitingToExpired = matchingQueueRepository.updateExpiredQueuesByCategory(
+                    categoryId, QueueStatus.EXPIRED, LocalDateTime.now()
             );
-            log.info("DB WAITING → EXPIRED: {}건", waitingToExpired);
+            log.info("DB WAITING → EXPIRED: {}건 (categoryId: {})", waitingToExpired, categoryId);
 
-            // EXPIRED 물리 삭제
-            List<MatchingQueue> allExpired = matchingQueueRepository.findExpiredQueues(
-                    LocalDateTime.now().plusYears(100)
-            );
-
-            List<MatchingQueue> categoryExpired = allExpired.stream()
-                    .filter(q -> q.getCategory() != null &&
-                            q.getCategory().getId().equals(categoryId))
-                    .toList();
+            // EXPIRED 물리 삭제 (해당 카테고리만)
+            List<MatchingQueue> categoryExpired = matchingQueueRepository.findExpiredQueuesByCategory(categoryId);
 
             if (!categoryExpired.isEmpty()) {
                 matchingQueueRepository.deleteAll(categoryExpired);
-                log.info("DB EXPIRED 물리 삭제: {}건", categoryExpired.size());
+                log.info("DB EXPIRED 물리 삭제: {}건 (categoryId: {})", categoryExpired.size(), categoryId);
             }
 
             dbUpdated = waitingToExpired + categoryExpired.size();
