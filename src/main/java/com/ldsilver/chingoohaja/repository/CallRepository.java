@@ -237,6 +237,7 @@ public interface CallRepository extends JpaRepository<Call, Long> {
     @Query("SELECT HOUR(c.createdAt) as hour, COUNT(c) as count " +
             "FROM Call c " +
             "WHERE c.category.id = :categoryId " +
+            "AND c.callStatus = 'COMPLETED' " +
             "AND c.createdAt BETWEEN :startDate AND :endDate " +
             "GROUP BY HOUR(c.createdAt) " +
             "ORDER BY count DESC")
@@ -262,14 +263,15 @@ public interface CallRepository extends JpaRepository<Call, Long> {
      * - 각 사용자가 참여한 통화를 해당 사용자의 provider로 집계
      * - user1과 user2가 다른 provider인 경우, 양쪽 provider 모두에 집계됨 (의도된 동작)
      * - 예: 카카오 사용자와 네이버 사용자의 통화 → 카카오 1건, 네이버 1건으로 집계
-     * 성공 = COMPLETED, 실패 = CANCELLED 또는 FAILED
+     * 성공 = COMPLETED, 실패 = CANCELLED 또는 FAILED (진행 중인 READY, IN_PROGRESS는 제외)
      */
     @Query("SELECT u.provider, " +
             "COUNT(CASE WHEN c.callStatus = 'COMPLETED' THEN 1 END) as completed, " +
             "COUNT(c) as total " +
             "FROM Call c " +
             "JOIN User u ON (c.user1.id = u.id OR c.user2.id = u.id) " +
-            "WHERE c.createdAt BETWEEN :start AND :end " +
+            "WHERE c.callStatus IN ('COMPLETED', 'CANCELLED', 'FAILED') " +
+            "AND c.createdAt BETWEEN :start AND :end " +
             "GROUP BY u.provider")
     List<Object[]> getSuccessRateByProvider(
             @Param("start") LocalDateTime start,
