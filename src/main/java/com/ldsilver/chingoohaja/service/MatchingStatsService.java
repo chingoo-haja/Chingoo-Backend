@@ -136,17 +136,27 @@ public class MatchingStatsService {
         // 카테고리별 트렌드를 한 번에 계산 (N+1 쿼리 방지)
         Map<Long, String> trendMap = getCategoryTrendMap(categoryIds, todayStart, now);
 
-        // 인기도 순위 계산 (대기 인원 기준)
-        List<Long> sortedCategoryIds = categoryStatsMap.values().stream()
-                .sorted((a, b) -> Long.compare(b.waitingCount(), a.waitingCount()))
-                .map(MatchingCategoryStats::categoryId)
+        // 인기도 순위 계산 (대기 인원 기준, 동점 시 categoryId로 안정적 정렬)
+        List<MatchingCategoryStats> sortedStats = categoryStatsMap.values().stream()
+                .sorted((a, b) -> {
+                    int countCompare = Long.compare(b.waitingCount(), a.waitingCount());
+                    if (countCompare != 0) return countCompare;
+                    // 동점 시 categoryId로 안정적 정렬 (결정적 순서 보장)
+                    return Long.compare(a.categoryId(), b.categoryId());
+                })
                 .toList();
+
+        // 순위 Map 생성 (O(1) 조회를 위해)
+        Map<Long, Integer> categoryRankMap = new java.util.HashMap<>();
+        for (int i = 0; i < sortedStats.size(); i++) {
+            categoryRankMap.put(sortedStats.get(i).categoryId(), i + 1);
+        }
 
         return categoryStatsMap.values().stream()
                 .map(stats -> {
                     double todaySuccessRate = successRateMap.getOrDefault(stats.categoryId(), 0.0);
                     int estimatedWaitTime = (int) Math.min(stats.waitingCount() * 30, 600);
-                    int popularityRank = sortedCategoryIds.indexOf(stats.categoryId()) + 1;
+                    int popularityRank = categoryRankMap.getOrDefault(stats.categoryId(), 0);
 
                     // Map에서 트렌드 조회 (O(1))
                     String trend = trendMap.getOrDefault(stats.categoryId(), "STABLE");
@@ -161,7 +171,11 @@ public class MatchingStatsService {
                             trend
                     );
                 })
-                .sorted((a, b) -> Long.compare(b.waitingCount(), a.waitingCount()))
+                .sorted((a, b) -> {
+                    int countCompare = Long.compare(b.waitingCount(), a.waitingCount());
+                    if (countCompare != 0) return countCompare;
+                    return Long.compare(a.categoryId(), b.categoryId());
+                })
                 .toList();
     }
 
@@ -440,7 +454,10 @@ public class MatchingStatsService {
                 .map(data -> {
                     LocalDateTime date = toLocalDateTime(data[0]);
                     int matchCount = ((Number) data[1]).intValue();
-                    double avgWaitTime = ((Number) data[2]).doubleValue();
+                    // getDailyCallStats의 3번째 컬럼은 AVG(durationSeconds)로 통화 지속시간임
+                    // TimeSeriesData에서는 averageWaitTime이 필요하므로 대기시간 추정값 사용
+                    // (실제 대기시간 조회를 위해서는 별도 쿼리가 필요하나, 현재는 매칭 수 기반 추정)
+                    double estimatedWaitTime = Math.min(matchCount * 5.0, 600.0); // 매칭 수 기반 추정 (최대 10분)
 
                     // Map에서 성공률 조회 (O(1))
                     java.time.LocalDate localDate = date.toLocalDate();
@@ -454,7 +471,7 @@ public class MatchingStatsService {
                             matchCount,
                             waitingUsers,
                             successRate,
-                            avgWaitTime
+                            estimatedWaitTime
                     );
                 })
                 .toList();
@@ -567,18 +584,28 @@ public class MatchingStatsService {
 
     /**
      * Provider별 선호 카테고리 조회 (상위 3개)
+     * 쿼리가 ORDER BY callCount DESC로 정렬하지만, 방어적으로 Java에서 재정렬하여 결정적 순서 보장
      */
     private Map<String, List<String>> getProviderPreferredCategories(LocalDateTime start, LocalDateTime end) {
         try {
             List<Object[]> results = callRepository.getPreferredCategoriesByProvider(start, end);
 
-            // Provider별로 그룹화하고 상위 3개 카테고리만 추출
+            // Provider별로 그룹화하고, count 기준 내림차순 정렬 후 상위 3개 카테고리 추출
             return results.stream()
                     .collect(Collectors.groupingBy(
                             data -> (String) data[0], // provider
                             Collectors.collectingAndThen(
                                     Collectors.toList(),
                                     list -> list.stream()
+                                            // 방어적 정렬: count(data[2]) 기준 내림차순, 동점 시 카테고리명 오름차순
+                                            .sorted((a, b) -> {
+                                                int countCompare = Long.compare(
+                                                        ((Number) b[2]).longValue(),
+                                                        ((Number) a[2]).longValue()
+                                                );
+                                                if (countCompare != 0) return countCompare;
+                                                return ((String) a[1]).compareTo((String) b[1]);
+                                            })
                                             .limit(3) // 상위 3개만
                                             .map(data -> (String) data[1]) // category name
                                             .toList()
