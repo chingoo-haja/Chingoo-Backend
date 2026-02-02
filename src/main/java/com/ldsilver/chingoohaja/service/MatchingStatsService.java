@@ -487,7 +487,8 @@ public class MatchingStatsService {
         if (value instanceof java.time.LocalDate ld) return ld;
         if (value instanceof LocalDateTime ldt) return ldt.toLocalDate();
         if (value instanceof java.sql.Date sd) return sd.toLocalDate();
-        throw new IllegalArgumentException("Unsupported date type: " + value.getClass());
+        if (value instanceof java.sql.Timestamp ts) return ts.toLocalDateTime().toLocalDate();
+        throw new CustomException(ErrorCode.UNSUPPORTED_DATE_TYPE, value.getClass().getName());
     }
 
     private static LocalDateTime toLocalDateTime(Object value) {
@@ -495,7 +496,7 @@ public class MatchingStatsService {
         if (value instanceof java.time.LocalDate ld) return ld.atStartOfDay();
         if (value instanceof java.sql.Timestamp ts) return ts.toLocalDateTime();
         if (value instanceof java.sql.Date sd) return sd.toLocalDate().atStartOfDay();
-        throw new IllegalArgumentException("Unsupported timestamp type: " + value.getClass());
+        throw new CustomException(ErrorCode.UNSUPPORTED_TIMESTAMP_TYPE, value.getClass().getName());
     }
 
     private MatchingStatsResponse.UserAnalytics buildUserAnalytics(LocalDateTime start, LocalDateTime end) {

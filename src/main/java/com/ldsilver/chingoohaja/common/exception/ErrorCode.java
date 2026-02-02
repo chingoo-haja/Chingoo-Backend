@@ -176,7 +176,12 @@ public enum ErrorCode {
     CONSENT_NOT_FOUND(HttpStatus.NOT_FOUND, "CO002", "동의 정보를 찾을 수 없습니다."),
     CONSENT_ALREADY_WITHDRAWN(HttpStatus.CONFLICT, "CO003", "이미 철회된 동의입니다."),
     INVALID_CONSENT_TYPE(HttpStatus.BAD_REQUEST, "CO004", "유효하지 않은 동의 타입입니다."),
-    INVALID_CONSENT_CHANNEL(HttpStatus.BAD_REQUEST, "CO005", "유효하지 않은 동의 채널입니다.");
+    INVALID_CONSENT_CHANNEL(HttpStatus.BAD_REQUEST, "CO005", "유효하지 않은 동의 채널입니다."),
+
+    // 통계 관련 에러
+    UNSUPPORTED_DATE_TYPE(HttpStatus.INTERNAL_SERVER_ERROR, "S001", "지원되지 않는 날짜 타입입니다: %s"),
+    UNSUPPORTED_TIMESTAMP_TYPE(HttpStatus.INTERNAL_SERVER_ERROR, "S002", "지원되지 않는 타임스탬프 타입입니다: %s");
+
     private final HttpStatus httpStatus;
     private final String code;
     private final String message;
