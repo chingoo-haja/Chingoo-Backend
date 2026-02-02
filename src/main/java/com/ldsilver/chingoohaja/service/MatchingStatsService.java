@@ -301,20 +301,35 @@ public class MatchingStatsService {
 
     /**
      * 시간대별 매칭 성공률을 한 번에 조회하여 Map으로 반환 (N+1 쿼리 방지)
+     * 여러 날짜에 걸친 조회 시, 동일 시간대의 matched/total을 합산하여 정확한 성공률 계산
      */
     private Map<Integer, Double> getHourlySuccessRateMap(LocalDateTime start, LocalDateTime end) {
         try {
             List<Object[]> hourlySuccessRates = matchingQueueRepository.getHourlyMatchingSuccessRates(start, end);
 
-            return hourlySuccessRates.stream()
+            // 시간대별로 matched와 total을 합산
+            Map<Integer, long[]> hourlyAggregates = new java.util.HashMap<>();
+            for (Object[] data : hourlySuccessRates) {
+                int hour = ((Number) data[0]).intValue();
+                long matched = ((Number) data[1]).longValue();
+                long total = ((Number) data[2]).longValue();
+
+                hourlyAggregates.merge(hour, new long[]{matched, total}, (existing, newVal) -> {
+                    existing[0] += newVal[0]; // matched 합산
+                    existing[1] += newVal[1]; // total 합산
+                    return existing;
+                });
+            }
+
+            // 합산된 값으로 성공률 계산
+            return hourlyAggregates.entrySet().stream()
                     .collect(Collectors.toMap(
-                            data -> ((Number) data[0]).intValue(),
-                            data -> {
-                                long matched = ((Number) data[1]).longValue();
-                                long total = ((Number) data[2]).longValue();
+                            Map.Entry::getKey,
+                            entry -> {
+                                long matched = entry.getValue()[0];
+                                long total = entry.getValue()[1];
                                 return total > 0 ? (double) matched / total * 100 : 0.0;
-                            },
-                            (existing, replacement) -> existing // 중복 키 처리
+                            }
                     ));
         } catch (Exception e) {
             log.warn("시간대별 성공률 배치 조회 실패", e);
