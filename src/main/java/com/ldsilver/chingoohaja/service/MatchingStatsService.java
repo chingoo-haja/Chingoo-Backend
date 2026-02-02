@@ -780,7 +780,7 @@ public class MatchingStatsService {
 
         return dailyStats.stream()
                 .collect(Collectors.toMap(
-                        data -> ((LocalDateTime) data[0]).getDayOfWeek().toString().toLowerCase(),
+                        data -> toLocalDateTime(data[0]).getDayOfWeek().toString().toLowerCase(),
                         data -> ((Number) data[1]).doubleValue(),
                         Double::sum
                 ));
