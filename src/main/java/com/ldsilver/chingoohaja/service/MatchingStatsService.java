@@ -328,15 +328,15 @@ public class MatchingStatsService {
             LocalDateTime start,
             LocalDateTime end
     ) {
+        long successfulMatches = 0;
         double successRate = 0.0;
         if (!successRateData.isEmpty()) {
             Object[] data = successRateData.get(0);
             long matched = ((Number) data[0]).longValue();
             long total = ((Number) data[1]).longValue();
             successRate = total > 0 ? (double) matched / total * 100 : 0.0;
+            successfulMatches = matched;
         }
-
-        long successfulMatches = (long) (totalCalls * successRate / 100);
 
         // 실제 평균 대기시간 계산
         double averageWaitTime = calculateActualAverageWaitTime(start, end);
