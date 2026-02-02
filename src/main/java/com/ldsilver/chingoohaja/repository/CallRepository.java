@@ -222,7 +222,8 @@ public interface CallRepository extends JpaRepository<Call, Long> {
 
     @Query("SELECT HOUR(c.createdAt) as hour, COUNT(c) as count " +
             "FROM Call c " +
-            "WHERE c.createdAt BETWEEN :startDate AND :endDate " +
+            "WHERE c.callStatus = 'COMPLETED' " +
+            "AND c.createdAt BETWEEN :startDate AND :endDate " +
             "GROUP BY HOUR(c.createdAt) " +
             "ORDER BY count DESC")
     List<Object[]> getCallCountByHour(
