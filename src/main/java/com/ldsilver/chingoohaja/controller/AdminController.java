@@ -3,14 +3,20 @@ package com.ldsilver.chingoohaja.controller;
 import com.ldsilver.chingoohaja.common.exception.CustomException;
 import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.user.CustomUserDetails;
+import com.ldsilver.chingoohaja.dto.admin.response.AdminForceEndCallResponse;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.dto.matching.request.MatchingStatsRequest;
+import com.ldsilver.chingoohaja.dto.matching.response.MatchingQueueCleanupResponse;
+import com.ldsilver.chingoohaja.dto.matching.response.MatchingQueueHealthResponse;
 import com.ldsilver.chingoohaja.dto.matching.response.MatchingStatsResponse;
 import com.ldsilver.chingoohaja.dto.matching.response.RealtimeMatchingStatsResponse;
 import com.ldsilver.chingoohaja.dto.setting.OperatingHoursInfo;
+import com.ldsilver.chingoohaja.service.AdminMatchingService;
+import com.ldsilver.chingoohaja.service.CallService;
 import com.ldsilver.chingoohaja.service.MatchingStatsService;
 import com.ldsilver.chingoohaja.service.OperatingHoursService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +39,8 @@ public class AdminController {
 
     private final OperatingHoursService operatingHoursService;
     private final MatchingStatsService matchingStatsService;
-
+    private final AdminMatchingService adminMatchingService;
+    private final CallService callService;
 
     @Operation(
             summary = "운영 시간 변경",
@@ -139,6 +146,40 @@ public class AdminController {
         return ApiResponse.ok("카테고리별 매칭 통계 조회 성공", stats);
     }
 
+    @Operation(
+            summary = "매칭 큐 긴급 정리",
+            description = "특정 카테고리의 매칭 대기열을 강제로 정리합니다." +
+                    "Redis 대기열 전체 삭제 후 DB WAITING 상태를 EXPIRED로 일괄 변경합니다.")
+    @PostMapping("/matching/cleanup/{categoryId}")
+    public ApiResponse<MatchingQueueCleanupResponse> cleanupMatchingQueue(
+            @PathVariable Long categoryId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        log.warn("⚠️ 관리자 매칭 큐 긴급 정리 - adminId: {}, categoryId: {}",
+                userDetails.getUserId(), categoryId);
+
+        MatchingQueueCleanupResponse result = adminMatchingService.cleanupMatchingQueue(categoryId);
+        return ApiResponse.ok("매칭 큐 정리 완료", result);
+    }
+
+
+    @Operation(
+            summary = "매칭 큐 헬스 체크",
+            description = "특정 카테고리의 매칭 대기열 현재 상태를 실시간으로 점검합니다."
+    )
+    @GetMapping("/matching/health/{categoryId}")
+    public ApiResponse<MatchingQueueHealthResponse> checkMatchingHealth(
+            @Parameter(description = "점검할 카테고리 ID", example = "4")
+            @PathVariable Long categoryId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        log.debug("매칭 큐 헬스 체크 - adminId: {}, categoryId: {}",
+                userDetails.getUserId(), categoryId);
+
+        MatchingQueueHealthResponse response = adminMatchingService.checkMatchingHealth(categoryId);
+        return ApiResponse.ok("매칭 큐 헬스 체크 완료", response);
+    }
+
 
     private void validateTimeFormat(String startTime, String endTime) {
         try {
@@ -149,4 +190,30 @@ public class AdminController {
                     "시간 형식이 올바르지 않습니다. (HH:mm 형식을 사용하세요)");
         }
     }
+
+
+    // ============ 통화 관리 API ============
+
+    @Operation(
+            summary = "통화 강제 종료",
+            description = "시스템에서 끊어지지 않은 통화를 관리자가 강제로 종료합니다. " +
+                    "진행 중(IN_PROGRESS) 또는 대기 중(READY) 상태의 통화만 종료할 수 있습니다."
+    )
+    @PostMapping("/calls/{callId}/force-end")
+    public ApiResponse<AdminForceEndCallResponse> forceEndCall(
+            @Parameter(description = "강제 종료할 통화 ID", example = "123")
+            @PathVariable Long callId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        log.warn("⚠️ 관리자 통화 강제 종료 요청 - adminId: {}, callId: {}",
+                userDetails.getUserId(), callId);
+
+        AdminForceEndCallResponse response = callService.forceEndCallByAdmin(callId, userDetails.getUserId());
+
+        log.info("✅ 통화 강제 종료 완료 - adminId: {}, callId: {}, previousStatus: {}",
+                userDetails.getUserId(), callId, response.previousStatus());
+
+        return ApiResponse.ok("통화가 강제 종료되었습니다.", response);
+    }
+
 }

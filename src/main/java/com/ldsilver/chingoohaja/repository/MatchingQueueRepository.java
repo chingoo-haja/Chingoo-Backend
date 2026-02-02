@@ -63,6 +63,38 @@ public interface MatchingQueueRepository extends JpaRepository<MatchingQueue, Lo
                                           @Param("endDate") LocalDateTime endDate);
 
     /**
+     * 일별 매칭 성공률 배치 조회 (N+1 쿼리 방지)
+     * @return [날짜, 매칭 성공 수, 전체 수]
+     */
+    @Query(value = "SELECT DATE(mq.created_at) as date, " +
+            "COUNT(CASE WHEN mq.queue_status = 'MATCHING' THEN 1 END) as matched, " +
+            "COUNT(*) as total " +
+            "FROM matching_queue mq " +
+            "WHERE mq.created_at BETWEEN :startDate AND :endDate " +
+            "GROUP BY DATE(mq.created_at) " +
+            "ORDER BY DATE(mq.created_at)", nativeQuery = true)
+    List<Object[]> getDailyMatchingSuccessRates(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    /**
+     * 시간대별 매칭 성공률 조회 (N+1 쿼리 방지)
+     * @return [시간(0-23), 매칭 성공 수, 전체 수]
+     */
+    @Query(value = "SELECT HOUR(mq.created_at) as hour, " +
+            "COUNT(CASE WHEN mq.queue_status = 'MATCHING' THEN 1 END) as matched, " +
+            "COUNT(*) as total " +
+            "FROM matching_queue mq " +
+            "WHERE mq.created_at BETWEEN :startDate AND :endDate " +
+            "GROUP BY HOUR(mq.created_at) " +
+            "ORDER BY HOUR(mq.created_at)", nativeQuery = true)
+    List<Object[]> getHourlyMatchingSuccessRates(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    /**
      * 사용자의 대기 중인 매칭을 취소 상태로 변경
      */
     @Modifying
@@ -113,4 +145,37 @@ public interface MatchingQueueRepository extends JpaRepository<MatchingQueue, Lo
     List<Object[]> getBatchCategorySuccessRates(@Param("categoryIds") List<Long> categoryIds,
                                                 @Param("startDate") LocalDateTime startDate,
                                                 @Param("endDate") LocalDateTime endDate);
+
+    /**
+     * 특정 카테고리의 특정 상태인 매칭 큐 수 조회
+     */
+    @Query("SELECT COUNT(mq) FROM MatchingQueue mq " +
+            "WHERE mq.category.id = :categoryId " +
+            "AND mq.queueStatus = :status")
+    long countByCategoryIdAndStatus(
+            @Param("categoryId") Long categoryId,
+            @Param("status") QueueStatus status
+    );
+
+    /**
+     * 특정 카테고리의 만료된 대기열 상태를 일괄 업데이트
+     */
+    @Modifying
+    @Query("UPDATE MatchingQueue mq SET mq.queueStatus = :newStatus " +
+            "WHERE mq.category.id = :categoryId " +
+            "AND mq.queueStatus = 'WAITING' " +
+            "AND mq.createdAt < :expiredTime")
+    int updateExpiredQueuesByCategory(
+            @Param("categoryId") Long categoryId,
+            @Param("newStatus") QueueStatus newStatus,
+            @Param("expiredTime") LocalDateTime expiredTime
+    );
+
+    /**
+     * 특정 카테고리의 만료된 대기열 조회
+     */
+    @Query("SELECT mq FROM MatchingQueue mq " +
+            "WHERE mq.category.id = :categoryId " +
+            "AND mq.queueStatus = 'EXPIRED'")
+    List<MatchingQueue> findExpiredQueuesByCategory(@Param("categoryId") Long categoryId);
 }

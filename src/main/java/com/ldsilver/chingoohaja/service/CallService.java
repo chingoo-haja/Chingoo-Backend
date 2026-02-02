@@ -9,6 +9,7 @@ import com.ldsilver.chingoohaja.domain.call.enums.CallStatus;
 import com.ldsilver.chingoohaja.domain.call.enums.CallType;
 import com.ldsilver.chingoohaja.domain.category.Category;
 import com.ldsilver.chingoohaja.domain.user.User;
+import com.ldsilver.chingoohaja.dto.admin.response.AdminForceEndCallResponse;
 import com.ldsilver.chingoohaja.dto.call.request.RecordingRequest;
 import com.ldsilver.chingoohaja.event.CallStartedEvent;
 import com.ldsilver.chingoohaja.repository.CallRecordingRepository;
@@ -271,6 +272,65 @@ public class CallService {
             } catch (Exception e) {
                 log.error("세션 개별 업데이트 실패 - sessionId: {}", session.getId(), e);
             }
+        }
+    }
+
+    /**
+     * 관리자용 통화 강제 종료
+     * - 권한 체크 없이 통화 종료 가능
+     * - 모든 상태의 통화를 강제 종료 가능 (이미 종료된 통화 제외)
+     */
+    @Transactional
+    public AdminForceEndCallResponse forceEndCallByAdmin(Long callId, Long adminId) {
+        log.warn("⚠️ 관리자 통화 강제 종료 - callId: {}, adminId: {}", callId, adminId);
+
+        // User, Category를 함께 fetch join으로 조회 (LazyInitializationException 방지)
+        Call call = callRepository.findByIdWithLockAndFetchUsers(callId)
+                .orElseThrow(() -> new CustomException(ErrorCode.CALL_NOT_FOUND));
+
+        CallStatus previousStatus = call.getCallStatus();
+
+        // 이미 종료된 통화인 경우
+        if (previousStatus == CallStatus.COMPLETED ||
+                previousStatus == CallStatus.CANCELLED ||
+                previousStatus == CallStatus.FAILED) {
+            log.info("이미 종료된 통화 - callId: {}, status: {}", callId, previousStatus);
+            throw new CustomException(ErrorCode.CALL_ALREADY_ENDED,
+                    "이미 종료된 통화입니다. 현재 상태: " + previousStatus);
+        }
+
+        try {
+            // 녹음 중지 시도
+            if (shouldStopRecording(callId)) {
+                try {
+                    stopRecordingAsync(callId);
+                } catch (Exception re) {
+                    log.warn("녹음 중지 실패 (강제 종료는 계속) - callId: {}", callId, re);
+                }
+            }
+
+            // 세션 업데이트
+            try {
+                updateAllSessionsToLeft(callId);
+            } catch (Exception se) {
+                log.warn("세션 상태 업데이트 실패 (강제 종료는 계속) - callId: {}", callId, se);
+            }
+
+            // 통화 강제 종료
+            call.forceEndCall();
+            callRepository.save(call);
+
+            log.info("✅ 통화 강제 종료 완료 - callId: {}, previousStatus: {}, duration: {}초",
+                    callId, previousStatus, call.getDurationSeconds());
+
+            return AdminForceEndCallResponse.of(call, previousStatus, adminId);
+
+        } catch (CustomException ce) {
+            throw ce;
+        } catch (Exception e) {
+            log.error("통화 강제 종료 처리 실패 - callId: {}", callId, e);
+            throw new CustomException(ErrorCode.CALL_SESSION_ERROR,
+                    "통화 강제 종료 처리 실패: " + e.getMessage());
         }
     }
 }

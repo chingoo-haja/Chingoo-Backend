@@ -1,7 +1,6 @@
 package com.ldsilver.chingoohaja.dto.matching.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.ldsilver.chingoohaja.dto.matching.MatchingCategoryStats;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,7 +37,7 @@ public record RealtimeMatchingStatsResponse(
 
     public record PeakHour(
             @JsonProperty("hour") int hour,
-            @JsonProperty("average_users") double averageUsers,
+            @JsonProperty("usage_percentage") double usagePercentage,
             @JsonProperty("success_rate") double successRate
     ) {}
 
@@ -50,25 +49,7 @@ public record RealtimeMatchingStatsResponse(
             @JsonProperty("success_rate_today") double successRateToday,
             @JsonProperty("popularity_rank") int popularityRank,
             @JsonProperty("trend") String trend // UP, DOWN, STABLE
-    ) {
-        public static CategoryRealTimeStats from(MatchingCategoryStats stats) {
-            long waiting = (stats.waitingCount() == null) ? 0L : stats.waitingCount();
-            return new CategoryRealTimeStats(
-                    stats.categoryId(),
-                    stats.categoryName(),
-                    waiting,
-                    calculateEstimatedWaitTime(waiting),
-                    85.0, // TODO: 실제 성공률 계산
-                    1,    // TODO: 실제 인기도 순위 계산
-                    "STABLE" // TODO: 실제 트렌드 계산
-            );
-        }
-
-        private static int calculateEstimatedWaitTime(long waitingCount) {
-            long safe = Math.max(0, waitingCount);
-            return (int) Math.min(safe * 30, 600); // 최대 10분
-        }
-    }
+    ) {}
 
     public record ServerPerformance(
             @JsonProperty("redis_status") String redisStatus,

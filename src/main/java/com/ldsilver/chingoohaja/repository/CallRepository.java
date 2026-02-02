@@ -68,6 +68,21 @@ public interface CallRepository extends JpaRepository<Call, Long> {
                                      @Param("start") LocalDateTime start,
                                      @Param("end") LocalDateTime end);
 
+    /**
+     * 여러 카테고리의 통화 수를 한 번에 조회 (N+1 쿼리 방지)
+     * @return [categoryId, callCount]
+     */
+    @Query("SELECT c.category.id, COUNT(c) FROM Call c " +
+            "WHERE c.category.id IN :categoryIds " +
+            "AND c.callStatus = 'COMPLETED' " +
+            "AND c.createdAt BETWEEN :start AND :end " +
+            "GROUP BY c.category.id")
+    List<Object[]> countCallsByCategoryIdsBetween(
+            @Param("categoryIds") List<Long> categoryIds,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
     @Query("SELECT AVG(c.durationSeconds) FROM Call c WHERE c.category.id = :categoryId " +
             "AND c.createdAt BETWEEN :start AND :end AND c.callStatus = com.ldsilver.chingoohaja.domain.call.enums.CallStatus.COMPLETED")
     Double getAverageCallDurationByCategory(@Param("categoryId") Long categoryId,
@@ -151,6 +166,18 @@ public interface CallRepository extends JpaRepository<Call, Long> {
     @Query("SELECT c FROM Call c WHERE c.id = :callId")
     Optional<Call> findByIdWithLock(@Param("callId") Long callId);
 
+    /**
+     * User, Category를 함께 조회하는 fetch join 메서드 (관리자용)
+     * LazyInitializationException 방지 및 N+1 쿼리 문제 해결
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Call c " +
+            "JOIN FETCH c.user1 " +
+            "JOIN FETCH c.user2 " +
+            "LEFT JOIN FETCH c.category " +
+            "WHERE c.id = :callId")
+    Optional<Call> findByIdWithLockAndFetchUsers(@Param("callId") Long callId);
+
     @Query("SELECT c FROM Call c WHERE c.callStatus = 'IN_PROGRESS' AND c.startAt < :threshold")
     List<Call> findStaleInProgressCalls(@Param("threshold") LocalDateTime threshold);
 
@@ -195,10 +222,27 @@ public interface CallRepository extends JpaRepository<Call, Long> {
 
     @Query("SELECT HOUR(c.createdAt) as hour, COUNT(c) as count " +
             "FROM Call c " +
-            "WHERE c.createdAt BETWEEN :startDate AND :endDate " +
+            "WHERE c.callStatus = 'COMPLETED' " +
+            "AND c.createdAt BETWEEN :startDate AND :endDate " +
             "GROUP BY HOUR(c.createdAt) " +
             "ORDER BY count DESC")
     List<Object[]> getCallCountByHour(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    /**
+     * 특정 카테고리의 시간대별 통화 수 조회
+     */
+    @Query("SELECT HOUR(c.createdAt) as hour, COUNT(c) as count " +
+            "FROM Call c " +
+            "WHERE c.category.id = :categoryId " +
+            "AND c.callStatus = 'COMPLETED' " +
+            "AND c.createdAt BETWEEN :startDate AND :endDate " +
+            "GROUP BY HOUR(c.createdAt) " +
+            "ORDER BY count DESC")
+    List<Object[]> getCallCountByHourByCategory(
+            @Param("categoryId") Long categoryId,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate
     );
@@ -210,5 +254,78 @@ public interface CallRepository extends JpaRepository<Call, Long> {
     long countShortCallsSince(
             @Param("since") LocalDateTime since,
             @Param("maxDuration") int maxDuration
+    );
+
+    // ======= UserAnalytics 관련 메서드들 =======
+
+    /**
+     * Provider별 사용자들의 통화 성공률 조회 (사용자 참여 기준)
+     * - 각 사용자가 참여한 통화를 해당 사용자의 provider로 집계
+     * - user1과 user2가 다른 provider인 경우, 양쪽 provider 모두에 집계됨 (의도된 동작)
+     * - 예: 카카오 사용자와 네이버 사용자의 통화 → 카카오 1건, 네이버 1건으로 집계
+     * 성공 = COMPLETED, 실패 = CANCELLED 또는 FAILED (진행 중인 READY, IN_PROGRESS는 제외)
+     */
+    @Query("SELECT u.provider, " +
+            "COUNT(CASE WHEN c.callStatus = 'COMPLETED' THEN 1 END) as completed, " +
+            "COUNT(c) as total " +
+            "FROM Call c " +
+            "JOIN User u ON (c.user1.id = u.id OR c.user2.id = u.id) " +
+            "WHERE c.callStatus IN ('COMPLETED', 'CANCELLED', 'FAILED') " +
+            "AND c.createdAt BETWEEN :start AND :end " +
+            "GROUP BY u.provider")
+    List<Object[]> getSuccessRateByProvider(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    /**
+     * Provider별 선호 카테고리 조회 (사용자 참여 기준)
+     * - 각 사용자가 참여한 통화를 해당 사용자의 provider로 집계
+     * - user1과 user2가 다른 provider인 경우, 양쪽 provider 모두에 집계됨 (의도된 동작)
+     */
+    @Query("SELECT u.provider, c.category.name, COUNT(c) as callCount " +
+            "FROM Call c " +
+            "JOIN User u ON (c.user1.id = u.id OR c.user2.id = u.id) " +
+            "WHERE c.callStatus = 'COMPLETED' " +
+            "AND c.createdAt BETWEEN :start AND :end " +
+            "GROUP BY u.provider, c.category.name " +
+            "ORDER BY u.provider, callCount DESC")
+    List<Object[]> getPreferredCategoriesByProvider(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    /**
+     * 특정 기간 동안 사용자당 평균 통화 수 조회
+     */
+    @Query(value = "SELECT AVG(call_count) FROM (" +
+            "SELECT COUNT(*) as call_count " +
+            "FROM calls c " +
+            "JOIN users u ON (c.user1_id = u.id OR c.user2_id = u.id) " +
+            "WHERE c.call_status = 'COMPLETED' " +
+            "AND c.created_at BETWEEN :start AND :end " +
+            "GROUP BY u.id" +
+            ") as user_call_counts", nativeQuery = true)
+    Double getAverageCallsPerUser(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    /**
+     * 카테고리별 평균 대기시간 조회 (초 단위)
+     * MatchingQueue 생성 시점(대기 시작)부터 Call 생성 시점(매칭 완료)까지의 시간 차이
+     */
+    @Query(value = "SELECT AVG(TIMESTAMPDIFF(SECOND, mq.created_at, c.created_at)) " +
+            "FROM calls c " +
+            "JOIN matching_queue mq ON mq.user_id = c.user1_id OR mq.user_id = c.user2_id " +
+            "WHERE c.category_id = :categoryId " +
+            "AND c.call_status = 'COMPLETED' " +
+            "AND mq.queue_status = 'MATCHING' " +
+            "AND c.created_at BETWEEN :start AND :end " +
+            "AND mq.created_at <= c.created_at", nativeQuery = true)
+    Double getAverageWaitTimeByCategory(
+            @Param("categoryId") Long categoryId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
     );
 }
