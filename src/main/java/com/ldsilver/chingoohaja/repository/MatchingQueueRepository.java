@@ -66,13 +66,13 @@ public interface MatchingQueueRepository extends JpaRepository<MatchingQueue, Lo
      * 일별 매칭 성공률 배치 조회 (N+1 쿼리 방지)
      * @return [날짜, 매칭 성공 수, 전체 수]
      */
-    @Query("SELECT DATE(mq.createdAt) as date, " +
-            "COUNT(CASE WHEN mq.queueStatus = 'MATCHING' THEN 1 END) as matched, " +
-            "COUNT(mq) as total " +
-            "FROM MatchingQueue mq " +
-            "WHERE mq.createdAt BETWEEN :startDate AND :endDate " +
-            "GROUP BY DATE(mq.createdAt) " +
-            "ORDER BY DATE(mq.createdAt)")
+    @Query(value = "SELECT DATE(mq.created_at) as date, " +
+            "COUNT(CASE WHEN mq.queue_status = 'MATCHING' THEN 1 END) as matched, " +
+            "COUNT(*) as total " +
+            "FROM matching_queue mq " +
+            "WHERE mq.created_at BETWEEN :startDate AND :endDate " +
+            "GROUP BY DATE(mq.created_at) " +
+            "ORDER BY DATE(mq.created_at)", nativeQuery = true)
     List<Object[]> getDailyMatchingSuccessRates(
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate
@@ -82,13 +82,13 @@ public interface MatchingQueueRepository extends JpaRepository<MatchingQueue, Lo
      * 시간대별 매칭 성공률 조회 (N+1 쿼리 방지)
      * @return [시간(0-23), 매칭 성공 수, 전체 수]
      */
-    @Query("SELECT HOUR(mq.createdAt) as hour, " +
-            "COUNT(CASE WHEN mq.queueStatus = 'MATCHING' THEN 1 END) as matched, " +
-            "COUNT(mq) as total " +
-            "FROM MatchingQueue mq " +
-            "WHERE mq.createdAt BETWEEN :startDate AND :endDate " +
-            "GROUP BY HOUR(mq.createdAt) " +
-            "ORDER BY HOUR(mq.createdAt)")
+    @Query(value = "SELECT HOUR(mq.created_at) as hour, " +
+            "COUNT(CASE WHEN mq.queue_status = 'MATCHING' THEN 1 END) as matched, " +
+            "COUNT(*) as total " +
+            "FROM matching_queue mq " +
+            "WHERE mq.created_at BETWEEN :startDate AND :endDate " +
+            "GROUP BY HOUR(mq.created_at) " +
+            "ORDER BY HOUR(mq.created_at)", nativeQuery = true)
     List<Object[]> getHourlyMatchingSuccessRates(
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate
