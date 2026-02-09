@@ -1,5 +1,7 @@
 package com.ldsilver.chingoohaja.controller;
 
+import com.ldsilver.chingoohaja.common.exception.CustomException;
+import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.dto.admin.response.AdminStatisticsResponse;
 import com.ldsilver.chingoohaja.dto.common.ApiResponse;
 import com.ldsilver.chingoohaja.service.AdminStatisticsService;
@@ -67,6 +69,7 @@ public class AdminStatisticsController {
     ) {
         LocalDate start = startDate != null ? startDate : LocalDate.now().minusDays(30);
         LocalDate end = endDate != null ? endDate : LocalDate.now();
+        validateDateRange(start, end);
 
         log.debug("통화 통계 조회 요청 - 기간: {} ~ {}", start, end);
 
@@ -90,6 +93,7 @@ public class AdminStatisticsController {
     ) {
         LocalDate start = startDate != null ? startDate : LocalDate.now().minusDays(30);
         LocalDate end = endDate != null ? endDate : LocalDate.now();
+        validateDateRange(start, end);
 
         log.debug("매칭 통계 조회 요청 - 기간: {} ~ {}", start, end);
 
@@ -113,10 +117,18 @@ public class AdminStatisticsController {
     ) {
         LocalDate start = startDate != null ? startDate : LocalDate.now().minusDays(30);
         LocalDate end = endDate != null ? endDate : LocalDate.now();
+        validateDateRange(start, end);
 
         log.debug("평가 통계 조회 요청 - 기간: {} ~ {}", start, end);
 
         AdminStatisticsResponse.EvaluationStats stats = adminStatisticsService.getEvaluationStatistics(start, end);
         return ApiResponse.ok("평가 통계 조회 성공", stats);
+    }
+
+    private void validateDateRange(LocalDate start, LocalDate end) {
+        if (start.isAfter(end)) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE,
+                    "시작일이 종료일보다 이후일 수 없습니다. (startDate: " + start + ", endDate: " + end + ")");
+        }
     }
 }
