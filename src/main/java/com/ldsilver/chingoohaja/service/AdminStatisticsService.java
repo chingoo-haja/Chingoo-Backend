@@ -115,7 +115,7 @@ public class AdminStatisticsService {
             YearMonth month = currentMonth.minusMonths(i);
             LocalDateTime monthStart = month.atDay(1).atStartOfDay();
             LocalDateTime monthEnd = month.atEndOfMonth().atTime(23, 59, 59);
-            long count = userRepository.findUsersCreatedBetween(monthStart, monthEnd).size();
+            long count = userRepository.countUsersCreatedBetween(monthStart, monthEnd);
             monthlySignups.add(new AdminStatisticsResponse.MonthlySignup(
                     month.format(DateTimeFormatter.ofPattern("yyyy-MM")), count
             ));
