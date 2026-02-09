@@ -486,6 +486,8 @@ public class AdminDashboardService {
 
         return new CallMonitoringResponse.EndedCallInfo(
                 call.getId(),
+                call.getUser1().getId(),
+                call.getUser2().getId(),
                 call.getCategory().getName(),
                 call.getStartAt(),
                 call.getEndAt(),
