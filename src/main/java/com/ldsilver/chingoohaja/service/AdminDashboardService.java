@@ -86,6 +86,7 @@ public class AdminDashboardService {
             int page, int limit, String search, String userType,
             String sortBy, String sortOrder
     ) {
+        validatePagination(page, limit);
         log.debug("사용자 목록 조회 - page: {}, search: {}", page, search);
 
         // 정렬 설정
@@ -118,6 +119,7 @@ public class AdminDashboardService {
     }
 
     public ReportListResponse getReports(int page, int limit, String status) {
+        validatePagination(page, limit);
         log.debug("신고 목록 조회 - page: {}, status: {}", page, status);
 
         Pageable pageable = PageRequest.of(
@@ -569,6 +571,17 @@ public class AdminDashboardService {
         }
     }
 
+    private void validatePagination(int page, int limit) {
+        if (page < 1) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE,
+                    "페이지 번호는 1 이상이어야 합니다. (page: " + page + ")");
+        }
+        if (limit < 1) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE,
+                    "페이지 크기는 1 이상이어야 합니다. (limit: " + limit + ")");
+        }
+    }
+
     private String mapSortField(String sortBy) {
         return switch (sortBy) {
             case "last_login" -> "lastLoginAt";
@@ -581,6 +594,7 @@ public class AdminDashboardService {
      * 특정 사용자의 매칭 이력 조회 (관리자용)
      */
     public UserMatchingHistoryResponse getUserMatchingHistory(Long userId, int page, int limit) {
+        validatePagination(page, limit);
         log.debug("사용자 매칭 이력 조회 - userId: {}, page: {}", userId, page);
 
         User user = userRepository.findById(userId)
