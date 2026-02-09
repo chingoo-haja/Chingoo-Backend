@@ -97,4 +97,26 @@ public class AdminDashboardController {
         CallMonitoringResponse monitoring = adminDashboardService.monitorCalls();
         return ApiResponse.ok("통화 모니터링 조회 성공", monitoring);
     }
+
+    @Operation(
+            summary = "사용자 매칭 이력 조회",
+            description = "특정 사용자의 매칭 큐 이력과 통화 이력을 조회합니다. " +
+                    "매칭 요약(시도/성공/취소/만료), 매칭 큐 전체 이력, 통화 이력(페이징)을 포함합니다."
+    )
+    @GetMapping("/users/{userId}/matching-history")
+    public ApiResponse<UserMatchingHistoryResponse> getUserMatchingHistory(
+            @Parameter(description = "조회할 사용자 ID", example = "1")
+            @PathVariable Long userId,
+
+            @Parameter(description = "통화 이력 페이지 번호", example = "1")
+            @RequestParam(defaultValue = "1") int page,
+
+            @Parameter(description = "통화 이력 페이지당 항목 수", example = "20")
+            @RequestParam(defaultValue = "20") int limit
+    ) {
+        log.debug("사용자 매칭 이력 조회 - userId: {}, page: {}", userId, page);
+
+        UserMatchingHistoryResponse history = adminDashboardService.getUserMatchingHistory(userId, page, limit);
+        return ApiResponse.ok("사용자 매칭 이력 조회 성공", history);
+    }
 }

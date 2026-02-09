@@ -40,8 +40,8 @@ public interface CallRepository extends JpaRepository<Call, Long> {
                                     @Param("status") CallStatus status);
 
 
-    // 카테고리별 통화 통계
-    @Query("SELECT c.category.name, COUNT(c) FROM Call c " +
+    // 카테고리별 통화 통계 (카테고리명, 통화 수, 평균 통화 시간(초))
+    @Query("SELECT c.category.name, COUNT(c), AVG(c.durationSeconds) FROM Call c " +
             "WHERE c.callStatus = com.ldsilver.chingoohaja.domain.call.enums.CallStatus.COMPLETED AND c.createdAt BETWEEN :startDate AND :endDate " +
             "GROUP BY c.category.name ORDER BY COUNT(c) DESC")
     List<Object[]> getCallStatsByCategory(@Param("startDate") LocalDateTime startDate,

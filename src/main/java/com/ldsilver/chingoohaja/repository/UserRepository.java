@@ -27,6 +27,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
             @Param("endDate") LocalDateTime endDate
     );
 
+    // 특정 기간 가입자 수 조회 (COUNT 쿼리 - 통계용)
+    @Query("SELECT COUNT(u) FROM User u WHERE u.createdAt BETWEEN :startDate AND :endDate")
+    long countUsersCreatedBetween(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
     // 활성 유저 수 조회 (최근 30일 내 로그인)
     @Query("SELECT COUNT(u) FROM User u WHERE u.id IN " +
             "(SELECT DISTINCT ut.user.id FROM UserToken ut WHERE ut.createdAt >= :thirtyDaysAgo)")

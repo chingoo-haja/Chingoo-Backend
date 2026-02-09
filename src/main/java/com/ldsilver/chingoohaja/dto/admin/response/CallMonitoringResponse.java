@@ -21,6 +21,8 @@ public record CallMonitoringResponse(
 
     public record EndedCallInfo(
             @JsonProperty("call_id") Long callId,
+            @JsonProperty("user1_id") Long user1Id,
+            @JsonProperty("user2_id") Long user2Id,
             @JsonProperty("category") String category,
             @JsonProperty("started_at") LocalDateTime startedAt,
             @JsonProperty("ended_at") LocalDateTime endedAt,
