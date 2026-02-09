@@ -1,7 +1,11 @@
 package com.ldsilver.chingoohaja.service;
 
+import com.ldsilver.chingoohaja.common.exception.CustomException;
+import com.ldsilver.chingoohaja.common.exception.ErrorCode;
 import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.enums.CallStatus;
+import com.ldsilver.chingoohaja.domain.matching.MatchingQueue;
+import com.ldsilver.chingoohaja.domain.matching.enums.QueueStatus;
 import com.ldsilver.chingoohaja.domain.report.Report;
 import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.domain.user.enums.UserType;
@@ -9,6 +13,7 @@ import com.ldsilver.chingoohaja.dto.admin.response.AdminUserListResponse;
 import com.ldsilver.chingoohaja.dto.admin.response.CallMonitoringResponse;
 import com.ldsilver.chingoohaja.dto.admin.response.DashboardOverviewResponse;
 import com.ldsilver.chingoohaja.dto.admin.response.ReportListResponse;
+import com.ldsilver.chingoohaja.dto.admin.response.UserMatchingHistoryResponse;
 import com.ldsilver.chingoohaja.dto.call.AgoraHealthStatus;
 import com.ldsilver.chingoohaja.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -570,5 +575,88 @@ public class AdminDashboardService {
             case "report_count" -> "createdAt"; // 신고 수 정렬 미지원
             default -> "createdAt";
         };
+    }
+
+    /**
+     * 특정 사용자의 매칭 이력 조회 (관리자용)
+     */
+    public UserMatchingHistoryResponse getUserMatchingHistory(Long userId, int page, int limit) {
+        log.debug("사용자 매칭 이력 조회 - userId: {}, page: {}", userId, page);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 사용자 정보
+        UserMatchingHistoryResponse.UserInfo userInfo = new UserMatchingHistoryResponse.UserInfo(
+                user.getId(), user.getNickname(), user.getEmail()
+        );
+
+        // 매칭 큐 전체 이력
+        List<MatchingQueue> allMatchingQueues = matchingQueueRepository.findByUserOrderByCreatedAtDesc(user);
+
+        // 매칭 요약 통계
+        long totalAttempts = allMatchingQueues.size();
+        long successfulMatches = allMatchingQueues.stream()
+                .filter(mq -> mq.getQueueStatus() == QueueStatus.MATCHING).count();
+        long cancelledMatches = allMatchingQueues.stream()
+                .filter(mq -> mq.getQueueStatus() == QueueStatus.CANCELLED).count();
+        long expiredMatches = allMatchingQueues.stream()
+                .filter(mq -> mq.getQueueStatus() == QueueStatus.EXPIRED).count();
+
+        long totalCompletedCalls = callRepository.countCompletedCallsByUser(user);
+        long totalCallDurationSeconds = callRepository.sumDurationByUserAndDateBetween(
+                user, LocalDateTime.of(2000, 1, 1, 0, 0), LocalDateTime.now()
+        );
+
+        UserMatchingHistoryResponse.MatchingSummary matchingSummary = new UserMatchingHistoryResponse.MatchingSummary(
+                totalAttempts, successfulMatches, cancelledMatches, expiredMatches,
+                totalCompletedCalls, totalCallDurationSeconds / 60
+        );
+
+        // 매칭 큐 이력 (최신순, 전체)
+        List<UserMatchingHistoryResponse.MatchingRecord> matchingHistory = allMatchingQueues.stream()
+                .map(mq -> new UserMatchingHistoryResponse.MatchingRecord(
+                        mq.getId(),
+                        mq.getQueueId(),
+                        mq.getCategory().getName(),
+                        mq.getQueueType().name(),
+                        mq.getQueueStatus().name(),
+                        mq.getCreatedAt()
+                ))
+                .toList();
+
+        // 통화 이력 (페이징)
+        Pageable pageable = PageRequest.of(page - 1, limit, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Call> callPage = callRepository.findByUser(user, pageable);
+
+        List<UserMatchingHistoryResponse.CallRecord> callHistory = callPage.getContent().stream()
+                .map(call -> {
+                    User partner = call.getUser1().getId().equals(userId)
+                            ? call.getUser2() : call.getUser1();
+                    int durationMinutes = call.getDurationSeconds() != null
+                            ? call.getDurationSeconds() / 60 : 0;
+                    return new UserMatchingHistoryResponse.CallRecord(
+                            call.getId(),
+                            partner.getId(),
+                            partner.getNickname(),
+                            call.getCategory().getName(),
+                            call.getCallStatus().name(),
+                            call.getStartAt(),
+                            call.getEndAt(),
+                            durationMinutes
+                    );
+                })
+                .toList();
+
+        UserMatchingHistoryResponse.Pagination pagination = new UserMatchingHistoryResponse.Pagination(
+                page, callPage.getTotalPages(), callPage.getTotalElements(), callPage.hasNext()
+        );
+
+        log.info("사용자 매칭 이력 조회 완료 - userId: {}, 매칭시도: {}, 통화: {}",
+                userId, totalAttempts, callPage.getTotalElements());
+
+        return new UserMatchingHistoryResponse(
+                userInfo, matchingSummary, matchingHistory, callHistory, pagination
+        );
     }
 }
