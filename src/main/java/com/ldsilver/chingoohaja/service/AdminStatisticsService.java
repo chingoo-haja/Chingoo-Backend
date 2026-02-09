@@ -163,7 +163,7 @@ public class AdminStatisticsService {
                 .map(row -> new AdminStatisticsResponse.CategoryCallInfo(
                         (String) row[0],
                         ((Number) row[1]).longValue(),
-                        0 // getCallStatsByCategory에는 평균 시간 없음
+                        row[2] != null ? Math.round(((Number) row[2]).doubleValue() * 10.0) / 10.0 : 0.0
                 ))
                 .toList();
 
