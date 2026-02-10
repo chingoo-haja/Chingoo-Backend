@@ -4,9 +4,6 @@ import com.ldsilver.chingoohaja.dto.matching.UserQueueInfo;
 import com.ldsilver.chingoohaja.infrastructure.redis.RedisMatchingConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
 
 import java.util.Arrays;
 import java.util.List;
@@ -14,14 +11,8 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
-@ActiveProfiles("local")
-@TestPropertySource(properties = {
-        "spring.data.redis.host=localhost",
-        "spring.data.redis.port=6379"
-})
 @DisplayName("RedisMatchingQueueService 키 구조 검증 테스트")
-public class RedisMatchingQueueServiceTest {
+class RedisMatchingQueueServiceTest {
 
     @Test
     @DisplayName("키 구조 단순화 검증")
