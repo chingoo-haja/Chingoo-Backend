@@ -1,0 +1,87 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+    show-sql: false
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+app:
+  jwt:
+    secret: test-secret-key-that-is-at-least-64-bytes-long-for-hs512-algorithm-usage
+    access-token-expiration: 3600000
+    refresh-token-expiration: 2592000000
+    issuer: chingoo-haja
+    access-token-subject: access_token
+    refresh-token-subject: refresh_token
+  oauth:
+    kakao:
+      client-id: test-kakao-client-id
+      client-secret: test-kakao-client-secret
+      redirect-uri: http://localhost:3000/oauth/callback
+      redirect-uri-mobile: com.chingoohaja.app://oauth/callback/kakao
+    google:
+      client-id: test-google-client-id
+      client-secret: test-google-client-secret
+      redirect-uri: http://localhost:3000/oauth/callback
+      redirect-uri-mobile: com.chingoohaja.app://oauth/callback/google
+  cors:
+    allowed-origins:
+      - http://localhost:3000
+  firebase:
+    service-account-path: ""
+    storage-bucket: ""
+  agora:
+    app-id: test-app-id
+    app-certificate: test-app-certificate
+    customer-id: test-customer-id
+    customer-secret: test-customer-secret
+    token-expiration-in-seconds: 3600
+    rest-api-base-url: https://api.agora.io
+    recording-region: 0
+    recording-storage-vendor: "6"
+    use-custom-storage: false
+    recording-storage-bucket: test-bucket
+    recording-storage-access-key: test-key
+    recording-storage-secret-key: test-secret
+  recording:
+    max-idle-time: 30
+    audio-profile: 0
+    audio-only: true
+    auto-start: false
+    auto-stop: true
+    file-name-prefix: "test_recording"
+    file-formats:
+      - "hls"
+    cleanup:
+      enabled: false
+      orphan-cleanup-delay: 600000
+      long-running-check-delay: 3600000
+      long-running-threshold-hours: 2
+      retry-failed-delay: 1800000
+    ai-training:
+      auto-convert: false
+      min-duration-seconds: 300
+      keep-original-hls: false
+      wav-sample-rate: 16000
+      wav-channels: 1
+  consent:
+    current-version: 2026-01-v1
+
+ws:
+  allowed-origins:
+    - http://localhost:3000
+
+logging:
+  level:
+    org.hibernate: WARN
