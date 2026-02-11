@@ -72,7 +72,7 @@ class EvaluationRepositoryTest {
         @Test
         @DisplayName("긍정 평가 비율을 반환한다")
         void givenEvaluations_whenGetPercentage_thenReturnsPositiveRate() {
-            // given - 3개 긍정, 1개 부정 = 75%
+            // given - 2개 긍정, 1개 부정 = 66.67%
             evaluationRepository.save(Evaluation.of(call1, evaluator, evaluated, FeedbackType.POSITIVE));
             evaluationRepository.save(Evaluation.of(call2, thirdUser, evaluated, FeedbackType.POSITIVE));
 
