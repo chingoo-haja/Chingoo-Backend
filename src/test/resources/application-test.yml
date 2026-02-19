@@ -45,8 +45,8 @@ app:
     service-account-path: ""
     storage-bucket: ""
   agora:
-    app-id: test-app-id
-    app-certificate: test-app-certificate
+    app-id: test-app-id-00000000000000000000
+    app-certificate: test-app-certificate-00000000000
     customer-id: test-customer-id
     customer-secret: test-customer-secret
     token-expiration-in-seconds: 3600
