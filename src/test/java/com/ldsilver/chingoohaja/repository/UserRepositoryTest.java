@@ -1,5 +1,7 @@
 package com.ldsilver.chingoohaja.repository;
 
+import com.ldsilver.chingoohaja.config.JpaAuditingConfig;
+import org.springframework.context.annotation.Import;
 import com.ldsilver.chingoohaja.domain.user.User;
 import com.ldsilver.chingoohaja.domain.user.UserToken;
 import com.ldsilver.chingoohaja.domain.user.enums.Gender;
@@ -22,6 +24,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
+@Import(JpaAuditingConfig.class)
 @ActiveProfiles("test")
 @DisplayName("UserRepository 테스트")
 class UserRepositoryTest {

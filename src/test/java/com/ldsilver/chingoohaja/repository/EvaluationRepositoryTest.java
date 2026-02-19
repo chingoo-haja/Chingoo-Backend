@@ -1,5 +1,7 @@
 package com.ldsilver.chingoohaja.repository;
 
+import com.ldsilver.chingoohaja.config.JpaAuditingConfig;
+import org.springframework.context.annotation.Import;
 import com.ldsilver.chingoohaja.domain.call.Call;
 import com.ldsilver.chingoohaja.domain.call.enums.CallStatus;
 import com.ldsilver.chingoohaja.domain.call.enums.CallType;
@@ -26,6 +28,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
+@Import(JpaAuditingConfig.class)
 @ActiveProfiles("test")
 @DisplayName("EvaluationRepository 테스트")
 class EvaluationRepositoryTest {
