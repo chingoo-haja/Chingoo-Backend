@@ -1,5 +1,7 @@
 package com.ldsilver.chingoohaja.repository;
 
+import com.ldsilver.chingoohaja.config.JpaAuditingConfig;
+import org.springframework.context.annotation.Import;
 import com.ldsilver.chingoohaja.domain.category.Category;
 import com.ldsilver.chingoohaja.domain.category.enums.CategoryType;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +18,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
+@Import(JpaAuditingConfig.class)
 @ActiveProfiles("test")
 @DisplayName("CategoryRepository 테스트")
 class CategoryRepositoryTest {
