@@ -42,8 +42,8 @@ app:
     allowed-origins:
       - http://localhost:3000
   firebase:
-    service-account-path: ""
-    storage-bucket: ""
+    service-account-path: test-firebase-service-account-path
+    storage-bucket: test-firebase-storage-bucket
   agora:
     app-id: test-app-id-00000000000000000000
     app-certificate: test-app-certificate-00000000000
