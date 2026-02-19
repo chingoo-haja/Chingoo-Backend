@@ -120,8 +120,8 @@ class GracePeriodSchedulerTest {
         }
 
         @Test
-        @DisplayName("두 사용자 모두 유예 기간이면 상태를 로그에 남긴다")
-        void givenBothUsersInGrace_whenCheck_thenLogsStatus() {
+        @DisplayName("두 사용자 모두 유예 기간이면 두 사용자의 유예 기간 상태를 체크한다")
+        void givenBothUsersInGrace_whenCheck_thenChecksGracePeriodForBothUsers() {
             // given
             when(callRepository.findByCallStatus(CallStatus.IN_PROGRESS))
                     .thenReturn(List.of(activeCall));

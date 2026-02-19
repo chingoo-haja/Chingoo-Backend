@@ -15,6 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -82,8 +83,8 @@ class CallEventListenerTest {
             doThrow(new RuntimeException("Agora 오류")).when(agoraRecordingService).startRecording(any());
             CallStartedEvent event = new CallStartedEvent(1L, "channel-abc");
 
-            // when & then (예외가 전파되지 않아야 함)
-            callEventListener.handleCallStarted(event);
+            // when & then
+            assertDoesNotThrow(() -> callEventListener.handleCallStarted(event));
         }
     }
 

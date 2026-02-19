@@ -222,14 +222,18 @@ class RedisMatchingQueueServiceOperationTest {
     @DisplayName("saveBlockedUsers / isBlocked - 차단 사용자 관리")
     class BlockedUsers {
 
+        private String blockedKey(Long userId) {
+            return "user:blocked:" + userId;
+        }
+
         @Test
         @DisplayName("차단 목록에 추가 후 isBlocked가 true를 반환한다")
         void givenBlockedUser_whenIsBlocked_thenReturnsTrue() {
             // given
             when(redisTemplate.opsForSet()).thenReturn(setOperations);
             when(redisTemplate.expire(anyString(), any())).thenReturn(true);
-            when(setOperations.isMember("user:blocked:1", "2")).thenReturn(true);
-            when(setOperations.isMember("user:blocked:2", "1")).thenReturn(false);
+            when(setOperations.isMember(blockedKey(1L), "2")).thenReturn(true);
+            when(setOperations.isMember(blockedKey(2L), "1")).thenReturn(false);
 
             // when
             redisMatchingQueueService.saveBlockedUsers(1L, List.of(2L));
@@ -244,8 +248,8 @@ class RedisMatchingQueueServiceOperationTest {
         void givenBidirectionalBlock_whenIsBlocked_thenReturnsTrue() {
             // given
             when(redisTemplate.opsForSet()).thenReturn(setOperations);
-            when(setOperations.isMember("user:blocked:1", "2")).thenReturn(false);
-            when(setOperations.isMember("user:blocked:2", "1")).thenReturn(true);
+            when(setOperations.isMember(blockedKey(1L), "2")).thenReturn(false);
+            when(setOperations.isMember(blockedKey(2L), "1")).thenReturn(true);
 
             // when
             boolean blocked = redisMatchingQueueService.isBlocked(1L, 2L);
@@ -259,8 +263,8 @@ class RedisMatchingQueueServiceOperationTest {
         void givenNoBlock_whenIsBlocked_thenReturnsFalse() {
             // given
             when(redisTemplate.opsForSet()).thenReturn(setOperations);
-            when(setOperations.isMember("user:blocked:1", "2")).thenReturn(false);
-            when(setOperations.isMember("user:blocked:2", "1")).thenReturn(false);
+            when(setOperations.isMember(blockedKey(1L), "2")).thenReturn(false);
+            when(setOperations.isMember(blockedKey(2L), "1")).thenReturn(false);
 
             // when
             boolean blocked = redisMatchingQueueService.isBlocked(1L, 2L);
