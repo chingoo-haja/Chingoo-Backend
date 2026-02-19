@@ -77,7 +77,7 @@ The server starts at `http://localhost:8080`.
 | `local` | Docker (localhost:3306) | Docker (localhost:6379) | Local development |
 | `dev` | Cloud (Aiven) | Docker local | Team integration |
 | `prod` | AWS RDS | AWS ElastiCache | Production |
-| `test` | H2 in-memory | localhost:6379 | Automated tests |
+| `test` | H2 in-memory | localhost:6379 (필요) | Automated tests |
 
 ## Database Schema
 
@@ -253,7 +253,12 @@ Header: Authorization: Bearer {jwt_token}
 ./gradlew test -Dspring.profiles.active=test
 ```
 
-Tests use an H2 in-memory database (MySQL-compatible mode). No external services are required.
+Database는 H2 in-memory (MySQL-compatible mode)를 사용하므로 별도 설정이 필요 없습니다.
+단, Redis는 `localhost:6379`에 실행 중인 인스턴스가 필요합니다. 로컬 Docker 환경을 먼저 시작하세요.
+
+```bash
+docker-compose up -d redis
+```
 
 ## Commit Convention
 
