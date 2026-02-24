@@ -43,13 +43,14 @@ jobs:
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: EC2에 SSH 배포
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: ECR_REGISTRY,ECR_REPOSITORY,IMAGE_TAG,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_REGION
+          envs: ECR_REGISTRY,ECR_REPOSITORY,IMAGE_TAG,AWS_REGION
           script: |
+            # EC2 IAM Instance Role을 통해 ECR 로그인 (장기 자격증명 불필요)
             aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
 
             docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
@@ -61,14 +62,34 @@ jobs:
               --name chingoo-haja \
               --restart unless-stopped \
               -p 8080:8080 \
-              --env-file /home/$EC2_USER/app/.env \
+              --env-file $HOME/app/.env \
               $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+            # 컨테이너 정상 기동 확인 (최대 60초 대기)
+            echo "컨테이너 기동 확인 중..."
+            for i in $(seq 1 12); do
+              STATUS=$(docker inspect --format='{{.State.Status}}' chingoo-haja 2>/dev/null)
+              if [ "$STATUS" = "running" ]; then
+                echo "컨테이너 정상 기동 확인 완료"
+                break
+              elif [ "$STATUS" = "exited" ] || [ "$STATUS" = "dead" ]; then
+                echo "컨테이너 기동 실패 (status: $STATUS)"
+                docker logs chingoo-haja --tail 50
+                exit 1
+              fi
+              echo "대기 중... ($i/12, status: $STATUS)"
+              sleep 5
+            done
+
+            if [ "$STATUS" != "running" ]; then
+              echo "컨테이너 기동 타임아웃"
+              docker logs chingoo-haja --tail 50
+              exit 1
+            fi
 
             docker image prune -f
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
           IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
