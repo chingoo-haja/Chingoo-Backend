@@ -1,0 +1,95 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: [ "CI" ]
+    types: [ completed ]
+    branches: [ main ]
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: AWS 자격증명 설정
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: ECR 로그인
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Docker 이미지 빌드 및 ECR 푸시
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: EC2에 SSH 배포
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: ECR_REGISTRY,ECR_REPOSITORY,IMAGE_TAG,AWS_REGION
+          script: |
+            # EC2 IAM Instance Role을 통해 ECR 로그인 (장기 자격증명 불필요)
+            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+
+            docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+            docker stop chingoo-haja || true
+            docker rm chingoo-haja || true
+
+            docker run -d \
+              --name chingoo-haja \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              --env-file $HOME/app/.env \
+              $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+            # 컨테이너 정상 기동 확인 (최대 60초 대기)
+            echo "컨테이너 기동 확인 중..."
+            for i in $(seq 1 12); do
+              STATUS=$(docker inspect --format='{{.State.Status}}' chingoo-haja 2>/dev/null)
+              if [ "$STATUS" = "running" ]; then
+                echo "컨테이너 정상 기동 확인 완료"
+                break
+              elif [ "$STATUS" = "exited" ] || [ "$STATUS" = "dead" ]; then
+                echo "컨테이너 기동 실패 (status: $STATUS)"
+                docker logs chingoo-haja --tail 50
+                exit 1
+              fi
+              echo "대기 중... ($i/12, status: $STATUS)"
+              sleep 5
+            done
+
+            if [ "$STATUS" != "running" ]; then
+              echo "컨테이너 기동 타임아웃"
+              docker logs chingoo-haja --tail 50
+              exit 1
+            fi
+
+            docker image prune -f
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
