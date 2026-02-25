@@ -55,8 +55,12 @@ jobs:
 
             docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
+            # 기존 컨테이너 종료
             docker stop chingoo-haja || true
             docker rm chingoo-haja || true
+
+            # 8080 포트를 점유 중인 기존 프로세스(java -jar 등) 종료
+            sudo fuser -k 8080/tcp || true
 
             docker run -d \
               --name chingoo-haja \
@@ -72,7 +76,7 @@ jobs:
               if [ "$STATUS" = "running" ]; then
                 echo "컨테이너 정상 기동 확인 완료"
                 break
-              elif [ "$STATUS" = "exited" ] || [ "$STATUS" = "dead" ]; then
+              elif [ "$STATUS" = "exited" ] || [ "$STATUS" = "dead" ] || [ "$STATUS" = "created" ]; then
                 echo "컨테이너 기동 실패 (status: $STATUS)"
                 docker logs chingoo-haja --tail 50
                 exit 1
