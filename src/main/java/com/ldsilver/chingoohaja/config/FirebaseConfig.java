@@ -7,7 +7,8 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceLoader;
 
 import java.io.IOException;
 
@@ -17,12 +18,13 @@ import java.io.IOException;
 public class FirebaseConfig {
 
     private final FirebaseProperties firebaseProperties;
+    private final ResourceLoader resourceLoader;
 
     @PostConstruct
     public void initialize() {
         try {
             if (FirebaseApp.getApps().isEmpty()) {
-                ClassPathResource serviceAccount = new ClassPathResource(firebaseProperties.getServiceAccountPath());
+                Resource serviceAccount = resourceLoader.getResource(firebaseProperties.getServiceAccountPath());
 
                 try (java.io.InputStream is = serviceAccount.getInputStream()){
                     FirebaseOptions options = FirebaseOptions.builder()

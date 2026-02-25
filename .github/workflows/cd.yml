@@ -67,6 +67,7 @@ jobs:
               --restart unless-stopped \
               -p 8080:8080 \
               --env-file $HOME/app/.env \
+              -v $HOME/app/firebase-service-account.json:/firebase-service-account.json:ro \
               $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
             # 컨테이너 정상 기동 확인 (최대 60초 대기)
